@@ -20,8 +20,8 @@ python3 rnd_foundation.py --graphics2d
 
 ## Run the tests
 
-Run the test suite with `pytest`:
+Run the test suite with `python3 -m pytest -q`:
 
 ```bash
-pytest
+python3 -m pytest -q
 ```

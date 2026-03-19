@@ -185,6 +185,13 @@ DEFAULT_LEVEL = [
 ]
 
 
+def step_game(state: GameState, action: str | None) -> None:
+    if action in DIRECTIONS and state.alive and not state.won:
+        dx, dy = DIRECTIONS[action]
+        state.try_move_player(dx, dy)
+    state.apply_gravity()
+
+
 def run_interactive_turn_based(state: GameState) -> None:
     print("Controls: w/a/s/d to move, q to quit")
     while state.alive and not state.won:
@@ -196,9 +203,7 @@ def run_interactive_turn_based(state: GameState) -> None:
         if move not in DIRECTIONS:
             print("Use w/a/s/d or q")
             continue
-        dx, dy = DIRECTIONS[move]
-        state.try_move_player(dx, dy)
-        state.apply_gravity()
+        step_game(state, move)
 
     print()
     print(state.render())
@@ -233,16 +238,17 @@ def run_interactive_realtime_terminal(state: GameState, tick_ms: int) -> None:
             key = stdscr.getch()
             if key in (ord("q"), ord("Q")):
                 break
+            action = None
+            if key in (ord("w"), ord("W"), curses.KEY_UP):
+                action = "w"
+            elif key in (ord("a"), ord("A"), curses.KEY_LEFT):
+                action = "a"
+            elif key in (ord("s"), ord("S"), curses.KEY_DOWN):
+                action = "s"
+            elif key in (ord("d"), ord("D"), curses.KEY_RIGHT):
+                action = "d"
             if state.alive and not state.won:
-                if key in (ord("w"), ord("W"), curses.KEY_UP):
-                    state.try_move_player(0, -1)
-                elif key in (ord("a"), ord("A"), curses.KEY_LEFT):
-                    state.try_move_player(-1, 0)
-                elif key in (ord("s"), ord("S"), curses.KEY_DOWN):
-                    state.try_move_player(0, 1)
-                elif key in (ord("d"), ord("D"), curses.KEY_RIGHT):
-                    state.try_move_player(1, 0)
-                state.apply_gravity()
+                step_game(state, action)
 
     curses.wrapper(_loop)
 
@@ -294,16 +300,16 @@ def run_interactive_realtime_graphics(
                     running = False
                 elif state.alive and not state.won:
                     if event.key in (pygame.K_w, pygame.K_UP):
-                        state.try_move_player(0, -1)
+                        step_game(state, "w")
                     elif event.key in (pygame.K_a, pygame.K_LEFT):
-                        state.try_move_player(-1, 0)
+                        step_game(state, "a")
                     elif event.key in (pygame.K_s, pygame.K_DOWN):
-                        state.try_move_player(0, 1)
+                        step_game(state, "s")
                     elif event.key in (pygame.K_d, pygame.K_RIGHT):
-                        state.try_move_player(1, 0)
+                        step_game(state, "d")
 
         if state.alive and not state.won:
-            state.apply_gravity()
+            step_game(state, None)
 
         screen.fill((10, 10, 12))
 
@@ -340,9 +346,7 @@ def run_scripted(state: GameState, moves: str) -> None:
     for move in moves:
         if move not in DIRECTIONS or not state.alive or state.won:
             continue
-        dx, dy = DIRECTIONS[move]
-        state.try_move_player(dx, dy)
-        state.apply_gravity()
+        step_game(state, move)
     print("\nAfter scripted moves:")
     print(state.render())
 

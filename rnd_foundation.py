@@ -192,6 +192,35 @@ def step_game(state: GameState, action: str | None) -> None:
     state.apply_gravity()
 
 
+def action_from_turn_input(text: str) -> str | None:
+    return text if text in DIRECTIONS else None
+
+
+def action_from_curses_key(key: int) -> str | None:
+    if key in (ord("w"), ord("W"), curses.KEY_UP):
+        return "w"
+    if key in (ord("a"), ord("A"), curses.KEY_LEFT):
+        return "a"
+    if key in (ord("s"), ord("S"), curses.KEY_DOWN):
+        return "s"
+    if key in (ord("d"), ord("D"), curses.KEY_RIGHT):
+        return "d"
+    return None
+
+
+def action_from_pygame_key(key: int) -> str | None:
+    pygame = importlib.import_module("pygame")
+    if key in (pygame.K_w, pygame.K_UP):
+        return "w"
+    if key in (pygame.K_a, pygame.K_LEFT):
+        return "a"
+    if key in (pygame.K_s, pygame.K_DOWN):
+        return "s"
+    if key in (pygame.K_d, pygame.K_RIGHT):
+        return "d"
+    return None
+
+
 def run_interactive_turn_based(state: GameState) -> None:
     print("Controls: w/a/s/d to move, q to quit")
     while state.alive and not state.won:
@@ -200,10 +229,11 @@ def run_interactive_turn_based(state: GameState) -> None:
         move = input("Move> ").strip().lower()
         if move == "q":
             break
-        if move not in DIRECTIONS:
+        action = action_from_turn_input(move)
+        if action is None:
             print("Use w/a/s/d or q")
             continue
-        step_game(state, move)
+        step_game(state, action)
 
     print()
     print(state.render())
@@ -238,15 +268,7 @@ def run_interactive_realtime_terminal(state: GameState, tick_ms: int) -> None:
             key = stdscr.getch()
             if key in (ord("q"), ord("Q")):
                 break
-            action = None
-            if key in (ord("w"), ord("W"), curses.KEY_UP):
-                action = "w"
-            elif key in (ord("a"), ord("A"), curses.KEY_LEFT):
-                action = "a"
-            elif key in (ord("s"), ord("S"), curses.KEY_DOWN):
-                action = "s"
-            elif key in (ord("d"), ord("D"), curses.KEY_RIGHT):
-                action = "d"
+            action = action_from_curses_key(key)
             if state.alive and not state.won:
                 step_game(state, action)
 
@@ -299,14 +321,9 @@ def run_interactive_realtime_graphics(
                 if event.key == pygame.K_q:
                     running = False
                 elif state.alive and not state.won:
-                    if event.key in (pygame.K_w, pygame.K_UP):
-                        step_game(state, "w")
-                    elif event.key in (pygame.K_a, pygame.K_LEFT):
-                        step_game(state, "a")
-                    elif event.key in (pygame.K_s, pygame.K_DOWN):
-                        step_game(state, "s")
-                    elif event.key in (pygame.K_d, pygame.K_RIGHT):
-                        step_game(state, "d")
+                    action = action_from_pygame_key(event.key)
+                    if action is not None:
+                        step_game(state, action)
 
         if state.alive and not state.won:
             step_game(state, None)

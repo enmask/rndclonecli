@@ -314,16 +314,18 @@ def run_interactive_realtime_graphics(
     running = True
     frames = 0
     while running:
+        frame_action: str | None = None
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_q:
                     running = False
-                elif state.alive and not state.won:
-                    action = action_from_pygame_key(event.key)
-                    if action is not None:
-                        step_game(state, action)
+                elif state.alive and not state.won and frame_action is None:
+                    frame_action = action_from_pygame_key(event.key)
+
+        if state.alive and not state.won and frame_action is not None:
+            step_game(state, frame_action)
 
         if state.alive and not state.won:
             step_game(state, None)

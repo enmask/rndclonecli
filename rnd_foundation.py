@@ -221,6 +221,27 @@ def action_from_pygame_key(key: int) -> str | None:
     return None
 
 
+def pygame_frame_requests_quit(events: Iterable[object]) -> bool:
+    pygame = importlib.import_module("pygame")
+    for event in events:
+        if getattr(event, "type", None) == pygame.QUIT:
+            return True
+        if getattr(event, "type", None) == pygame.KEYDOWN and getattr(event, "key", None) == pygame.K_q:
+            return True
+    return False
+
+
+def action_from_pygame_frame_events(events: Iterable[object]) -> str | None:
+    pygame = importlib.import_module("pygame")
+    for event in events:
+        if getattr(event, "type", None) != pygame.KEYDOWN:
+            continue
+        action = action_from_pygame_key(getattr(event, "key", None))
+        if action is not None:
+            return action
+    return None
+
+
 def run_interactive_turn_based(state: GameState) -> None:
     print("Controls: w/a/s/d to move, q to quit")
     while state.alive and not state.won:
@@ -314,15 +335,13 @@ def run_interactive_realtime_graphics(
     running = True
     frames = 0
     while running:
-        frame_action: str | None = None
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_q:
-                    running = False
-                elif state.alive and not state.won and frame_action is None:
-                    frame_action = action_from_pygame_key(event.key)
+        events = list(pygame.event.get())
+        if pygame_frame_requests_quit(events):
+            running = False
+
+        frame_action = None
+        if state.alive and not state.won:
+            frame_action = action_from_pygame_frame_events(events)
 
         if state.alive and not state.won and frame_action is not None:
             step_game(state, frame_action)

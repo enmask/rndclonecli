@@ -1,6 +1,13 @@
 import pytest
 
-from rnd_foundation import GameState, Tile, parse_level, run_interactive_realtime_graphics
+from rnd_foundation import (
+    GameState,
+    Tile,
+    action_from_pygame_frame_events,
+    parse_level,
+    pygame_frame_requests_quit,
+    run_interactive_realtime_graphics,
+)
 
 
 def make_state(*rows: str) -> GameState:
@@ -188,90 +195,141 @@ def test_gravity_ignores_updates_after_game_is_over() -> None:
     assert state.get(2, 3) == Tile.EMPTY
 
 
-def test_graphics_mode_processes_at_most_one_move_per_frame(monkeypatch: pytest.MonkeyPatch) -> None:
-    class FakeEvent:
-        def __init__(self, event_type: int, key: int | None = None) -> None:
-            self.type = event_type
-            self.key = key
+class FakeEvent:
+    def __init__(self, event_type: int, key: int | None = None) -> None:
+        self.type = event_type
+        self.key = key
 
-    class FakeFont:
-        def render(self, text: str, antialias: bool, color: tuple[int, int, int]) -> object:
-            return object()
 
-    class FakeScreen:
-        def fill(self, color: tuple[int, int, int]) -> None:
-            pass
+class FakeFont:
+    def render(self, text: str, antialias: bool, color: tuple[int, int, int]) -> object:
+        return object()
 
-        def blit(self, surface: object, position: tuple[int, int]) -> None:
-            pass
 
-    class FakeClock:
-        def tick(self, fps: int) -> None:
-            pass
+class FakeScreen:
+    def fill(self, color: tuple[int, int, int]) -> None:
+        pass
 
-    class FakePygame:
-        QUIT = 1
-        KEYDOWN = 2
-        K_q = 3
-        K_w = 4
-        K_UP = 5
-        K_a = 6
-        K_LEFT = 7
-        K_s = 8
-        K_DOWN = 9
-        K_d = 10
-        K_RIGHT = 11
+    def blit(self, surface: object, position: tuple[int, int]) -> None:
+        pass
 
-        class display:
-            @staticmethod
-            def set_caption(text: str) -> None:
-                pass
 
-            @staticmethod
-            def set_mode(size: tuple[int, int]) -> FakeScreen:
-                return FakeScreen()
+class FakeClock:
+    def tick(self, fps: int) -> None:
+        pass
 
-            @staticmethod
-            def flip() -> None:
-                pass
 
-        class font:
-            @staticmethod
-            def SysFont(name: str, size: int) -> FakeFont:
-                return FakeFont()
+class FakePygame:
+    QUIT = 1
+    KEYDOWN = 2
+    K_q = 3
+    K_w = 4
+    K_UP = 5
+    K_a = 6
+    K_LEFT = 7
+    K_s = 8
+    K_DOWN = 9
+    K_d = 10
+    K_RIGHT = 11
+    K_x = 12
 
-        class time:
-            @staticmethod
-            def Clock() -> FakeClock:
-                return FakeClock()
-
-        class event:
-            @staticmethod
-            def get() -> list[FakeEvent]:
-                return [
-                    FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d),
-                    FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d),
-                ]
-
-        class draw:
-            @staticmethod
-            def rect(screen: FakeScreen, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
-                pass
-
+    class display:
         @staticmethod
-        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
-            return (x, y, width, height)
-
-        @staticmethod
-        def init() -> None:
+        def set_caption(text: str) -> None:
             pass
 
         @staticmethod
-        def quit() -> None:
+        def set_mode(size: tuple[int, int]) -> FakeScreen:
+            return FakeScreen()
+
+        @staticmethod
+        def flip() -> None:
             pass
 
+    class font:
+        @staticmethod
+        def SysFont(name: str, size: int) -> FakeFont:
+            return FakeFont()
+
+    class time:
+        @staticmethod
+        def Clock() -> FakeClock:
+            return FakeClock()
+
+    class event:
+        @staticmethod
+        def get() -> list[FakeEvent]:
+            return []
+
+    class draw:
+        @staticmethod
+        def rect(screen: FakeScreen, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            pass
+
+    @staticmethod
+    def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+        return (x, y, width, height)
+
+    @staticmethod
+    def init() -> None:
+        pass
+
+    @staticmethod
+    def quit() -> None:
+        pass
+
+
+def install_fake_pygame(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("rnd_foundation.importlib.util.find_spec", lambda name: object())
     monkeypatch.setattr("rnd_foundation.importlib.import_module", lambda name: FakePygame)
+
+
+def test_action_from_pygame_frame_events_uses_only_first_move(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+
+    events = [
+        FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d),
+        FakeEvent(FakePygame.KEYDOWN, FakePygame.K_a),
+    ]
+
+    assert action_from_pygame_frame_events(events) == "d"
+
+
+def test_action_from_pygame_frame_events_ignores_non_movement_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+
+    events = [
+        FakeEvent(FakePygame.KEYDOWN, FakePygame.K_x),
+        FakeEvent(FakePygame.KEYDOWN, FakePygame.K_LEFT),
+    ]
+
+    assert action_from_pygame_frame_events(events) == "a"
+
+
+def test_pygame_frame_requests_quit_is_separate_from_movement(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+
+    move_events = [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)]
+    quit_events = [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_q)]
+    window_close_events = [FakeEvent(FakePygame.QUIT)]
+
+    assert pygame_frame_requests_quit(move_events) is False
+    assert pygame_frame_requests_quit(quit_events) is True
+    assert pygame_frame_requests_quit(window_close_events) is True
+
+
+def test_graphics_mode_processes_at_most_one_move_per_frame(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+
+    class FakeEventQueue:
+        @staticmethod
+        def get() -> list[FakeEvent]:
+            return [
+                FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d),
+                FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d),
+            ]
+
+    monkeypatch.setattr(FakePygame, "event", FakeEventQueue)
 
     state = make_state(
         "######",

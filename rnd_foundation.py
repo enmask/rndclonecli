@@ -185,11 +185,30 @@ DEFAULT_LEVEL = [
 ]
 
 
+def is_update_frame(frame_number: int, sync_interval: int = 1) -> bool:
+    if frame_number < 0:
+        raise ValueError("frame_number must be non-negative")
+    if sync_interval <= 0:
+        raise ValueError("sync_interval must be positive")
+    return frame_number % sync_interval == 0
+
+
 def step_game(state: GameState, action: str | None) -> None:
     if action in DIRECTIONS and state.alive and not state.won:
         dx, dy = DIRECTIONS[action]
         state.try_move_player(dx, dy)
     state.apply_gravity()
+
+
+def step_realtime_frame(
+    state: GameState,
+    frame_number: int,
+    action: str | None,
+    sync_interval: int = 1,
+) -> None:
+    if not is_update_frame(frame_number, sync_interval):
+        return
+    step_game(state, action)
 
 
 def action_from_turn_input(text: str) -> str | None:
@@ -272,6 +291,7 @@ def run_interactive_realtime_terminal(state: GameState, tick_ms: int) -> None:
         stdscr.nodelay(True)
         stdscr.timeout(tick_ms)
         stdscr.keypad(True)
+        frame_number = 0
 
         while True:
             stdscr.erase()
@@ -291,7 +311,8 @@ def run_interactive_realtime_terminal(state: GameState, tick_ms: int) -> None:
                 break
             action = action_from_curses_key(key)
             if state.alive and not state.won:
-                step_game(state, action)
+                step_realtime_frame(state, frame_number, action)
+            frame_number += 1
 
     curses.wrapper(_loop)
 
@@ -343,11 +364,8 @@ def run_interactive_realtime_graphics(
         if state.alive and not state.won:
             frame_action = action_from_pygame_frame_events(events)
 
-        if state.alive and not state.won and frame_action is not None:
-            step_game(state, frame_action)
-
         if state.alive and not state.won:
-            step_game(state, None)
+            step_realtime_frame(state, frames, frame_action)
 
         screen.fill((10, 10, 12))
 

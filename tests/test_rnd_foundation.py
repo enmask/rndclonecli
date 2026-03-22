@@ -4,9 +4,11 @@ from rnd_foundation import (
     GameState,
     Tile,
     action_from_pygame_frame_events,
+    is_update_frame,
     parse_level,
     pygame_frame_requests_quit,
     run_interactive_realtime_graphics,
+    step_realtime_frame,
 )
 
 
@@ -193,6 +195,57 @@ def test_gravity_ignores_updates_after_game_is_over() -> None:
     assert state.won is True
     assert state.get(2, 2) == Tile.ROCK
     assert state.get(2, 3) == Tile.EMPTY
+
+
+def test_is_update_frame_defaults_to_every_frame() -> None:
+    assert is_update_frame(0) is True
+    assert is_update_frame(1) is True
+    assert is_update_frame(7) is True
+
+
+def test_is_update_frame_supports_synchronized_intervals() -> None:
+    assert is_update_frame(0, sync_interval=8) is True
+    assert is_update_frame(7, sync_interval=8) is False
+    assert is_update_frame(8, sync_interval=8) is True
+
+
+def test_is_update_frame_rejects_invalid_values() -> None:
+    with pytest.raises(ValueError, match="non-negative"):
+        is_update_frame(-1)
+
+    with pytest.raises(ValueError, match="positive"):
+        is_update_frame(0, sync_interval=0)
+
+
+def test_step_realtime_frame_skips_non_update_frames() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "# O #",
+        "#   #",
+        "#####",
+    )
+
+    step_realtime_frame(state, frame_number=1, action="d", sync_interval=2)
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.get(2, 2) == Tile.ROCK
+    assert state.get(2, 3) == Tile.EMPTY
+
+
+def test_step_realtime_frame_runs_game_update_on_update_frames() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "# O #",
+        "#   #",
+        "#####",
+    )
+
+    step_realtime_frame(state, frame_number=2, action="d", sync_interval=2)
+
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.get(2, 3) == Tile.ROCK
 
 
 class FakeEvent:

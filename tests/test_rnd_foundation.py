@@ -79,10 +79,34 @@ def test_parse_level_tracks_dimensions_and_diamonds() -> None:
     assert state.get(2, 2) == Tile.ROCK
 
 
+def test_parse_level_supports_sand() -> None:
+    state = make_state(
+        "#####",
+        "#P. #",
+        "#####",
+    )
+
+    assert state.get(2, 1) == Tile.SAND
+
+
 def test_player_can_move_into_empty_space() -> None:
     state = make_state(
         "#####",
         "#P  #",
+        "#####",
+    )
+
+    state.try_move_player(1, 0)
+
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.get(1, 1) == Tile.EMPTY
+    assert state.get(2, 1) == Tile.PLAYER
+
+
+def test_player_can_move_into_sand() -> None:
+    state = make_state(
+        "#####",
+        "#P. #",
         "#####",
     )
 
@@ -162,6 +186,22 @@ def test_gravity_drops_rock_into_empty_space() -> None:
 
     assert state.get(2, 2) == Tile.ROCK
     assert state.get(2, 1) == Tile.EMPTY
+    assert state.alive is True
+
+
+def test_gravity_does_not_drop_rock_into_sand() -> None:
+    state = make_state(
+        "#####",
+        "# O #",
+        "# . #",
+        "# P #",
+        "#####",
+    )
+
+    state.apply_gravity()
+
+    assert state.get(2, 1) == Tile.ROCK
+    assert state.get(2, 2) == Tile.SAND
     assert state.alive is True
 
 

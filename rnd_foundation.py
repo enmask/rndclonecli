@@ -24,6 +24,7 @@ import sys
 class Tile(str, Enum):
     EMPTY = " "
     WALL = "#"
+    SAND = "."
     ROCK = "O"
     DIAMOND = "*"
     PLAYER = "P"
@@ -84,7 +85,7 @@ class GameState:
 
         target = self.get(tx, ty)
 
-        if target in (Tile.EMPTY, Tile.DIAMOND):
+        if target in (Tile.EMPTY, Tile.SAND, Tile.DIAMOND):
             if target == Tile.DIAMOND:
                 self.diamonds_collected += 1
                 if self.diamonds_collected >= self.diamonds_total:
@@ -143,6 +144,7 @@ def parse_level(lines: Iterable[str]) -> GameState:
     legend = {
         "#": Tile.WALL,
         " ": Tile.EMPTY,
+        ".": Tile.SAND,
         "O": Tile.ROCK,
         "*": Tile.DIAMOND,
         "P": Tile.PLAYER,
@@ -176,10 +178,10 @@ def parse_level(lines: Iterable[str]) -> GameState:
 
 DEFAULT_LEVEL = [
     "###############",
-    "#      O     *#",
+    "#   .  O     *#",
     "#   #######   #",
     "# P      O    #",
-    "#   *         #",
+    "#   *   .     #",
     "#       O     #",
     "###############",
 ]
@@ -348,6 +350,7 @@ def run_interactive_realtime_graphics(
     colors = {
         Tile.EMPTY: (16, 18, 22),
         Tile.WALL: (100, 110, 130),
+        Tile.SAND: (180, 150, 90),
         Tile.ROCK: (140, 90, 60),
         Tile.DIAMOND: (70, 210, 255),
         Tile.PLAYER: (60, 220, 120),

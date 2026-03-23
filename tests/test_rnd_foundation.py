@@ -205,7 +205,7 @@ def test_gravity_does_not_drop_rock_into_sand() -> None:
     assert state.alive is True
 
 
-def test_gravity_can_kill_player() -> None:
+def test_player_can_stand_under_resting_rock() -> None:
     state = make_state(
         "#####",
         "# O #",
@@ -215,9 +215,31 @@ def test_gravity_can_kill_player() -> None:
 
     state.apply_gravity()
 
+    assert state.alive is True
+    assert state.won is False
+    assert state.get(2, 1) == Tile.ROCK
+    assert state.get(2, 2) == Tile.PLAYER
+
+
+def test_gravity_can_kill_player_if_rock_was_already_falling() -> None:
+    state = make_state(
+        "#####",
+        "# O #",
+        "#   #",
+        "# P #",
+        "#####",
+    )
+
+    state.apply_gravity()
+
+    assert state.alive is True
+    assert state.get(2, 2) == Tile.ROCK
+
+    state.apply_gravity()
+
     assert state.alive is False
     assert state.won is False
-    assert state.get(2, 2) == Tile.ROCK
+    assert state.get(2, 3) == Tile.ROCK
 
 
 def test_gravity_ignores_updates_after_game_is_over() -> None:

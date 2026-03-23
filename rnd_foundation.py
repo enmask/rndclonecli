@@ -10,9 +10,9 @@ Includes:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Set, Tuple
 import argparse
 import curses
 import importlib
@@ -47,6 +47,7 @@ class GameState:
     diamonds_collected: int = 0
     alive: bool = True
     won: bool = False
+    falling_positions: Set[Tuple[int, int]] = field(default_factory=set)
 
     @property
     def width(self) -> int:
@@ -108,24 +109,31 @@ class GameState:
         if not self.alive or self.won:
             return
 
+        new_falling_positions: Set[Tuple[int, int]] = set()
         for y in range(self.height - 2, -1, -1):
             for x in range(self.width):
                 tile = self.get(x, y)
                 if tile not in (Tile.ROCK, Tile.DIAMOND):
                     continue
 
+                was_falling = (x, y) in self.falling_positions
                 below = self.get(x, y + 1)
 
                 if below == Tile.EMPTY:
                     self.set(x, y + 1, tile)
                     self.set(x, y, Tile.EMPTY)
+                    new_falling_positions.add((x, y + 1))
                     continue
 
-                if below == Tile.PLAYER:
+                if below == Tile.PLAYER and was_falling:
                     self.set(x, y + 1, tile)
                     self.set(x, y, Tile.EMPTY)
+                    new_falling_positions.add((x, y + 1))
+                    self.falling_positions = new_falling_positions
                     self.alive = False
                     return
+
+        self.falling_positions = new_falling_positions
 
 
 def parse_level(lines: Iterable[str]) -> GameState:
@@ -177,13 +185,28 @@ def parse_level(lines: Iterable[str]) -> GameState:
 
 
 DEFAULT_LEVEL = [
-    "###############",
-    "#   .  O     *#",
-    "#   #######   #",
-    "# P      O    #",
-    "#   *   .     #",
-    "#       O     #",
-    "###############",
+    "########################################",
+    "#...... ..*.O .....O.O....... ....O....#",
+    "#.OPO...... .........O*..O.... ..... ..#",
+    "#.......... ..O.....O.O..O........O....#",
+    "#O.OO.........O......O..O....O...O.....#",
+    "#O. O......... O..O........O......O.OO.#",
+    "#... ..O........O.....O. O........O.OO.#",
+    "###############################...O..O.#",
+    "#. ...O..*. ..O.O..........*.O*...... .#",
+    "#..*.....O..... ........OO O..O....O...#",
+    "#...O..O.O..............O .O..O........#",
+    "#.O.....O........OOO.......O.. .*....O.#",
+    "#.*.. ..O.  .....O.O*..*....O...O..*. .#",
+    "#. O..............O O..O........*.....O#",
+    "#........###############################",
+    "# O.........O...*....O.....O...O.......#",
+    "# O......... O..O........O......O.OO.. #",
+    "#. ..O........O.....O.  ....*...O.OO...#",
+    "#....O*..O........O......O.O*......O...#",
+    "#... ..O. ..O.OO.........O.O*...... ..O#",
+    "#.*.... ..... ......... .O..O....O...O.#",
+    "########################################",
 ]
 
 

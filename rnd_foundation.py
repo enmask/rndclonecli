@@ -30,6 +30,11 @@ class Tile(str, Enum):
     PLAYER = "P"
 
 
+class TimingMode(str, Enum):
+    ASYNC = "async"
+    SYNC = "sync"
+
+
 DIRECTIONS = {
     "w": (0, -1),
     "a": (-1, 0),
@@ -210,12 +215,20 @@ DEFAULT_LEVEL = [
 ]
 
 
-def is_update_frame(frame_number: int, sync_interval: int = 1) -> bool:
+def is_update_frame(
+    frame_number: int,
+    timing_mode: TimingMode = TimingMode.ASYNC,
+    sync_interval: int = 1,
+) -> bool:
     if frame_number < 0:
         raise ValueError("frame_number must be non-negative")
     if sync_interval <= 0:
         raise ValueError("sync_interval must be positive")
-    return frame_number % sync_interval == 0
+    if timing_mode == TimingMode.ASYNC:
+        return True
+    if timing_mode == TimingMode.SYNC:
+        return frame_number % sync_interval == 0
+    raise ValueError(f"Unsupported timing mode: {timing_mode}")
 
 
 def step_game(state: GameState, action: str | None) -> None:
@@ -229,9 +242,10 @@ def step_realtime_frame(
     state: GameState,
     frame_number: int,
     action: str | None,
+    timing_mode: TimingMode = TimingMode.ASYNC,
     sync_interval: int = 1,
 ) -> None:
-    if not is_update_frame(frame_number, sync_interval):
+    if not is_update_frame(frame_number, timing_mode, sync_interval):
         return
     step_game(state, action)
 

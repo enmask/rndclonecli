@@ -2,6 +2,7 @@ import pytest
 
 from rnd_foundation import (
     GameState,
+    TimingMode,
     Tile,
     action_from_pygame_frame_events,
     is_update_frame,
@@ -265,10 +266,16 @@ def test_is_update_frame_defaults_to_every_frame() -> None:
     assert is_update_frame(7) is True
 
 
-def test_is_update_frame_supports_synchronized_intervals() -> None:
-    assert is_update_frame(0, sync_interval=8) is True
-    assert is_update_frame(7, sync_interval=8) is False
-    assert is_update_frame(8, sync_interval=8) is True
+def test_is_update_frame_async_mode_ignores_sync_interval() -> None:
+    assert is_update_frame(0, TimingMode.ASYNC, sync_interval=8) is True
+    assert is_update_frame(7, TimingMode.ASYNC, sync_interval=8) is True
+    assert is_update_frame(8, TimingMode.ASYNC, sync_interval=8) is True
+
+
+def test_is_update_frame_sync_mode_uses_interval() -> None:
+    assert is_update_frame(0, TimingMode.SYNC, sync_interval=8) is True
+    assert is_update_frame(7, TimingMode.SYNC, sync_interval=8) is False
+    assert is_update_frame(8, TimingMode.SYNC, sync_interval=8) is True
 
 
 def test_is_update_frame_rejects_invalid_values() -> None:
@@ -278,8 +285,11 @@ def test_is_update_frame_rejects_invalid_values() -> None:
     with pytest.raises(ValueError, match="positive"):
         is_update_frame(0, sync_interval=0)
 
+    with pytest.raises(ValueError, match="Unsupported timing mode"):
+        is_update_frame(0, "broken")  # type: ignore[arg-type]
 
-def test_step_realtime_frame_skips_non_update_frames() -> None:
+
+def test_step_realtime_frame_async_mode_updates_every_frame() -> None:
     state = make_state(
         "#####",
         "#P  #",
@@ -288,14 +298,29 @@ def test_step_realtime_frame_skips_non_update_frames() -> None:
         "#####",
     )
 
-    step_realtime_frame(state, frame_number=1, action="d", sync_interval=2)
+    step_realtime_frame(state, frame_number=1, action="d", timing_mode=TimingMode.ASYNC, sync_interval=8)
+
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.get(2, 3) == Tile.ROCK
+
+
+def test_step_realtime_frame_sync_mode_skips_non_update_frames() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "# O #",
+        "#   #",
+        "#####",
+    )
+
+    step_realtime_frame(state, frame_number=1, action="d", timing_mode=TimingMode.SYNC, sync_interval=2)
 
     assert (state.player_x, state.player_y) == (1, 1)
     assert state.get(2, 2) == Tile.ROCK
     assert state.get(2, 3) == Tile.EMPTY
 
 
-def test_step_realtime_frame_runs_game_update_on_update_frames() -> None:
+def test_step_realtime_frame_sync_mode_runs_game_update_on_update_frames() -> None:
     state = make_state(
         "#####",
         "#P  #",
@@ -304,7 +329,7 @@ def test_step_realtime_frame_runs_game_update_on_update_frames() -> None:
         "#####",
     )
 
-    step_realtime_frame(state, frame_number=2, action="d", sync_interval=2)
+    step_realtime_frame(state, frame_number=2, action="d", timing_mode=TimingMode.SYNC, sync_interval=2)
 
     assert (state.player_x, state.player_y) == (2, 1)
     assert state.get(2, 3) == Tile.ROCK

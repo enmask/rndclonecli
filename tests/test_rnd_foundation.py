@@ -348,6 +348,51 @@ def test_step_realtime_frame_async_mode_updates_every_frame() -> None:
     assert state.get(2, 3) == Tile.ROCK
 
 
+def test_step_realtime_frame_async_mode_consumes_prebuffered_action() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#   #",
+        "#####",
+    )
+    buffer_action(state, "d")
+
+    step_realtime_frame(state, frame_number=3, action=None, timing_mode=TimingMode.ASYNC)
+
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.pending_action is None
+
+
+def test_step_realtime_frame_async_mode_clears_buffer_after_consuming_action() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#   #",
+        "#####",
+    )
+
+    step_realtime_frame(state, frame_number=0, action="d", timing_mode=TimingMode.ASYNC)
+
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.pending_action is None
+
+
+def test_step_realtime_frame_async_mode_runs_gravity_without_buffered_action() -> None:
+    state = make_state(
+        "#####",
+        "# O #",
+        "#   #",
+        "# P #",
+        "#   #",
+        "#####",
+    )
+
+    step_realtime_frame(state, frame_number=4, action=None, timing_mode=TimingMode.ASYNC)
+
+    assert state.get(2, 2) == Tile.ROCK
+    assert state.pending_action is None
+
+
 def test_step_realtime_frame_sync_mode_skips_non_update_frames() -> None:
     state = make_state(
         "#####",

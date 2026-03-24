@@ -392,6 +392,21 @@ def test_step_realtime_frame_async_mode_current_input_replaces_older_buffered_in
     assert state.pending_action is None
 
 
+def test_step_realtime_frame_async_mode_consumed_action_is_not_replayed() -> None:
+    state = make_state(
+        "#######",
+        "# P   #",
+        "#     #",
+        "#######",
+    )
+
+    step_realtime_frame(state, frame_number=0, action="d", timing_mode=TimingMode.ASYNC)
+    step_realtime_frame(state, frame_number=1, action=None, timing_mode=TimingMode.ASYNC)
+
+    assert (state.player_x, state.player_y) == (3, 1)
+    assert state.pending_action is None
+
+
 def test_step_realtime_frame_async_mode_runs_gravity_without_buffered_action() -> None:
     state = make_state(
         "#####",
@@ -471,6 +486,22 @@ def test_step_realtime_frame_sync_mode_update_frame_input_replaces_older_buffere
     buffer_action(state, "a")
 
     step_realtime_frame(state, frame_number=4, action="d", timing_mode=TimingMode.SYNC, sync_interval=4)
+
+    assert (state.player_x, state.player_y) == (3, 1)
+    assert state.pending_action is None
+
+
+def test_step_realtime_frame_sync_mode_consumed_action_is_not_replayed() -> None:
+    state = make_state(
+        "#######",
+        "# P   #",
+        "#     #",
+        "#######",
+    )
+
+    step_realtime_frame(state, frame_number=1, action="d", timing_mode=TimingMode.SYNC, sync_interval=2)
+    step_realtime_frame(state, frame_number=2, action=None, timing_mode=TimingMode.SYNC, sync_interval=2)
+    step_realtime_frame(state, frame_number=4, action=None, timing_mode=TimingMode.SYNC, sync_interval=2)
 
     assert (state.player_x, state.player_y) == (3, 1)
     assert state.pending_action is None

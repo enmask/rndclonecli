@@ -409,6 +409,44 @@ def test_step_realtime_frame_sync_mode_skips_non_update_frames() -> None:
     assert state.get(2, 3) == Tile.EMPTY
 
 
+def test_step_realtime_frame_sync_mode_retains_input_until_update_frame() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#   #",
+        "#####",
+    )
+
+    step_realtime_frame(state, frame_number=1, action="d", timing_mode=TimingMode.SYNC, sync_interval=4)
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.pending_action == "d"
+
+    step_realtime_frame(state, frame_number=4, action=None, timing_mode=TimingMode.SYNC, sync_interval=4)
+
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.pending_action is None
+
+
+def test_step_realtime_frame_sync_mode_latest_input_wins_before_update_frame() -> None:
+    state = make_state(
+        "######",
+        "# P  #",
+        "######",
+    )
+
+    step_realtime_frame(state, frame_number=1, action="a", timing_mode=TimingMode.SYNC, sync_interval=4)
+    step_realtime_frame(state, frame_number=3, action="d", timing_mode=TimingMode.SYNC, sync_interval=4)
+
+    assert state.pending_action == "d"
+    assert (state.player_x, state.player_y) == (2, 1)
+
+    step_realtime_frame(state, frame_number=4, action=None, timing_mode=TimingMode.SYNC, sync_interval=4)
+
+    assert (state.player_x, state.player_y) == (3, 1)
+    assert state.pending_action is None
+
+
 def test_step_realtime_frame_sync_mode_runs_game_update_on_update_frames() -> None:
     state = make_state(
         "#####",

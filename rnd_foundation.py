@@ -264,6 +264,13 @@ def step_realtime_frame(
         step_game(state, consume_buffered_action(state))
         return
 
+    if timing_mode == TimingMode.SYNC:
+        buffer_action(state, action)
+        if not is_update_frame(frame_number, timing_mode, sync_interval):
+            return
+        step_game(state, consume_buffered_action(state))
+        return
+
     if not is_update_frame(frame_number, timing_mode, sync_interval):
         return
     step_game(state, action)

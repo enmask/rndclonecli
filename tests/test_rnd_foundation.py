@@ -5,6 +5,8 @@ from rnd_foundation import (
     TimingMode,
     Tile,
     action_from_pygame_frame_events,
+    buffer_action,
+    consume_buffered_action,
     is_update_frame,
     parse_level,
     pygame_frame_requests_quit,
@@ -88,6 +90,48 @@ def test_parse_level_supports_sand() -> None:
     )
 
     assert state.get(2, 1) == Tile.SAND
+
+
+def test_consume_buffered_action_returns_none_when_buffer_is_empty() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    assert state.pending_action is None
+    assert consume_buffered_action(state) is None
+    assert state.pending_action is None
+
+
+def test_buffer_action_stores_latest_valid_action() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    buffer_action(state, "a")
+    assert state.pending_action == "a"
+
+    buffer_action(state, "d")
+    assert state.pending_action == "d"
+    assert consume_buffered_action(state) == "d"
+    assert state.pending_action is None
+
+
+def test_buffer_action_ignores_invalid_input() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    buffer_action(state, "w")
+    buffer_action(state, "x")
+    buffer_action(state, None)
+
+    assert state.pending_action == "w"
 
 
 def test_player_can_move_into_empty_space() -> None:

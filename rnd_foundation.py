@@ -53,6 +53,7 @@ class GameState:
     alive: bool = True
     won: bool = False
     falling_positions: Set[Tuple[int, int]] = field(default_factory=set)
+    pending_action: str | None = None
 
     @property
     def width(self) -> int:
@@ -236,6 +237,17 @@ def step_game(state: GameState, action: str | None) -> None:
         dx, dy = DIRECTIONS[action]
         state.try_move_player(dx, dy)
     state.apply_gravity()
+
+
+def buffer_action(state: GameState, action: str | None) -> None:
+    if action in DIRECTIONS:
+        state.pending_action = action
+
+
+def consume_buffered_action(state: GameState) -> str | None:
+    action = state.pending_action
+    state.pending_action = None
+    return action
 
 
 def step_realtime_frame(

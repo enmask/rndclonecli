@@ -423,6 +423,27 @@ def test_step_realtime_frame_async_mode_runs_gravity_without_buffered_action() -
     assert state.pending_action is None
 
 
+def test_step_realtime_frame_async_mode_advances_falling_state_each_frame() -> None:
+    state = make_state(
+        "#####",
+        "# O #",
+        "#   #",
+        "#   #",
+        "# P #",
+        "#####",
+    )
+
+    step_realtime_frame(state, frame_number=0, action=None, timing_mode=TimingMode.ASYNC)
+
+    assert state.get(2, 2) == Tile.ROCK
+    assert state.alive is True
+
+    step_realtime_frame(state, frame_number=1, action=None, timing_mode=TimingMode.ASYNC)
+
+    assert state.get(2, 3) == Tile.ROCK
+    assert state.alive is True
+
+
 def test_step_realtime_frame_sync_mode_skips_non_update_frames() -> None:
     state = make_state(
         "#####",
@@ -437,6 +458,28 @@ def test_step_realtime_frame_sync_mode_skips_non_update_frames() -> None:
     assert (state.player_x, state.player_y) == (1, 1)
     assert state.get(2, 2) == Tile.ROCK
     assert state.get(2, 3) == Tile.EMPTY
+
+
+def test_step_realtime_frame_sync_mode_skipped_frames_do_not_advance_gravity() -> None:
+    state = make_state(
+        "#####",
+        "# O #",
+        "#   #",
+        "#   #",
+        "# P #",
+        "#####",
+    )
+
+    step_realtime_frame(state, frame_number=1, action=None, timing_mode=TimingMode.SYNC, sync_interval=2)
+
+    assert state.get(2, 1) == Tile.ROCK
+    assert state.get(2, 2) == Tile.EMPTY
+    assert state.alive is True
+
+    step_realtime_frame(state, frame_number=2, action=None, timing_mode=TimingMode.SYNC, sync_interval=2)
+
+    assert state.get(2, 2) == Tile.ROCK
+    assert state.alive is True
 
 
 def test_step_realtime_frame_sync_mode_retains_input_until_update_frame() -> None:
@@ -505,6 +548,31 @@ def test_step_realtime_frame_sync_mode_consumed_action_is_not_replayed() -> None
 
     assert (state.player_x, state.player_y) == (3, 1)
     assert state.pending_action is None
+
+
+def test_step_realtime_frame_sync_mode_preserves_falling_state_across_skipped_frames() -> None:
+    state = make_state(
+        "#####",
+        "# O #",
+        "#   #",
+        "# P #",
+        "#####",
+    )
+
+    step_realtime_frame(state, frame_number=2, action=None, timing_mode=TimingMode.SYNC, sync_interval=2)
+
+    assert state.get(2, 2) == Tile.ROCK
+    assert state.alive is True
+
+    step_realtime_frame(state, frame_number=3, action=None, timing_mode=TimingMode.SYNC, sync_interval=2)
+
+    assert state.get(2, 2) == Tile.ROCK
+    assert state.alive is True
+
+    step_realtime_frame(state, frame_number=4, action=None, timing_mode=TimingMode.SYNC, sync_interval=2)
+
+    assert state.get(2, 3) == Tile.ROCK
+    assert state.alive is False
 
 
 def test_step_realtime_frame_sync_mode_runs_game_update_on_update_frames() -> None:

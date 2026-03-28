@@ -12,6 +12,7 @@ from rnd_foundation import (
     pygame_frame_requests_quit,
     run_interactive_realtime_graphics,
     step_realtime_frame,
+    tile_color,
 )
 
 
@@ -90,6 +91,15 @@ def test_parse_level_supports_sand() -> None:
     )
 
     assert state.get(2, 1) == Tile.SAND
+
+
+def test_tile_color_maps_each_tile_type() -> None:
+    assert tile_color(Tile.EMPTY) == (16, 18, 22)
+    assert tile_color(Tile.WALL) == (100, 110, 130)
+    assert tile_color(Tile.SAND) == (180, 150, 90)
+    assert tile_color(Tile.ROCK) == (140, 90, 60)
+    assert tile_color(Tile.DIAMOND) == (70, 210, 255)
+    assert tile_color(Tile.PLAYER) == (60, 220, 120)
 
 
 def test_consume_buffered_action_returns_none_when_buffer_is_empty() -> None:

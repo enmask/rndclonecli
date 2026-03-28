@@ -326,6 +326,18 @@ def action_from_pygame_frame_events(events: Iterable[object]) -> str | None:
     return None
 
 
+def tile_color(tile: Tile) -> Tuple[int, int, int]:
+    colors = {
+        Tile.EMPTY: (16, 18, 22),
+        Tile.WALL: (100, 110, 130),
+        Tile.SAND: (180, 150, 90),
+        Tile.ROCK: (140, 90, 60),
+        Tile.DIAMOND: (70, 210, 255),
+        Tile.PLAYER: (60, 220, 120),
+    }
+    return colors[tile]
+
+
 def run_interactive_turn_based(state: GameState) -> None:
     print("Controls: w/a/s/d to move, q to quit")
     while state.alive and not state.won:
@@ -417,15 +429,6 @@ def run_interactive_realtime_graphics(
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("arial", 20)
 
-    colors = {
-        Tile.EMPTY: (16, 18, 22),
-        Tile.WALL: (100, 110, 130),
-        Tile.SAND: (180, 150, 90),
-        Tile.ROCK: (140, 90, 60),
-        Tile.DIAMOND: (70, 210, 255),
-        Tile.PLAYER: (60, 220, 120),
-    }
-
     running = True
     frames = 0
     while running:
@@ -446,7 +449,7 @@ def run_interactive_realtime_graphics(
             for x in range(state.width):
                 tile = state.get(x, y)
                 rect = pygame.Rect(x * tile_size, y * tile_size, tile_size, tile_size)
-                pygame.draw.rect(screen, colors[tile], rect)
+                pygame.draw.rect(screen, tile_color(tile), rect)
                 pygame.draw.rect(screen, (30, 30, 30), rect, 1)
 
         status = f"Diamonds: {state.diamonds_collected}/{state.diamonds_total}"

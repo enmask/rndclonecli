@@ -344,7 +344,12 @@ def run_interactive_turn_based(state: GameState) -> None:
     print(state.render())
 
 
-def run_interactive_realtime_terminal(state: GameState, tick_ms: int) -> None:
+def run_interactive_realtime_terminal(
+    state: GameState,
+    tick_ms: int,
+    timing_mode: TimingMode = TimingMode.ASYNC,
+    sync_interval: int = 1,
+) -> None:
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         raise RuntimeError("Realtime terminal mode requires a TTY")
 
@@ -376,7 +381,7 @@ def run_interactive_realtime_terminal(state: GameState, tick_ms: int) -> None:
                 break
             action = action_from_curses_key(key)
             if state.alive and not state.won:
-                step_realtime_frame(state, frame_number, action)
+                step_realtime_frame(state, frame_number, action, timing_mode, sync_interval)
             frame_number += 1
 
     curses.wrapper(_loop)
@@ -388,6 +393,8 @@ def run_interactive_realtime_graphics(
     tile_size: int,
     max_frames: int = 0,
     headless: bool = False,
+    timing_mode: TimingMode = TimingMode.ASYNC,
+    sync_interval: int = 1,
 ) -> None:
     if importlib.util.find_spec("pygame") is None:
         raise RuntimeError("pygame is required for --graphics2d. Install with: python3 -m pip install pygame")
@@ -431,7 +438,7 @@ def run_interactive_realtime_graphics(
             frame_action = action_from_pygame_frame_events(events)
 
         if state.alive and not state.won:
-            step_realtime_frame(state, frames, frame_action)
+            step_realtime_frame(state, frames, frame_action, timing_mode, sync_interval)
 
         screen.fill((10, 10, 12))
 

@@ -735,3 +735,45 @@ def test_graphics_mode_processes_at_most_one_move_per_frame(monkeypatch: pytest.
     run_interactive_realtime_graphics(state, tick_ms=250, tile_size=32, max_frames=1)
 
     assert (state.player_x, state.player_y) == (2, 1)
+
+
+def test_graphics_mode_sync_timing_consumes_buffered_input_on_sync_frame(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+
+    class SequencedEventQueue:
+        frames = [
+            [],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+            [],
+        ]
+        index = 0
+
+        @classmethod
+        def get(cls) -> list[FakeEvent]:
+            if cls.index >= len(cls.frames):
+                return []
+            events = cls.frames[cls.index]
+            cls.index += 1
+            return events
+
+    monkeypatch.setattr(FakePygame, "event", SequencedEventQueue)
+
+    state = make_state(
+        "######",
+        "#P   #",
+        "######",
+    )
+
+    run_interactive_realtime_graphics(
+        state,
+        tick_ms=250,
+        tile_size=32,
+        max_frames=3,
+        timing_mode=TimingMode.SYNC,
+        sync_interval=2,
+    )
+
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.pending_action is None

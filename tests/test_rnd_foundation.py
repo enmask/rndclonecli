@@ -590,6 +590,77 @@ def test_step_realtime_frame_sync_mode_runs_game_update_on_update_frames() -> No
     assert state.get(2, 3) == Tile.ROCK
 
 
+def test_step_realtime_frame_sync_mode_can_consume_buffered_input_on_frame_zero() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    step_realtime_frame(state, frame_number=0, action="d", timing_mode=TimingMode.SYNC, sync_interval=8)
+
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.pending_action is None
+
+
+def test_step_realtime_frame_sync_mode_retains_input_across_boundary_until_next_sync_tick() -> None:
+    state = make_state(
+        "######",
+        "#P   #",
+        "######",
+    )
+
+    step_realtime_frame(state, frame_number=7, action="d", timing_mode=TimingMode.SYNC, sync_interval=8)
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.pending_action == "d"
+
+    step_realtime_frame(state, frame_number=8, action=None, timing_mode=TimingMode.SYNC, sync_interval=8)
+
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.pending_action is None
+
+
+def test_step_realtime_frame_does_not_store_buffered_input_after_win() -> None:
+    state = make_state(
+        "#####",
+        "#P* #",
+        "#####",
+    )
+    state.try_move_player(1, 0)
+
+    step_realtime_frame(state, frame_number=0, action="d", timing_mode=TimingMode.ASYNC)
+
+    assert state.won is True
+    assert state.pending_action is None
+
+
+def test_step_realtime_frame_does_not_store_buffered_input_after_death() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.alive = False
+
+    step_realtime_frame(state, frame_number=0, action="d", timing_mode=TimingMode.ASYNC)
+
+    assert state.pending_action is None
+
+
+def test_step_realtime_frame_clears_buffer_when_consumed_action_cannot_move() -> None:
+    state = make_state(
+        "#####",
+        "#P###",
+        "#####",
+    )
+
+    step_realtime_frame(state, frame_number=0, action="d", timing_mode=TimingMode.ASYNC)
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.pending_action is None
+
+
 class FakeEvent:
     def __init__(self, event_type: int, key: int | None = None) -> None:
         self.type = event_type

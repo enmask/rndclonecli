@@ -18,7 +18,9 @@ from rnd_foundation import (
     run_interactive_realtime_graphics,
     screen_size_px,
     step_realtime_frame,
+    tile_appearance,
     tile_color,
+    tile_surface,
     update_graphics_frame,
 )
 
@@ -109,6 +111,17 @@ def test_tile_color_maps_each_tile_type() -> None:
     assert tile_color(Tile.PLAYER) == (60, 220, 120)
 
 
+def test_tile_surface_defaults_to_none() -> None:
+    assert tile_surface(Tile.PLAYER, 32) is None
+
+
+def test_tile_appearance_returns_surface_or_fallback_color() -> None:
+    surface, fallback_color = tile_appearance(Tile.DIAMOND, 48)
+
+    assert surface is None
+    assert fallback_color == tile_color(Tile.DIAMOND)
+
+
 def test_draw_board_renders_each_tile_with_fill_and_outline() -> None:
     state = make_state(
         "###",
@@ -116,6 +129,7 @@ def test_draw_board_renders_each_tile_with_fill_and_outline() -> None:
         "###",
     )
     calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+    blit_calls: list[tuple[object, object]] = []
 
     class FakeDraw:
         @staticmethod
@@ -129,11 +143,16 @@ def test_draw_board_renders_each_tile_with_fill_and_outline() -> None:
         def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
             return (x, y, width, height)
 
-    screen = object()
+    class FakeScreen:
+        def blit(self, surface: object, rect: object) -> None:
+            blit_calls.append((surface, rect))
+
+    screen = FakeScreen()
 
     draw_board(FakePygame, screen, state, tile_size=8)
 
     assert len(calls) == state.width * state.height * 2
+    assert blit_calls == []
     assert calls[0] == (screen, tile_color(Tile.WALL), (0, 0, 8, 8), 0)
     assert calls[1] == (screen, (30, 30, 30), (0, 0, 8, 8), 1)
     assert calls[8] == (screen, tile_color(Tile.PLAYER), (8, 8, 8, 8), 0)

@@ -384,9 +384,14 @@ def draw_hud(
     state: GameState,
     tile_size: int,
     hud_padding_x: int = 10,
-    hud_top_padding: int = 10,
-    hud_line_gap: int = 28,
+    hud_top_padding: int | None = None,
+    hud_line_gap: int | None = None,
 ) -> None:
+    if hud_top_padding is None:
+        hud_top_padding = hud_top_padding_px()
+    if hud_line_gap is None:
+        hud_line_gap = hud_line_gap_px()
+
     status = f"Diamonds: {state.diamonds_collected}/{state.diamonds_total}"
     if state.won:
         status += "   YOU WON"
@@ -412,12 +417,20 @@ def render_frame(
     state: GameState,
     tile_size: int,
     hud_padding_x: int = 10,
-    hud_top_padding: int = 10,
-    hud_line_gap: int = 28,
+    hud_top_padding: int | None = None,
+    hud_line_gap: int | None = None,
 ) -> None:
     screen.fill((10, 10, 12))
     draw_board(pygame, screen, state, tile_size)
     draw_hud(screen, font, state, tile_size, hud_padding_x, hud_top_padding, hud_line_gap)
+
+
+def hud_top_padding_px(font_size: int = 20) -> int:
+    return max(10, font_size // 2)
+
+
+def hud_line_gap_px(font_size: int = 20) -> int:
+    return font_size + 8
 
 
 def hud_height_px(hud_top_padding: int = 10, hud_line_gap: int = 28, font_size: int = 20) -> int:
@@ -431,11 +444,15 @@ def board_size_px(state: GameState, tile_size: int) -> Tuple[int, int]:
 def screen_size_px(
     state: GameState,
     tile_size: int,
-    hud_top_padding: int = 10,
-    hud_line_gap: int = 28,
+    hud_top_padding: int | None = None,
+    hud_line_gap: int | None = None,
     font_size: int = 20,
     hud_height: int | None = None,
 ) -> Tuple[int, int]:
+    if hud_top_padding is None:
+        hud_top_padding = hud_top_padding_px(font_size)
+    if hud_line_gap is None:
+        hud_line_gap = hud_line_gap_px(font_size)
     board_width, board_height = board_size_px(state, tile_size)
     if hud_height is None:
         hud_height = hud_height_px(hud_top_padding, hud_line_gap, font_size)
@@ -543,8 +560,8 @@ def run_interactive_realtime_graphics(
     pygame.init()
     pygame.display.set_caption("Rocks'n'Diamonds Prototype")
 
-    hud_top_padding = 10
-    hud_line_gap = 28
+    hud_top_padding = hud_top_padding_px(font_size)
+    hud_line_gap = hud_line_gap_px(font_size)
     computed_hud_height = hud_height_px(hud_top_padding, hud_line_gap, font_size)
     if hud_height is None:
         hud_height = computed_hud_height

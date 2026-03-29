@@ -15,6 +15,8 @@ from rnd_foundation import (
     draw_board,
     draw_hud,
     hud_height_px,
+    hud_line_gap_px,
+    hud_top_padding_px,
     render_frame,
     run_interactive_realtime_graphics,
     screen_size_px,
@@ -315,6 +317,43 @@ def test_draw_hud_renders_status_and_help_text() -> None:
     ]
 
 
+def test_draw_hud_scales_spacing_with_font_size() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    render_calls: list[tuple[str, bool, tuple[int, int, int]]] = []
+    blit_calls: list[tuple[object, tuple[int, int]]] = []
+
+    class FakeFont:
+        def render(self, text: str, antialias: bool, color: tuple[int, int, int]) -> object:
+            render_calls.append((text, antialias, color))
+            return text
+
+    class FakeScreen:
+        def blit(self, surface: object, position: tuple[int, int]) -> None:
+            blit_calls.append((surface, position))
+
+    draw_hud(
+        FakeScreen(),
+        FakeFont(),
+        state,
+        tile_size=8,
+        hud_top_padding=hud_top_padding_px(30),
+        hud_line_gap=hud_line_gap_px(30),
+    )
+
+    assert render_calls == [
+        ("Diamonds: 0/0", True, (245, 245, 245)),
+        ("Move: WASD/Arrows   Quit: Q", True, (190, 190, 190)),
+    ]
+    assert blit_calls == [
+        ("Diamonds: 0/0", (10, 39)),
+        ("Move: WASD/Arrows   Quit: Q", (10, 77)),
+    ]
+
+
 def test_draw_hud_renders_dead_status_text() -> None:
     state = make_state(
         "#####",
@@ -414,6 +453,10 @@ def test_layout_helpers_support_custom_visual_config() -> None:
         "#####",
     )
 
+    assert hud_top_padding_px() == 10
+    assert hud_line_gap_px() == 28
+    assert hud_top_padding_px(30) == 15
+    assert hud_line_gap_px(30) == 38
     assert hud_height_px(font_size=30) == 80
     assert screen_size_px(state, tile_size=16, font_size=30, hud_height=100) == (80, 148)
 

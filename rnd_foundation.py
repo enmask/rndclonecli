@@ -338,6 +338,15 @@ def tile_color(tile: Tile) -> Tuple[int, int, int]:
     return colors[tile]
 
 
+def draw_board(pygame: object, screen: object, state: GameState, tile_size: int) -> None:
+    for y in range(state.height):
+        for x in range(state.width):
+            tile = state.get(x, y)
+            rect = pygame.Rect(x * tile_size, y * tile_size, tile_size, tile_size)
+            pygame.draw.rect(screen, tile_color(tile), rect)
+            pygame.draw.rect(screen, (30, 30, 30), rect, 1)
+
+
 def run_interactive_turn_based(state: GameState) -> None:
     print("Controls: w/a/s/d to move, q to quit")
     while state.alive and not state.won:
@@ -444,13 +453,7 @@ def run_interactive_realtime_graphics(
             step_realtime_frame(state, frames, frame_action, timing_mode, sync_interval)
 
         screen.fill((10, 10, 12))
-
-        for y in range(state.height):
-            for x in range(state.width):
-                tile = state.get(x, y)
-                rect = pygame.Rect(x * tile_size, y * tile_size, tile_size, tile_size)
-                pygame.draw.rect(screen, tile_color(tile), rect)
-                pygame.draw.rect(screen, (30, 30, 30), rect, 1)
+        draw_board(pygame, screen, state, tile_size)
 
         status = f"Diamonds: {state.diamonds_collected}/{state.diamonds_total}"
         if state.won:

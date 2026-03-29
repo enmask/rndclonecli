@@ -10,6 +10,7 @@ from rnd_foundation import (
     is_update_frame,
     parse_level,
     pygame_frame_requests_quit,
+    draw_board,
     run_interactive_realtime_graphics,
     step_realtime_frame,
     tile_color,
@@ -100,6 +101,37 @@ def test_tile_color_maps_each_tile_type() -> None:
     assert tile_color(Tile.ROCK) == (140, 90, 60)
     assert tile_color(Tile.DIAMOND) == (70, 210, 255)
     assert tile_color(Tile.PLAYER) == (60, 220, 120)
+
+
+def test_draw_board_renders_each_tile_with_fill_and_outline() -> None:
+    state = make_state(
+        "###",
+        "#P#",
+        "###",
+    )
+    calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+
+    class FakeDraw:
+        @staticmethod
+        def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            calls.append((screen, color, rect, width))
+
+    class FakePygame:
+        draw = FakeDraw()
+
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    screen = object()
+
+    draw_board(FakePygame, screen, state, tile_size=8)
+
+    assert len(calls) == state.width * state.height * 2
+    assert calls[0] == (screen, tile_color(Tile.WALL), (0, 0, 8, 8), 0)
+    assert calls[1] == (screen, (30, 30, 30), (0, 0, 8, 8), 1)
+    assert calls[8] == (screen, tile_color(Tile.PLAYER), (8, 8, 8, 8), 0)
+    assert calls[9] == (screen, (30, 30, 30), (8, 8, 8, 8), 1)
 
 
 def test_consume_buffered_action_returns_none_when_buffer_is_empty() -> None:

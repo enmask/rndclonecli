@@ -172,6 +172,37 @@ def test_draw_hud_renders_status_and_help_text() -> None:
     ]
 
 
+def test_draw_hud_renders_dead_status_text() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.alive = False
+    render_calls: list[tuple[str, bool, tuple[int, int, int]]] = []
+    blit_calls: list[tuple[object, tuple[int, int]]] = []
+
+    class FakeFont:
+        def render(self, text: str, antialias: bool, color: tuple[int, int, int]) -> object:
+            render_calls.append((text, antialias, color))
+            return text
+
+    class FakeScreen:
+        def blit(self, surface: object, position: tuple[int, int]) -> None:
+            blit_calls.append((surface, position))
+
+    draw_hud(FakeScreen(), FakeFont(), state, tile_size=8)
+
+    assert render_calls == [
+        ("Diamonds: 0/0   YOU DIED", True, (245, 245, 245)),
+        ("Move: WASD/Arrows   Quit: Q", True, (190, 190, 190)),
+    ]
+    assert blit_calls == [
+        ("Diamonds: 0/0   YOU DIED", (10, 34)),
+        ("Move: WASD/Arrows   Quit: Q", (10, 62)),
+    ]
+
+
 def test_render_frame_clears_screen_and_draws_board_and_hud() -> None:
     state = make_state(
         "###",
@@ -1012,3 +1043,34 @@ def test_graphics_mode_sync_timing_consumes_buffered_input_on_sync_frame(
 
     assert (state.player_x, state.player_y) == (2, 1)
     assert state.pending_action is None
+
+
+def test_graphics_mode_uses_screen_size_layout_helper(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+    set_mode_calls: list[tuple[int, int]] = []
+
+    class FakeDisplay:
+        @staticmethod
+        def set_caption(text: str) -> None:
+            pass
+
+        @staticmethod
+        def set_mode(size: tuple[int, int]) -> FakeScreen:
+            set_mode_calls.append(size)
+            return FakeScreen()
+
+        @staticmethod
+        def flip() -> None:
+            pass
+
+    monkeypatch.setattr(FakePygame, "display", FakeDisplay)
+
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    run_interactive_realtime_graphics(state, tick_ms=250, tile_size=16, max_frames=1)
+
+    assert set_mode_calls == [screen_size_px(state, 16)]

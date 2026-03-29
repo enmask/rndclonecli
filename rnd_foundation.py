@@ -43,6 +43,9 @@ DIRECTIONS = {
 }
 
 
+_TILE_SURFACE_CACHE: dict[tuple[Tile, int], object | None] = {}
+
+
 @dataclass
 class GameState:
     grid: List[List[Tile]]
@@ -338,9 +341,20 @@ def tile_color(tile: Tile) -> Tuple[int, int, int]:
     return colors[tile]
 
 
-def tile_surface(tile: Tile, tile_size: int) -> object | None:
+def build_tile_surface(tile: Tile, tile_size: int) -> object | None:
     del tile, tile_size
     return None
+
+
+def clear_tile_surface_cache() -> None:
+    _TILE_SURFACE_CACHE.clear()
+
+
+def tile_surface(tile: Tile, tile_size: int) -> object | None:
+    cache_key = (tile, tile_size)
+    if cache_key not in _TILE_SURFACE_CACHE:
+        _TILE_SURFACE_CACHE[cache_key] = build_tile_surface(tile, tile_size)
+    return _TILE_SURFACE_CACHE[cache_key]
 
 
 def tile_appearance(tile: Tile, tile_size: int) -> Tuple[object | None, Tuple[int, int, int]]:

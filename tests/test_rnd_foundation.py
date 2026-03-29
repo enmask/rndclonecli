@@ -11,6 +11,7 @@ from rnd_foundation import (
     parse_level,
     pygame_frame_requests_quit,
     board_size_px,
+    clear_tile_surface_cache,
     draw_board,
     draw_hud,
     hud_height_px,
@@ -113,10 +114,49 @@ def test_tile_color_maps_each_tile_type() -> None:
 
 
 def test_tile_surface_defaults_to_none() -> None:
+    clear_tile_surface_cache()
     assert tile_surface(Tile.PLAYER, 32) is None
 
 
+def test_tile_surface_uses_cache_for_repeated_lookups(monkeypatch: pytest.MonkeyPatch) -> None:
+    clear_tile_surface_cache()
+    built: list[tuple[Tile, int]] = []
+
+    def fake_build(tile: Tile, tile_size: int) -> object:
+        built.append((tile, tile_size))
+        return {"tile": tile, "tile_size": tile_size}
+
+    monkeypatch.setattr("rnd_foundation.build_tile_surface", fake_build)
+
+    first = tile_surface(Tile.ROCK, 32)
+    second = tile_surface(Tile.ROCK, 32)
+
+    assert first == {"tile": Tile.ROCK, "tile_size": 32}
+    assert second is first
+    assert built == [(Tile.ROCK, 32)]
+
+
+def test_clear_tile_surface_cache_forces_rebuild(monkeypatch: pytest.MonkeyPatch) -> None:
+    clear_tile_surface_cache()
+    built: list[tuple[Tile, int]] = []
+
+    def fake_build(tile: Tile, tile_size: int) -> object:
+        built.append((tile, tile_size))
+        return {"call": len(built)}
+
+    monkeypatch.setattr("rnd_foundation.build_tile_surface", fake_build)
+
+    first = tile_surface(Tile.DIAMOND, 48)
+    clear_tile_surface_cache()
+    second = tile_surface(Tile.DIAMOND, 48)
+
+    assert first == {"call": 1}
+    assert second == {"call": 2}
+    assert built == [(Tile.DIAMOND, 48), (Tile.DIAMOND, 48)]
+
+
 def test_tile_appearance_returns_surface_or_fallback_color() -> None:
+    clear_tile_surface_cache()
     surface, fallback_color = tile_appearance(Tile.DIAMOND, 48)
 
     assert surface is None

@@ -365,6 +365,19 @@ def render_frame(pygame: object, screen: object, font: object, state: GameState,
     draw_hud(screen, font, state, tile_size)
 
 
+def hud_height_px() -> int:
+    return 70
+
+
+def board_size_px(state: GameState, tile_size: int) -> Tuple[int, int]:
+    return (state.width * tile_size, state.height * tile_size)
+
+
+def screen_size_px(state: GameState, tile_size: int) -> Tuple[int, int]:
+    board_width, board_height = board_size_px(state, tile_size)
+    return (board_width, board_height + hud_height_px())
+
+
 def run_interactive_turn_based(state: GameState) -> None:
     print("Controls: w/a/s/d to move, q to quit")
     while state.alive and not state.won:
@@ -449,10 +462,7 @@ def run_interactive_realtime_graphics(
     pygame.init()
     pygame.display.set_caption("Rocks'n'Diamonds Prototype")
 
-    width_px = state.width * tile_size
-    hud_height = 70
-    height_px = state.height * tile_size + hud_height
-    screen = pygame.display.set_mode((width_px, height_px))
+    screen = pygame.display.set_mode(screen_size_px(state, tile_size))
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("arial", 20)
 

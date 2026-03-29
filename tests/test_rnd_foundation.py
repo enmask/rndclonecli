@@ -10,10 +10,13 @@ from rnd_foundation import (
     is_update_frame,
     parse_level,
     pygame_frame_requests_quit,
+    board_size_px,
     draw_board,
     draw_hud,
+    hud_height_px,
     render_frame,
     run_interactive_realtime_graphics,
+    screen_size_px,
     step_realtime_frame,
     tile_color,
 )
@@ -215,6 +218,18 @@ def test_render_frame_clears_screen_and_draws_board_and_hud() -> None:
         ("Diamonds: 0/0", (10, 34)),
         ("Move: WASD/Arrows   Quit: Q", (10, 62)),
     ]
+
+
+def test_layout_helpers_return_expected_pixel_sizes() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    assert hud_height_px() == 70
+    assert board_size_px(state, tile_size=16) == (80, 48)
+    assert screen_size_px(state, tile_size=16) == (80, 118)
 
 
 def test_consume_buffered_action_returns_none_when_buffer_is_empty() -> None:

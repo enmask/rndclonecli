@@ -19,6 +19,7 @@ from rnd_foundation import (
     screen_size_px,
     step_realtime_frame,
     tile_color,
+    update_graphics_frame,
 )
 
 
@@ -230,6 +231,29 @@ def test_layout_helpers_return_expected_pixel_sizes() -> None:
     assert hud_height_px() == 70
     assert board_size_px(state, tile_size=16) == (80, 48)
     assert screen_size_px(state, tile_size=16) == (80, 118)
+
+
+def test_update_graphics_frame_updates_state_and_reports_quit(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "######",
+        "#P   #",
+        "######",
+    )
+    events = [
+        FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d),
+        FakeEvent(FakePygame.KEYDOWN, FakePygame.K_q),
+    ]
+
+    should_quit = update_graphics_frame(
+        state,
+        frame_number=0,
+        events=events,
+        timing_mode=TimingMode.ASYNC,
+    )
+
+    assert should_quit is True
+    assert (state.player_x, state.player_y) == (2, 1)
 
 
 def test_consume_buffered_action_returns_none_when_buffer_is_empty() -> None:

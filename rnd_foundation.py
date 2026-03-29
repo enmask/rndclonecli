@@ -378,6 +378,21 @@ def screen_size_px(state: GameState, tile_size: int) -> Tuple[int, int]:
     return (board_width, board_height + hud_height_px())
 
 
+def update_graphics_frame(
+    state: GameState,
+    frame_number: int,
+    events: Iterable[object],
+    timing_mode: TimingMode = TimingMode.ASYNC,
+    sync_interval: int = 1,
+) -> bool:
+    event_list = list(events)
+    should_quit = pygame_frame_requests_quit(event_list)
+    if state.alive and not state.won:
+        frame_action = action_from_pygame_frame_events(event_list)
+        step_realtime_frame(state, frame_number, frame_action, timing_mode, sync_interval)
+    return should_quit
+
+
 def run_interactive_turn_based(state: GameState) -> None:
     print("Controls: w/a/s/d to move, q to quit")
     while state.alive and not state.won:
@@ -469,16 +484,14 @@ def run_interactive_realtime_graphics(
     running = True
     frames = 0
     while running:
-        events = list(pygame.event.get())
-        if pygame_frame_requests_quit(events):
+        if update_graphics_frame(
+            state,
+            frames,
+            pygame.event.get(),
+            timing_mode,
+            sync_interval,
+        ):
             running = False
-
-        frame_action = None
-        if state.alive and not state.won:
-            frame_action = action_from_pygame_frame_events(events)
-
-        if state.alive and not state.won:
-            step_realtime_frame(state, frames, frame_action, timing_mode, sync_interval)
 
         render_frame(pygame, screen, font, state, tile_size)
 

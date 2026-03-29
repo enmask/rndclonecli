@@ -347,6 +347,18 @@ def draw_board(pygame: object, screen: object, state: GameState, tile_size: int)
             pygame.draw.rect(screen, (30, 30, 30), rect, 1)
 
 
+def draw_hud(screen: object, font: object, state: GameState, tile_size: int) -> None:
+    status = f"Diamonds: {state.diamonds_collected}/{state.diamonds_total}"
+    if state.won:
+        status += "   YOU WON"
+    elif not state.alive:
+        status += "   YOU DIED"
+
+    help_text = "Move: WASD/Arrows   Quit: Q"
+    screen.blit(font.render(status, True, (245, 245, 245)), (10, state.height * tile_size + 10))
+    screen.blit(font.render(help_text, True, (190, 190, 190)), (10, state.height * tile_size + 38))
+
+
 def run_interactive_turn_based(state: GameState) -> None:
     print("Controls: w/a/s/d to move, q to quit")
     while state.alive and not state.won:
@@ -454,16 +466,7 @@ def run_interactive_realtime_graphics(
 
         screen.fill((10, 10, 12))
         draw_board(pygame, screen, state, tile_size)
-
-        status = f"Diamonds: {state.diamonds_collected}/{state.diamonds_total}"
-        if state.won:
-            status += "   YOU WON"
-        elif not state.alive:
-            status += "   YOU DIED"
-
-        help_text = "Move: WASD/Arrows   Quit: Q"
-        screen.blit(font.render(status, True, (245, 245, 245)), (10, state.height * tile_size + 10))
-        screen.blit(font.render(help_text, True, (190, 190, 190)), (10, state.height * tile_size + 38))
+        draw_hud(screen, font, state, tile_size)
 
         pygame.display.flip()
         clock.tick(max(1, int(1000 / tick_ms)))

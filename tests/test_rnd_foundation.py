@@ -11,6 +11,7 @@ from rnd_foundation import (
     parse_level,
     pygame_frame_requests_quit,
     draw_board,
+    draw_hud,
     run_interactive_realtime_graphics,
     step_realtime_frame,
     tile_color,
@@ -132,6 +133,38 @@ def test_draw_board_renders_each_tile_with_fill_and_outline() -> None:
     assert calls[1] == (screen, (30, 30, 30), (0, 0, 8, 8), 1)
     assert calls[8] == (screen, tile_color(Tile.PLAYER), (8, 8, 8, 8), 0)
     assert calls[9] == (screen, (30, 30, 30), (8, 8, 8, 8), 1)
+
+
+def test_draw_hud_renders_status_and_help_text() -> None:
+    state = make_state(
+        "#####",
+        "#P* #",
+        "#####",
+    )
+    state.diamonds_collected = 1
+    state.won = True
+    render_calls: list[tuple[str, bool, tuple[int, int, int]]] = []
+    blit_calls: list[tuple[object, tuple[int, int]]] = []
+
+    class FakeFont:
+        def render(self, text: str, antialias: bool, color: tuple[int, int, int]) -> object:
+            render_calls.append((text, antialias, color))
+            return text
+
+    class FakeScreen:
+        def blit(self, surface: object, position: tuple[int, int]) -> None:
+            blit_calls.append((surface, position))
+
+    draw_hud(FakeScreen(), FakeFont(), state, tile_size=8)
+
+    assert render_calls == [
+        ("Diamonds: 1/1   YOU WON", True, (245, 245, 245)),
+        ("Move: WASD/Arrows   Quit: Q", True, (190, 190, 190)),
+    ]
+    assert blit_calls == [
+        ("Diamonds: 1/1   YOU WON", (10, 34)),
+        ("Move: WASD/Arrows   Quit: Q", (10, 62)),
+    ]
 
 
 def test_consume_buffered_action_returns_none_when_buffer_is_empty() -> None:

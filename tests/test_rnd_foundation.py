@@ -12,6 +12,7 @@ from rnd_foundation import (
     pygame_frame_requests_quit,
     draw_board,
     draw_hud,
+    render_frame,
     run_interactive_realtime_graphics,
     step_realtime_frame,
     tile_color,
@@ -163,6 +164,55 @@ def test_draw_hud_renders_status_and_help_text() -> None:
     ]
     assert blit_calls == [
         ("Diamonds: 1/1   YOU WON", (10, 34)),
+        ("Move: WASD/Arrows   Quit: Q", (10, 62)),
+    ]
+
+
+def test_render_frame_clears_screen_and_draws_board_and_hud() -> None:
+    state = make_state(
+        "###",
+        "#P#",
+        "###",
+    )
+    fill_calls: list[tuple[int, int, int]] = []
+    draw_calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+    render_calls: list[tuple[str, bool, tuple[int, int, int]]] = []
+    blit_calls: list[tuple[object, tuple[int, int]]] = []
+
+    class FakeDraw:
+        @staticmethod
+        def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            draw_calls.append((screen, color, rect, width))
+
+    class FakePygame:
+        draw = FakeDraw()
+
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    class FakeFont:
+        def render(self, text: str, antialias: bool, color: tuple[int, int, int]) -> object:
+            render_calls.append((text, antialias, color))
+            return text
+
+    class FakeScreen:
+        def fill(self, color: tuple[int, int, int]) -> None:
+            fill_calls.append(color)
+
+        def blit(self, surface: object, position: tuple[int, int]) -> None:
+            blit_calls.append((surface, position))
+
+    render_frame(FakePygame, FakeScreen(), FakeFont(), state, tile_size=8)
+
+    assert fill_calls == [(10, 10, 12)]
+    assert len(draw_calls) == state.width * state.height * 2
+    assert render_calls == [
+        ("Diamonds: 0/0", True, (245, 245, 245)),
+        ("Move: WASD/Arrows   Quit: Q", True, (190, 190, 190)),
+    ]
+    assert blit_calls == [
+        ("Diamonds: 0/0", (10, 34)),
         ("Move: WASD/Arrows   Quit: Q", (10, 62)),
     ]
 

@@ -359,6 +359,12 @@ def draw_hud(screen: object, font: object, state: GameState, tile_size: int) -> 
     screen.blit(font.render(help_text, True, (190, 190, 190)), (10, state.height * tile_size + 38))
 
 
+def render_frame(pygame: object, screen: object, font: object, state: GameState, tile_size: int) -> None:
+    screen.fill((10, 10, 12))
+    draw_board(pygame, screen, state, tile_size)
+    draw_hud(screen, font, state, tile_size)
+
+
 def run_interactive_turn_based(state: GameState) -> None:
     print("Controls: w/a/s/d to move, q to quit")
     while state.alive and not state.won:
@@ -464,9 +470,7 @@ def run_interactive_realtime_graphics(
         if state.alive and not state.won:
             step_realtime_frame(state, frames, frame_action, timing_mode, sync_interval)
 
-        screen.fill((10, 10, 12))
-        draw_board(pygame, screen, state, tile_size)
-        draw_hud(screen, font, state, tile_size)
+        render_frame(pygame, screen, font, state, tile_size)
 
         pygame.display.flip()
         clock.tick(max(1, int(1000 / tick_ms)))

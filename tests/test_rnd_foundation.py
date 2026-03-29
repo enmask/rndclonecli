@@ -241,6 +241,48 @@ def test_draw_board_uses_tile_size_for_rect_geometry() -> None:
     assert calls[6][2] == (24, 24, 24, 24)
 
 
+def test_draw_board_blits_surface_when_available(monkeypatch: pytest.MonkeyPatch) -> None:
+    clear_tile_surface_cache()
+    state = make_state(
+        "##",
+        "#P",
+    )
+    draw_calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+    blit_calls: list[tuple[object, object]] = []
+
+    def fake_build(tile: Tile, tile_size: int) -> object | None:
+        if tile == Tile.PLAYER:
+            return ("player-surface", tile_size)
+        return None
+
+    monkeypatch.setattr("rnd_foundation.build_tile_surface", fake_build)
+
+    class FakeDraw:
+        @staticmethod
+        def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            draw_calls.append((screen, color, rect, width))
+
+    class FakePygame:
+        draw = FakeDraw()
+
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    class FakeScreen:
+        def blit(self, surface: object, rect: object) -> None:
+            blit_calls.append((surface, rect))
+
+    screen = FakeScreen()
+
+    draw_board(FakePygame, screen, state, tile_size=24)
+
+    assert blit_calls == [(("player-surface", 24), (24, 24, 24, 24))]
+    assert len(draw_calls) == (state.width * state.height - 1) * 2 + 1
+    assert (screen, tile_color(Tile.PLAYER), (24, 24, 24, 24), 0) not in draw_calls
+    assert (screen, (30, 30, 30), (24, 24, 24, 24), 1) in draw_calls
+
+
 def test_draw_hud_renders_status_and_help_text() -> None:
     state = make_state(
         "#####",

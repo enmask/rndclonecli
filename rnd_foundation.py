@@ -347,11 +347,15 @@ def tile_appearance(tile: Tile, tile_size: int) -> Tuple[object | None, Tuple[in
     return (tile_surface(tile, tile_size), tile_color(tile))
 
 
+def tile_rect(pygame: object, x: int, y: int, tile_size: int) -> object:
+    return pygame.Rect(x * tile_size, y * tile_size, tile_size, tile_size)
+
+
 def draw_board(pygame: object, screen: object, state: GameState, tile_size: int) -> None:
     for y in range(state.height):
         for x in range(state.width):
             tile = state.get(x, y)
-            rect = pygame.Rect(x * tile_size, y * tile_size, tile_size, tile_size)
+            rect = tile_rect(pygame, x, y, tile_size)
             surface, fallback_color = tile_appearance(tile, tile_size)
             if surface is not None:
                 screen.blit(surface, rect)

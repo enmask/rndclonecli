@@ -20,6 +20,7 @@ from rnd_foundation import (
     step_realtime_frame,
     tile_appearance,
     tile_color,
+    tile_rect,
     tile_surface,
     update_graphics_frame,
 )
@@ -122,6 +123,16 @@ def test_tile_appearance_returns_surface_or_fallback_color() -> None:
     assert fallback_color == tile_color(Tile.DIAMOND)
 
 
+def test_tile_rect_scales_with_tile_size() -> None:
+    class FakePygame:
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    assert tile_rect(FakePygame, 2, 3, 16) == (32, 48, 16, 16)
+    assert tile_rect(FakePygame, 2, 3, 48) == (96, 144, 48, 48)
+
+
 def test_draw_board_renders_each_tile_with_fill_and_outline() -> None:
     state = make_state(
         "###",
@@ -157,6 +168,37 @@ def test_draw_board_renders_each_tile_with_fill_and_outline() -> None:
     assert calls[1] == (screen, (30, 30, 30), (0, 0, 8, 8), 1)
     assert calls[8] == (screen, tile_color(Tile.PLAYER), (8, 8, 8, 8), 0)
     assert calls[9] == (screen, (30, 30, 30), (8, 8, 8, 8), 1)
+
+
+def test_draw_board_uses_tile_size_for_rect_geometry() -> None:
+    state = make_state(
+        "##",
+        "#P",
+    )
+    calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+
+    class FakeDraw:
+        @staticmethod
+        def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            calls.append((screen, color, rect, width))
+
+    class FakePygame:
+        draw = FakeDraw()
+
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    class FakeScreen:
+        def blit(self, surface: object, rect: object) -> None:
+            raise AssertionError("unexpected sprite blit")
+
+    draw_board(FakePygame, FakeScreen(), state, tile_size=24)
+
+    assert calls[0][2] == (0, 0, 24, 24)
+    assert calls[2][2] == (24, 0, 24, 24)
+    assert calls[4][2] == (0, 24, 24, 24)
+    assert calls[6][2] == (24, 24, 24, 24)
 
 
 def test_draw_hud_renders_status_and_help_text() -> None:

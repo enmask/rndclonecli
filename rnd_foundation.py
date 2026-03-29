@@ -378,7 +378,15 @@ def draw_board(pygame: object, screen: object, state: GameState, tile_size: int)
             pygame.draw.rect(screen, (30, 30, 30), rect, 1)
 
 
-def draw_hud(screen: object, font: object, state: GameState, tile_size: int) -> None:
+def draw_hud(
+    screen: object,
+    font: object,
+    state: GameState,
+    tile_size: int,
+    hud_padding_x: int = 10,
+    hud_top_padding: int = 10,
+    hud_line_gap: int = 28,
+) -> None:
     status = f"Diamonds: {state.diamonds_collected}/{state.diamonds_total}"
     if state.won:
         status += "   YOU WON"
@@ -386,27 +394,52 @@ def draw_hud(screen: object, font: object, state: GameState, tile_size: int) -> 
         status += "   YOU DIED"
 
     help_text = "Move: WASD/Arrows   Quit: Q"
-    screen.blit(font.render(status, True, (245, 245, 245)), (10, state.height * tile_size + 10))
-    screen.blit(font.render(help_text, True, (190, 190, 190)), (10, state.height * tile_size + 38))
+    hud_y = state.height * tile_size
+    screen.blit(
+        font.render(status, True, (245, 245, 245)),
+        (hud_padding_x, hud_y + hud_top_padding),
+    )
+    screen.blit(
+        font.render(help_text, True, (190, 190, 190)),
+        (hud_padding_x, hud_y + hud_top_padding + hud_line_gap),
+    )
 
 
-def render_frame(pygame: object, screen: object, font: object, state: GameState, tile_size: int) -> None:
+def render_frame(
+    pygame: object,
+    screen: object,
+    font: object,
+    state: GameState,
+    tile_size: int,
+    hud_padding_x: int = 10,
+    hud_top_padding: int = 10,
+    hud_line_gap: int = 28,
+) -> None:
     screen.fill((10, 10, 12))
     draw_board(pygame, screen, state, tile_size)
-    draw_hud(screen, font, state, tile_size)
+    draw_hud(screen, font, state, tile_size, hud_padding_x, hud_top_padding, hud_line_gap)
 
 
-def hud_height_px() -> int:
-    return 70
+def hud_height_px(hud_top_padding: int = 10, hud_line_gap: int = 28, font_size: int = 20) -> int:
+    return hud_top_padding + hud_line_gap + font_size + 12
 
 
 def board_size_px(state: GameState, tile_size: int) -> Tuple[int, int]:
     return (state.width * tile_size, state.height * tile_size)
 
 
-def screen_size_px(state: GameState, tile_size: int) -> Tuple[int, int]:
+def screen_size_px(
+    state: GameState,
+    tile_size: int,
+    hud_top_padding: int = 10,
+    hud_line_gap: int = 28,
+    font_size: int = 20,
+    hud_height: int | None = None,
+) -> Tuple[int, int]:
     board_width, board_height = board_size_px(state, tile_size)
-    return (board_width, board_height + hud_height_px())
+    if hud_height is None:
+        hud_height = hud_height_px(hud_top_padding, hud_line_gap, font_size)
+    return (board_width, board_height + hud_height)
 
 
 def update_graphics_frame(
@@ -493,6 +526,8 @@ def run_interactive_realtime_graphics(
     headless: bool = False,
     timing_mode: TimingMode = TimingMode.ASYNC,
     sync_interval: int = 1,
+    font_size: int = 20,
+    hud_height: int | None = None,
 ) -> None:
     if importlib.util.find_spec("pygame") is None:
         raise RuntimeError("pygame is required for --graphics2d. Install with: python3 -m pip install pygame")
@@ -508,9 +543,19 @@ def run_interactive_realtime_graphics(
     pygame.init()
     pygame.display.set_caption("Rocks'n'Diamonds Prototype")
 
-    screen = pygame.display.set_mode(screen_size_px(state, tile_size))
+    hud_top_padding = 10
+    hud_line_gap = 28
+    computed_hud_height = hud_height_px(hud_top_padding, hud_line_gap, font_size)
+    if hud_height is None:
+        hud_height = computed_hud_height
+    elif hud_height < computed_hud_height:
+        raise ValueError(f"hud_height must be at least {computed_hud_height}")
+
+    screen = pygame.display.set_mode(
+        screen_size_px(state, tile_size, hud_top_padding, hud_line_gap, font_size, hud_height)
+    )
     clock = pygame.time.Clock()
-    font = pygame.font.SysFont("arial", 20)
+    font = pygame.font.SysFont("arial", font_size)
 
     running = True
     frames = 0
@@ -524,7 +569,7 @@ def run_interactive_realtime_graphics(
         ):
             running = False
 
-        render_frame(pygame, screen, font, state, tile_size)
+        render_frame(pygame, screen, font, state, tile_size, 10, hud_top_padding, hud_line_gap)
 
         pygame.display.flip()
         clock.tick(max(1, int(1000 / tick_ms)))
@@ -556,6 +601,8 @@ def main() -> None:
     parser.add_argument("--graphics2d", action="store_true", help="Run realtime 2D graphics mode (pygame)")
     parser.add_argument("--tick-ms", type=int, default=250, help="Milliseconds per game tick")
     parser.add_argument("--tile-size", type=int, default=48, help="Tile size for --graphics2d mode")
+    parser.add_argument("--font-size", type=int, default=20, help="HUD font size for --graphics2d mode")
+    parser.add_argument("--hud-height", type=int, default=0, help="HUD pixel height for --graphics2d mode (0 = auto)")
     parser.add_argument("--max-frames", type=int, default=0, help="Auto-exit after N frames (test helper)")
     parser.add_argument("--headless", action="store_true", help="Allow SDL dummy-driver runs for headless testing")
     args = parser.parse_args()
@@ -571,6 +618,8 @@ def main() -> None:
             args.tile_size,
             args.max_frames,
             args.headless,
+            font_size=args.font_size,
+            hud_height=args.hud_height or None,
         )
     elif args.realtime:
         run_interactive_realtime_terminal(state, args.tick_ms)

@@ -407,6 +407,17 @@ def test_layout_helpers_return_expected_pixel_sizes() -> None:
     assert screen_size_px(state, tile_size=16) == (80, 118)
 
 
+def test_layout_helpers_support_custom_visual_config() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    assert hud_height_px(font_size=30) == 80
+    assert screen_size_px(state, tile_size=16, font_size=30, hud_height=100) == (80, 148)
+
+
 def test_update_graphics_frame_updates_state_and_reports_quit(monkeypatch: pytest.MonkeyPatch) -> None:
     install_fake_pygame(monkeypatch)
     state = make_state(
@@ -1217,3 +1228,50 @@ def test_graphics_mode_uses_screen_size_layout_helper(monkeypatch: pytest.Monkey
     run_interactive_realtime_graphics(state, tick_ms=250, tile_size=16, max_frames=1)
 
     assert set_mode_calls == [screen_size_px(state, 16)]
+
+
+def test_graphics_mode_uses_configured_font_size_and_hud_height(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+    set_mode_calls: list[tuple[int, int]] = []
+    font_calls: list[tuple[str, int]] = []
+
+    class FakeDisplay:
+        @staticmethod
+        def set_caption(text: str) -> None:
+            pass
+
+        @staticmethod
+        def set_mode(size: tuple[int, int]) -> FakeScreen:
+            set_mode_calls.append(size)
+            return FakeScreen()
+
+        @staticmethod
+        def flip() -> None:
+            pass
+
+    class FakeFontModule:
+        @staticmethod
+        def SysFont(name: str, size: int) -> FakeFont:
+            font_calls.append((name, size))
+            return FakeFont()
+
+    monkeypatch.setattr(FakePygame, "display", FakeDisplay)
+    monkeypatch.setattr(FakePygame, "font", FakeFontModule)
+
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    run_interactive_realtime_graphics(
+        state,
+        tick_ms=250,
+        tile_size=16,
+        max_frames=1,
+        font_size=30,
+        hud_height=100,
+    )
+
+    assert set_mode_calls == [screen_size_px(state, 16, font_size=30, hud_height=100)]
+    assert font_calls == [("arial", 30)]

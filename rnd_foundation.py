@@ -35,6 +35,11 @@ class TimingMode(str, Enum):
     SYNC = "sync"
 
 
+class EngineMode(str, Enum):
+    RND = "rnd"
+    EM = "em"
+
+
 DIRECTIONS = {
     "w": (0, -1),
     "a": (-1, 0),

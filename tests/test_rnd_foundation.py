@@ -1,6 +1,7 @@
 import pytest
 
 from rnd_foundation import (
+    EngineMode,
     GameState,
     TimingMode,
     Tile,
@@ -129,6 +130,11 @@ def test_parse_level_supports_sand() -> None:
     )
 
     assert state.get(2, 1) == Tile.SAND
+
+
+def test_engine_mode_exposes_named_engine_choices() -> None:
+    assert EngineMode.RND.value == "rnd"
+    assert EngineMode.EM.value == "em"
 
 
 def test_make_motion_builds_a_transition_model() -> None:

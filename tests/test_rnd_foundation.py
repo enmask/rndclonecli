@@ -8,6 +8,7 @@ from rnd_foundation import (
     action_from_pygame_frame_events,
     buffer_action,
     consume_buffered_action,
+    default_motion_duration_frames,
     get_motion,
     is_update_frame,
     complete_motion,
@@ -34,6 +35,8 @@ from rnd_foundation import (
     update_graphics_frame,
     make_motion,
     motion_destination_cell,
+    motion_position_px,
+    motion_rect,
     motion_start_cell,
     motion_start_frame,
     motion_tile,
@@ -189,8 +192,8 @@ def test_motion_progress_async_uses_motion_start_frame() -> None:
     assert motion_progress(motion, current_frame=14, duration_frames=4, timing_mode=TimingMode.ASYNC) == 1.0
 
 
-def test_motion_progress_sync_uses_global_phase() -> None:
-    motion = make_motion(Tile.PLAYER, (1, 2), (2, 2), 3)
+def test_motion_progress_sync_uses_motion_start_frame() -> None:
+    motion = make_motion(Tile.PLAYER, (1, 2), (2, 2), 8)
 
     assert motion_progress(motion, current_frame=8, duration_frames=4, timing_mode=TimingMode.SYNC, sync_interval=8) == 0.0
     assert motion_progress(motion, current_frame=10, duration_frames=4, timing_mode=TimingMode.SYNC, sync_interval=8) == 0.5
@@ -268,6 +271,19 @@ def test_update_motion_state_removes_completed_sync_motions_by_global_phase() ->
     assert active_motions(motion_state) == []
 
 
+def test_default_motion_duration_frames_matches_timing_mode() -> None:
+    assert default_motion_duration_frames(TimingMode.ASYNC, sync_interval=8) == 4
+    assert default_motion_duration_frames(TimingMode.SYNC, sync_interval=8) == 8
+
+
+def test_default_motion_duration_frames_rejects_invalid_values() -> None:
+    with pytest.raises(ValueError, match="positive"):
+        default_motion_duration_frames(TimingMode.ASYNC, async_duration_frames=0)
+
+    with pytest.raises(ValueError, match="positive"):
+        default_motion_duration_frames(TimingMode.SYNC, sync_interval=0)
+
+
 def test_player_cell_returns_current_player_position() -> None:
     state = make_state(
         "#####",
@@ -338,7 +354,7 @@ def test_motion_contract_async_transition_progresses_then_completes() -> None:
 
 def test_motion_contract_sync_transition_uses_shared_phase_then_completes() -> None:
     motion_state = make_motion_state()
-    motion = start_motion(motion_state, Tile.PLAYER, (1, 1), (2, 1), 5)
+    motion = start_motion(motion_state, Tile.PLAYER, (1, 1), (2, 1), 8)
 
     assert motion_progress(
         motion,
@@ -373,6 +389,58 @@ def test_motion_contract_sync_transition_uses_shared_phase_then_completes() -> N
 
     assert completed == [motion]
     assert active_motions(motion_state) == []
+
+
+def test_motion_contract_sync_transition_can_span_full_sync_interval() -> None:
+    motion_state = make_motion_state()
+    motion = start_motion(motion_state, Tile.PLAYER, (1, 1), (2, 1), 8)
+    duration = default_motion_duration_frames(TimingMode.SYNC, sync_interval=8)
+
+    assert motion_progress(
+        motion,
+        current_frame=10,
+        duration_frames=duration,
+        timing_mode=TimingMode.SYNC,
+        sync_interval=8,
+    ) == 0.25
+    assert update_motion_state(
+        motion_state,
+        current_frame=14,
+        duration_frames=duration,
+        timing_mode=TimingMode.SYNC,
+        sync_interval=8,
+    ) == []
+    assert active_motions(motion_state) == [motion]
+
+    completed = update_motion_state(
+        motion_state,
+        current_frame=16,
+        duration_frames=duration,
+        timing_mode=TimingMode.SYNC,
+        sync_interval=8,
+    )
+
+    assert completed == [motion]
+    assert active_motions(motion_state) == []
+
+
+def test_motion_position_px_interpolates_between_cells() -> None:
+    motion = make_motion(Tile.PLAYER, (1, 1), (2, 1), 10)
+
+    assert motion_position_px(motion, current_frame=10, tile_size=24, duration_frames=4) == (24, 24)
+    assert motion_position_px(motion, current_frame=12, tile_size=24, duration_frames=4) == (36, 24)
+    assert motion_position_px(motion, current_frame=14, tile_size=24, duration_frames=4) == (48, 24)
+
+
+def test_motion_rect_uses_interpolated_pixel_position() -> None:
+    motion = make_motion(Tile.PLAYER, (1, 1), (2, 1), 10)
+
+    class FakePygame:
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    assert motion_rect(FakePygame, motion, current_frame=12, tile_size=24, duration_frames=4) == (36, 24, 24, 24)
 
 
 def test_tile_color_maps_each_tile_type() -> None:
@@ -552,6 +620,95 @@ def test_draw_board_blits_surface_when_available(monkeypatch: pytest.MonkeyPatch
     assert len(draw_calls) == (state.width * state.height - 1) * 2 + 1
     assert (screen, tile_color(Tile.PLAYER), (24, 24, 24, 24), 0) not in draw_calls
     assert (screen, (30, 30, 30), (24, 24, 24, 24), 1) in draw_calls
+
+
+def test_draw_board_renders_moving_player_at_interpolated_rect() -> None:
+    clear_tile_surface_cache()
+    state = make_state(
+        "###",
+        "# P",
+        "###",
+    )
+    motion_state = make_motion_state()
+    set_motion(motion_state, make_motion(Tile.PLAYER, (1, 1), (2, 1), 10))
+    calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+
+    class FakeDraw:
+        @staticmethod
+        def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            calls.append((screen, color, rect, width))
+
+    class FakePygame:
+        draw = FakeDraw()
+
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    class FakeScreen:
+        def blit(self, surface: object, rect: object) -> None:
+            raise AssertionError("unexpected sprite blit")
+
+    screen = FakeScreen()
+
+    draw_board(
+        FakePygame,
+        screen,
+        state,
+        tile_size=24,
+        motion_state=motion_state,
+        current_frame=12,
+        motion_duration_frames=4,
+    )
+
+    assert (screen, tile_color(Tile.PLAYER), (36, 24, 24, 24), 0) in calls
+    assert (screen, (30, 30, 30), (36, 24, 24, 24), 1) in calls
+
+
+def test_draw_board_draws_leftward_motion_after_static_tiles() -> None:
+    clear_tile_surface_cache()
+    state = make_state(
+        "####",
+        "#P #",
+        "####",
+    )
+    motion_state = make_motion_state()
+    set_motion(motion_state, make_motion(Tile.PLAYER, (2, 1), (1, 1), 10))
+    calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+
+    class FakeDraw:
+        @staticmethod
+        def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            calls.append((screen, color, rect, width))
+
+    class FakePygame:
+        draw = FakeDraw()
+
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    class FakeScreen:
+        def blit(self, surface: object, rect: object) -> None:
+            raise AssertionError("unexpected sprite blit")
+
+    screen = FakeScreen()
+
+    draw_board(
+        FakePygame,
+        screen,
+        state,
+        tile_size=24,
+        motion_state=motion_state,
+        current_frame=12,
+        motion_duration_frames=4,
+    )
+
+    player_fill = (screen, tile_color(Tile.PLAYER), (36, 24, 24, 24), 0)
+    player_outline = (screen, (30, 30, 30), (36, 24, 24, 24), 1)
+
+    assert calls[-2] == player_fill
+    assert calls[-1] == player_outline
 
 
 def test_draw_hud_renders_status_and_help_text() -> None:

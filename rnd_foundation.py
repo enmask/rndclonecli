@@ -441,8 +441,8 @@ def motion_progress(
         return clamp_progress(elapsed_frames / duration_frames)
 
     if timing_mode == TimingMode.SYNC:
-        phase = current_frame % sync_interval
-        return clamp_progress(phase / duration_frames)
+        elapsed_frames = current_frame - motion_start_frame(motion)
+        return clamp_progress(elapsed_frames / duration_frames)
 
     raise ValueError(f"Unsupported timing mode: {timing_mode}")
 
@@ -489,6 +489,22 @@ def update_motion_state(
     return completed
 
 
+def default_motion_duration_frames(
+    timing_mode: TimingMode = TimingMode.ASYNC,
+    sync_interval: int = 1,
+    async_duration_frames: int = 4,
+) -> int:
+    if async_duration_frames <= 0:
+        raise ValueError("async_duration_frames must be positive")
+    if sync_interval <= 0:
+        raise ValueError("sync_interval must be positive")
+    if timing_mode == TimingMode.ASYNC:
+        return async_duration_frames
+    if timing_mode == TimingMode.SYNC:
+        return sync_interval
+    raise ValueError(f"Unsupported timing mode: {timing_mode}")
+
+
 def player_cell(state: GameState) -> Cell:
     return (state.player_x, state.player_y)
 
@@ -505,17 +521,90 @@ def track_player_motion(
     return start_motion(motion_state, Tile.PLAYER, start_cell, destination_cell, frame_number)
 
 
-def draw_board(pygame: object, screen: object, state: GameState, tile_size: int) -> None:
+def motion_position_px(
+    motion: Motion,
+    current_frame: int,
+    tile_size: int,
+    duration_frames: int,
+    timing_mode: TimingMode = TimingMode.ASYNC,
+    sync_interval: int = 1,
+) -> Tuple[int, int]:
+    progress = motion_progress(motion, current_frame, duration_frames, timing_mode, sync_interval)
+    start_x, start_y = motion_start_cell(motion)
+    dest_x, dest_y = motion_destination_cell(motion)
+    px = int(round((start_x + (dest_x - start_x) * progress) * tile_size))
+    py = int(round((start_y + (dest_y - start_y) * progress) * tile_size))
+    return (px, py)
+
+
+def motion_rect(
+    pygame: object,
+    motion: Motion,
+    current_frame: int,
+    tile_size: int,
+    duration_frames: int,
+    timing_mode: TimingMode = TimingMode.ASYNC,
+    sync_interval: int = 1,
+) -> object:
+    px, py = motion_position_px(
+        motion,
+        current_frame,
+        tile_size,
+        duration_frames,
+        timing_mode,
+        sync_interval,
+    )
+    return pygame.Rect(px, py, tile_size, tile_size)
+
+
+def draw_board(
+    pygame: object,
+    screen: object,
+    state: GameState,
+    tile_size: int,
+    motion_state: MotionState | None = None,
+    current_frame: int = 0,
+    motion_duration_frames: int = 4,
+    timing_mode: TimingMode = TimingMode.ASYNC,
+    sync_interval: int = 1,
+) -> None:
+    moving_tiles: list[tuple[Tile, object]] = []
     for y in range(state.height):
         for x in range(state.width):
             tile = state.get(x, y)
             rect = tile_rect(pygame, x, y, tile_size)
+            if motion_state is not None:
+                motion = get_motion(motion_state, (x, y))
+                if motion is not None and motion_tile(motion) == tile:
+                    moving_tiles.append(
+                        (
+                            tile,
+                            motion_rect(
+                                pygame,
+                                motion,
+                                current_frame,
+                                tile_size,
+                                motion_duration_frames,
+                                timing_mode,
+                                sync_interval,
+                            ),
+                        )
+                    )
+                    continue
             surface, fallback_color = tile_appearance(tile, tile_size)
             if surface is not None:
                 screen.blit(surface, rect)
             else:
                 pygame.draw.rect(screen, fallback_color, rect)
             pygame.draw.rect(screen, (30, 30, 30), rect, 1)
+
+    for tile, rect in moving_tiles:
+        surface, fallback_color = tile_appearance(tile, tile_size)
+        if surface is not None:
+            screen.blit(surface, rect)
+        else:
+            pygame.draw.rect(screen, fallback_color, rect)
+        pygame.draw.rect(screen, (30, 30, 30), rect, 1)
 
 
 def draw_hud(
@@ -556,12 +645,27 @@ def render_frame(
     font: object,
     state: GameState,
     tile_size: int,
+    motion_state: MotionState | None = None,
+    current_frame: int = 0,
+    motion_duration_frames: int = 4,
+    timing_mode: TimingMode = TimingMode.ASYNC,
+    sync_interval: int = 1,
     hud_padding_x: int = 10,
     hud_top_padding: int | None = None,
     hud_line_gap: int | None = None,
 ) -> None:
     screen.fill((10, 10, 12))
-    draw_board(pygame, screen, state, tile_size)
+    draw_board(
+        pygame,
+        screen,
+        state,
+        tile_size,
+        motion_state,
+        current_frame,
+        motion_duration_frames,
+        timing_mode,
+        sync_interval,
+    )
     draw_hud(screen, font, state, tile_size, hud_padding_x, hud_top_padding, hud_line_gap)
 
 
@@ -726,6 +830,7 @@ def run_interactive_realtime_graphics(
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("arial", font_size)
     motion_state = make_motion_state()
+    motion_duration_frames = default_motion_duration_frames(timing_mode, sync_interval)
 
     running = True
     frames = 0
@@ -737,10 +842,25 @@ def run_interactive_realtime_graphics(
             timing_mode,
             sync_interval,
             motion_state,
+            motion_duration_frames,
         ):
             running = False
 
-        render_frame(pygame, screen, font, state, tile_size, 10, hud_top_padding, hud_line_gap)
+        render_frame(
+            pygame,
+            screen,
+            font,
+            state,
+            tile_size,
+            motion_state,
+            frames,
+            motion_duration_frames,
+            timing_mode,
+            sync_interval,
+            10,
+            hud_top_padding,
+            hud_line_gap,
+        )
 
         pygame.display.flip()
         clock.tick(max(1, int(1000 / tick_ms)))

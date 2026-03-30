@@ -43,6 +43,10 @@ DIRECTIONS = {
 }
 
 
+Cell = Tuple[int, int]
+Motion = tuple[Tile, Cell, Cell, int]
+
+
 _TILE_SURFACE_CACHE: dict[tuple[Tile, int], object | None] = {}
 
 
@@ -363,6 +367,30 @@ def tile_appearance(tile: Tile, tile_size: int) -> Tuple[object | None, Tuple[in
 
 def tile_rect(pygame: object, x: int, y: int, tile_size: int) -> object:
     return pygame.Rect(x * tile_size, y * tile_size, tile_size, tile_size)
+
+
+def make_motion(tile: Tile, start_cell: Cell, destination_cell: Cell, start_frame: int) -> Motion:
+    if start_frame < 0:
+        raise ValueError("start_frame must be non-negative")
+    if start_cell == destination_cell:
+        raise ValueError("motion must move between different cells")
+    return (tile, start_cell, destination_cell, start_frame)
+
+
+def motion_tile(motion: Motion) -> Tile:
+    return motion[0]
+
+
+def motion_start_cell(motion: Motion) -> Cell:
+    return motion[1]
+
+
+def motion_destination_cell(motion: Motion) -> Cell:
+    return motion[2]
+
+
+def motion_start_frame(motion: Motion) -> int:
+    return motion[3]
 
 
 def draw_board(pygame: object, screen: object, state: GameState, tile_size: int) -> None:

@@ -26,6 +26,11 @@ from rnd_foundation import (
     tile_rect,
     tile_surface,
     update_graphics_frame,
+    make_motion,
+    motion_destination_cell,
+    motion_start_cell,
+    motion_start_frame,
+    motion_tile,
 )
 
 
@@ -104,6 +109,23 @@ def test_parse_level_supports_sand() -> None:
     )
 
     assert state.get(2, 1) == Tile.SAND
+
+
+def test_make_motion_builds_a_transition_model() -> None:
+    motion = make_motion(Tile.PLAYER, (1, 2), (2, 2), 7)
+
+    assert motion_tile(motion) == Tile.PLAYER
+    assert motion_start_cell(motion) == (1, 2)
+    assert motion_destination_cell(motion) == (2, 2)
+    assert motion_start_frame(motion) == 7
+
+
+def test_make_motion_rejects_invalid_values() -> None:
+    with pytest.raises(ValueError, match="non-negative"):
+        make_motion(Tile.PLAYER, (1, 2), (2, 2), -1)
+
+    with pytest.raises(ValueError, match="different cells"):
+        make_motion(Tile.PLAYER, (1, 2), (1, 2), 0)
 
 
 def test_tile_color_maps_each_tile_type() -> None:

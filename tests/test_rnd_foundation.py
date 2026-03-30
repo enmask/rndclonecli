@@ -11,6 +11,9 @@ from rnd_foundation import (
     default_motion_duration_frames,
     get_motion,
     is_update_frame,
+    background_color,
+    board_background_color,
+    draw_background,
     complete_motion,
     motion_is_complete,
     motion_progress,
@@ -46,6 +49,7 @@ from rnd_foundation import (
     start_motion,
     track_player_motion,
     clamp_progress,
+    hud_background_color,
     update_motion_state,
 )
 
@@ -743,6 +747,44 @@ def test_draw_hud_renders_status_and_help_text() -> None:
     ]
 
 
+def test_draw_background_renders_window_board_and_hud_underlays() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    fill_calls: list[tuple[int, int, int]] = []
+    draw_calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+
+    class FakeDraw:
+        @staticmethod
+        def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            draw_calls.append((screen, color, rect, width))
+
+    class FakePygame:
+        draw = FakeDraw()
+
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    class FakeScreen:
+        def fill(self, color: tuple[int, int, int]) -> None:
+            fill_calls.append(color)
+
+    screen = FakeScreen()
+
+    draw_background(FakePygame, screen, state, tile_size=16)
+
+    assert fill_calls == [background_color()]
+    assert draw_calls == [
+        (screen, board_background_color(), (0, 0, 80, 48), 0),
+        (screen, (28, 34, 42), (0, 0, 80, 48), 2),
+        (screen, hud_background_color(), (0, 48, 80, 70), 0),
+        (screen, (24, 28, 34), (0, 48, 80, 70), 1),
+    ]
+
+
 def test_draw_hud_scales_spacing_with_font_size() -> None:
     state = make_state(
         "#####",
@@ -846,10 +888,18 @@ def test_render_frame_clears_screen_and_draws_board_and_hud() -> None:
         def blit(self, surface: object, position: tuple[int, int]) -> None:
             blit_calls.append((surface, position))
 
-    render_frame(FakePygame, FakeScreen(), FakeFont(), state, tile_size=8)
+    screen = FakeScreen()
 
-    assert fill_calls == [(10, 10, 12)]
-    assert len(draw_calls) == state.width * state.height * 2
+    render_frame(FakePygame, screen, FakeFont(), state, tile_size=8)
+
+    assert fill_calls == [background_color()]
+    assert len(draw_calls) == 4 + state.width * state.height * 2
+    assert draw_calls[:4] == [
+        (screen, board_background_color(), (0, 0, 24, 24), 0),
+        (screen, (28, 34, 42), (0, 0, 24, 24), 2),
+        (screen, hud_background_color(), (0, 24, 24, 70), 0),
+        (screen, (24, 28, 34), (0, 24, 24, 70), 1),
+    ]
     assert render_calls == [
         ("Diamonds: 0/0", True, (245, 245, 245)),
         ("Move: WASD/Arrows   Quit: Q", True, (190, 190, 190)),

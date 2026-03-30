@@ -346,6 +346,18 @@ def tile_color(tile: Tile) -> Tuple[int, int, int]:
     return colors[tile]
 
 
+def background_color() -> Tuple[int, int, int]:
+    return (8, 10, 14)
+
+
+def board_background_color() -> Tuple[int, int, int]:
+    return (18, 22, 28)
+
+
+def hud_background_color() -> Tuple[int, int, int]:
+    return (12, 14, 18)
+
+
 def build_tile_surface(tile: Tile, tile_size: int) -> object | None:
     del tile, tile_size
     return None
@@ -639,6 +651,34 @@ def draw_hud(
     )
 
 
+def draw_background(
+    pygame: object,
+    screen: object,
+    state: GameState,
+    tile_size: int,
+    hud_top_padding: int | None = None,
+    hud_line_gap: int | None = None,
+    font_size: int = 20,
+    hud_height: int | None = None,
+) -> None:
+    if hud_top_padding is None:
+        hud_top_padding = hud_top_padding_px(font_size)
+    if hud_line_gap is None:
+        hud_line_gap = hud_line_gap_px(font_size)
+    if hud_height is None:
+        hud_height = hud_height_px(hud_top_padding, hud_line_gap, font_size)
+
+    screen.fill(background_color())
+
+    board_width, board_height = board_size_px(state, tile_size)
+    board_rect = pygame.Rect(0, 0, board_width, board_height)
+    hud_rect = pygame.Rect(0, board_height, board_width, hud_height)
+    pygame.draw.rect(screen, board_background_color(), board_rect)
+    pygame.draw.rect(screen, (28, 34, 42), board_rect, 2)
+    pygame.draw.rect(screen, hud_background_color(), hud_rect)
+    pygame.draw.rect(screen, (24, 28, 34), hud_rect, 1)
+
+
 def render_frame(
     pygame: object,
     screen: object,
@@ -653,8 +693,19 @@ def render_frame(
     hud_padding_x: int = 10,
     hud_top_padding: int | None = None,
     hud_line_gap: int | None = None,
+    font_size: int = 20,
+    hud_height: int | None = None,
 ) -> None:
-    screen.fill((10, 10, 12))
+    draw_background(
+        pygame,
+        screen,
+        state,
+        tile_size,
+        hud_top_padding,
+        hud_line_gap,
+        font_size,
+        hud_height,
+    )
     draw_board(
         pygame,
         screen,
@@ -860,6 +911,8 @@ def run_interactive_realtime_graphics(
             10,
             hud_top_padding,
             hud_line_gap,
+            font_size,
+            hud_height,
         )
 
         pygame.display.flip()

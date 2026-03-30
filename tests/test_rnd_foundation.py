@@ -4,10 +4,13 @@ from rnd_foundation import (
     GameState,
     TimingMode,
     Tile,
+    active_motions,
     action_from_pygame_frame_events,
     buffer_action,
     consume_buffered_action,
+    get_motion,
     is_update_frame,
+    make_motion_state,
     parse_level,
     pygame_frame_requests_quit,
     board_size_px,
@@ -31,6 +34,8 @@ from rnd_foundation import (
     motion_start_cell,
     motion_start_frame,
     motion_tile,
+    remove_motion,
+    set_motion,
 )
 
 
@@ -126,6 +131,40 @@ def test_make_motion_rejects_invalid_values() -> None:
 
     with pytest.raises(ValueError, match="different cells"):
         make_motion(Tile.PLAYER, (1, 2), (1, 2), 0)
+
+
+def test_motion_state_stores_and_reads_motion_by_destination_cell() -> None:
+    motion_state = make_motion_state()
+    motion = make_motion(Tile.PLAYER, (1, 2), (2, 2), 7)
+
+    set_motion(motion_state, motion)
+
+    assert get_motion(motion_state, (2, 2)) == motion
+    assert active_motions(motion_state) == [motion]
+
+
+def test_motion_state_replaces_existing_motion_for_same_destination() -> None:
+    motion_state = make_motion_state()
+    first = make_motion(Tile.PLAYER, (1, 2), (2, 2), 7)
+    second = make_motion(Tile.ROCK, (2, 1), (2, 2), 8)
+
+    set_motion(motion_state, first)
+    set_motion(motion_state, second)
+
+    assert get_motion(motion_state, (2, 2)) == second
+    assert active_motions(motion_state) == [second]
+
+
+def test_motion_state_removes_motion_by_destination_cell() -> None:
+    motion_state = make_motion_state()
+    motion = make_motion(Tile.PLAYER, (1, 2), (2, 2), 7)
+    set_motion(motion_state, motion)
+
+    removed = remove_motion(motion_state, (2, 2))
+
+    assert removed == motion
+    assert get_motion(motion_state, (2, 2)) is None
+    assert active_motions(motion_state) == []
 
 
 def test_tile_color_maps_each_tile_type() -> None:

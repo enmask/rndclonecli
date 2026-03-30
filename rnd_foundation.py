@@ -45,6 +45,7 @@ DIRECTIONS = {
 
 Cell = Tuple[int, int]
 Motion = tuple[Tile, Cell, Cell, int]
+MotionState = dict[Cell, Motion]
 
 
 _TILE_SURFACE_CACHE: dict[tuple[Tile, int], object | None] = {}
@@ -391,6 +392,26 @@ def motion_destination_cell(motion: Motion) -> Cell:
 
 def motion_start_frame(motion: Motion) -> int:
     return motion[3]
+
+
+def make_motion_state() -> MotionState:
+    return {}
+
+
+def set_motion(motion_state: MotionState, motion: Motion) -> None:
+    motion_state[motion_destination_cell(motion)] = motion
+
+
+def get_motion(motion_state: MotionState, cell: Cell) -> Motion | None:
+    return motion_state.get(cell)
+
+
+def remove_motion(motion_state: MotionState, cell: Cell) -> Motion | None:
+    return motion_state.pop(cell, None)
+
+
+def active_motions(motion_state: MotionState) -> list[Motion]:
+    return list(motion_state.values())
 
 
 def draw_board(pygame: object, screen: object, state: GameState, tile_size: int) -> None:

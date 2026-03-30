@@ -457,6 +457,38 @@ def motion_is_complete(
     return motion_progress(motion, current_frame, duration_frames, timing_mode, sync_interval) >= 1.0
 
 
+def start_motion(
+    motion_state: MotionState,
+    tile: Tile,
+    start_cell: Cell,
+    destination_cell: Cell,
+    start_frame: int,
+) -> Motion:
+    motion = make_motion(tile, start_cell, destination_cell, start_frame)
+    set_motion(motion_state, motion)
+    return motion
+
+
+def complete_motion(motion_state: MotionState, cell: Cell) -> Motion | None:
+    return remove_motion(motion_state, cell)
+
+
+def update_motion_state(
+    motion_state: MotionState,
+    current_frame: int,
+    duration_frames: int,
+    timing_mode: TimingMode = TimingMode.ASYNC,
+    sync_interval: int = 1,
+) -> list[Motion]:
+    completed: list[Motion] = []
+    for motion in list(active_motions(motion_state)):
+        if motion_is_complete(motion, current_frame, duration_frames, timing_mode, sync_interval):
+            removed = remove_motion(motion_state, motion_destination_cell(motion))
+            if removed is not None:
+                completed.append(removed)
+    return completed
+
+
 def draw_board(pygame: object, screen: object, state: GameState, tile_size: int) -> None:
     for y in range(state.height):
         for x in range(state.width):

@@ -10,6 +10,7 @@ from rnd_foundation import (
     consume_buffered_action,
     get_motion,
     is_update_frame,
+    complete_motion,
     motion_is_complete,
     motion_progress,
     make_motion_state,
@@ -38,7 +39,9 @@ from rnd_foundation import (
     motion_tile,
     remove_motion,
     set_motion,
+    start_motion,
     clamp_progress,
+    update_motion_state,
 )
 
 
@@ -210,6 +213,57 @@ def test_motion_is_complete_uses_progress_rules() -> None:
 
     assert motion_is_complete(motion, current_frame=13, duration_frames=4, timing_mode=TimingMode.ASYNC) is False
     assert motion_is_complete(motion, current_frame=14, duration_frames=4, timing_mode=TimingMode.ASYNC) is True
+
+
+def test_start_motion_adds_motion_to_motion_state() -> None:
+    motion_state = make_motion_state()
+
+    motion = start_motion(motion_state, Tile.PLAYER, (1, 2), (2, 2), 7)
+
+    assert get_motion(motion_state, (2, 2)) == motion
+    assert active_motions(motion_state) == [motion]
+
+
+def test_complete_motion_removes_motion_from_motion_state() -> None:
+    motion_state = make_motion_state()
+    motion = start_motion(motion_state, Tile.PLAYER, (1, 2), (2, 2), 7)
+
+    removed = complete_motion(motion_state, (2, 2))
+
+    assert removed == motion
+    assert active_motions(motion_state) == []
+
+
+def test_update_motion_state_removes_completed_async_motions() -> None:
+    motion_state = make_motion_state()
+    first = start_motion(motion_state, Tile.PLAYER, (1, 2), (2, 2), 10)
+    second = start_motion(motion_state, Tile.ROCK, (3, 3), (3, 4), 12)
+
+    completed = update_motion_state(
+        motion_state,
+        current_frame=14,
+        duration_frames=4,
+        timing_mode=TimingMode.ASYNC,
+    )
+
+    assert completed == [first]
+    assert active_motions(motion_state) == [second]
+
+
+def test_update_motion_state_removes_completed_sync_motions_by_global_phase() -> None:
+    motion_state = make_motion_state()
+    motion = start_motion(motion_state, Tile.PLAYER, (1, 2), (2, 2), 3)
+
+    completed = update_motion_state(
+        motion_state,
+        current_frame=12,
+        duration_frames=4,
+        timing_mode=TimingMode.SYNC,
+        sync_interval=8,
+    )
+
+    assert completed == [motion]
+    assert active_motions(motion_state) == []
 
 
 def test_tile_color_maps_each_tile_type() -> None:

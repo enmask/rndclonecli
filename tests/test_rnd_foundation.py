@@ -37,9 +37,11 @@ from rnd_foundation import (
     motion_start_cell,
     motion_start_frame,
     motion_tile,
+    player_cell,
     remove_motion,
     set_motion,
     start_motion,
+    track_player_motion,
     clamp_progress,
     update_motion_state,
 )
@@ -263,6 +265,49 @@ def test_update_motion_state_removes_completed_sync_motions_by_global_phase() ->
     )
 
     assert completed == [motion]
+    assert active_motions(motion_state) == []
+
+
+def test_player_cell_returns_current_player_position() -> None:
+    state = make_state(
+        "#####",
+        "# P #",
+        "#####",
+    )
+
+    assert player_cell(state) == (2, 1)
+
+
+def test_track_player_motion_starts_motion_when_player_cell_changes() -> None:
+    motion_state = make_motion_state()
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.try_move_player(1, 0)
+
+    motion = track_player_motion(motion_state, (1, 1), state, frame_number=5)
+
+    assert motion is not None
+    assert motion_tile(motion) == Tile.PLAYER
+    assert motion_start_cell(motion) == (1, 1)
+    assert motion_destination_cell(motion) == (2, 1)
+    assert motion_start_frame(motion) == 5
+    assert active_motions(motion_state) == [motion]
+
+
+def test_track_player_motion_does_nothing_without_player_movement() -> None:
+    motion_state = make_motion_state()
+    state = make_state(
+        "#####",
+        "#P###",
+        "#####",
+    )
+
+    motion = track_player_motion(motion_state, (1, 1), state, frame_number=5)
+
+    assert motion is None
     assert active_motions(motion_state) == []
 
 
@@ -706,6 +751,49 @@ def test_update_graphics_frame_updates_state_and_reports_quit(monkeypatch: pytes
 
     assert should_quit is True
     assert (state.player_x, state.player_y) == (2, 1)
+
+
+def test_update_graphics_frame_starts_player_motion_when_player_moves(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "######",
+        "#P   #",
+        "######",
+    )
+    motion_state = make_motion_state()
+    events = [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)]
+
+    should_quit = update_graphics_frame(
+        state,
+        frame_number=0,
+        events=events,
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+
+    assert should_quit is False
+    assert active_motions(motion_state) == [make_motion(Tile.PLAYER, (1, 1), (2, 1), 0)]
+
+
+def test_update_graphics_frame_does_not_start_player_motion_without_movement(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "#####",
+        "#P###",
+        "#####",
+    )
+    motion_state = make_motion_state()
+    events = [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)]
+
+    update_graphics_frame(
+        state,
+        frame_number=0,
+        events=events,
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+
+    assert active_motions(motion_state) == []
 
 
 def test_consume_buffered_action_returns_none_when_buffer_is_empty() -> None:

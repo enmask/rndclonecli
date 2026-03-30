@@ -489,6 +489,22 @@ def update_motion_state(
     return completed
 
 
+def player_cell(state: GameState) -> Cell:
+    return (state.player_x, state.player_y)
+
+
+def track_player_motion(
+    motion_state: MotionState,
+    start_cell: Cell,
+    state: GameState,
+    frame_number: int,
+) -> Motion | None:
+    destination_cell = player_cell(state)
+    if start_cell == destination_cell:
+        return None
+    return start_motion(motion_state, Tile.PLAYER, start_cell, destination_cell, frame_number)
+
+
 def draw_board(pygame: object, screen: object, state: GameState, tile_size: int) -> None:
     for y in range(state.height):
         for x in range(state.width):
@@ -589,12 +605,24 @@ def update_graphics_frame(
     events: Iterable[object],
     timing_mode: TimingMode = TimingMode.ASYNC,
     sync_interval: int = 1,
+    motion_state: MotionState | None = None,
+    motion_duration_frames: int = 4,
 ) -> bool:
     event_list = list(events)
     should_quit = pygame_frame_requests_quit(event_list)
     if state.alive and not state.won:
+        start_cell = player_cell(state)
         frame_action = action_from_pygame_frame_events(event_list)
         step_realtime_frame(state, frame_number, frame_action, timing_mode, sync_interval)
+        if motion_state is not None:
+            track_player_motion(motion_state, start_cell, state, frame_number)
+            update_motion_state(
+                motion_state,
+                frame_number,
+                motion_duration_frames,
+                timing_mode,
+                sync_interval,
+            )
     return should_quit
 
 
@@ -697,6 +725,7 @@ def run_interactive_realtime_graphics(
     )
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("arial", font_size)
+    motion_state = make_motion_state()
 
     running = True
     frames = 0
@@ -707,6 +736,7 @@ def run_interactive_realtime_graphics(
             pygame.event.get(),
             timing_mode,
             sync_interval,
+            motion_state,
         ):
             running = False
 

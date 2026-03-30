@@ -10,6 +10,8 @@ from rnd_foundation import (
     consume_buffered_action,
     get_motion,
     is_update_frame,
+    motion_is_complete,
+    motion_progress,
     make_motion_state,
     parse_level,
     pygame_frame_requests_quit,
@@ -36,6 +38,7 @@ from rnd_foundation import (
     motion_tile,
     remove_motion,
     set_motion,
+    clamp_progress,
 )
 
 
@@ -165,6 +168,48 @@ def test_motion_state_removes_motion_by_destination_cell() -> None:
     assert removed == motion
     assert get_motion(motion_state, (2, 2)) is None
     assert active_motions(motion_state) == []
+
+
+def test_clamp_progress_bounds_values() -> None:
+    assert clamp_progress(-0.5) == 0.0
+    assert clamp_progress(0.25) == 0.25
+    assert clamp_progress(1.5) == 1.0
+
+
+def test_motion_progress_async_uses_motion_start_frame() -> None:
+    motion = make_motion(Tile.PLAYER, (1, 2), (2, 2), 10)
+
+    assert motion_progress(motion, current_frame=10, duration_frames=4, timing_mode=TimingMode.ASYNC) == 0.0
+    assert motion_progress(motion, current_frame=12, duration_frames=4, timing_mode=TimingMode.ASYNC) == 0.5
+    assert motion_progress(motion, current_frame=14, duration_frames=4, timing_mode=TimingMode.ASYNC) == 1.0
+
+
+def test_motion_progress_sync_uses_global_phase() -> None:
+    motion = make_motion(Tile.PLAYER, (1, 2), (2, 2), 3)
+
+    assert motion_progress(motion, current_frame=8, duration_frames=4, timing_mode=TimingMode.SYNC, sync_interval=8) == 0.0
+    assert motion_progress(motion, current_frame=10, duration_frames=4, timing_mode=TimingMode.SYNC, sync_interval=8) == 0.5
+    assert motion_progress(motion, current_frame=12, duration_frames=4, timing_mode=TimingMode.SYNC, sync_interval=8) == 1.0
+
+
+def test_motion_progress_rejects_invalid_values() -> None:
+    motion = make_motion(Tile.PLAYER, (1, 2), (2, 2), 3)
+
+    with pytest.raises(ValueError, match="non-negative"):
+        motion_progress(motion, current_frame=-1, duration_frames=4)
+
+    with pytest.raises(ValueError, match="positive"):
+        motion_progress(motion, current_frame=3, duration_frames=0)
+
+    with pytest.raises(ValueError, match="positive"):
+        motion_progress(motion, current_frame=3, duration_frames=4, sync_interval=0)
+
+
+def test_motion_is_complete_uses_progress_rules() -> None:
+    motion = make_motion(Tile.PLAYER, (1, 2), (2, 2), 10)
+
+    assert motion_is_complete(motion, current_frame=13, duration_frames=4, timing_mode=TimingMode.ASYNC) is False
+    assert motion_is_complete(motion, current_frame=14, duration_frames=4, timing_mode=TimingMode.ASYNC) is True
 
 
 def test_tile_color_maps_each_tile_type() -> None:

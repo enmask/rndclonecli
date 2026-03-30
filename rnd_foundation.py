@@ -414,6 +414,49 @@ def active_motions(motion_state: MotionState) -> list[Motion]:
     return list(motion_state.values())
 
 
+def clamp_progress(progress: float) -> float:
+    if progress < 0.0:
+        return 0.0
+    if progress > 1.0:
+        return 1.0
+    return progress
+
+
+def motion_progress(
+    motion: Motion,
+    current_frame: int,
+    duration_frames: int,
+    timing_mode: TimingMode = TimingMode.ASYNC,
+    sync_interval: int = 1,
+) -> float:
+    if current_frame < 0:
+        raise ValueError("current_frame must be non-negative")
+    if duration_frames <= 0:
+        raise ValueError("duration_frames must be positive")
+    if sync_interval <= 0:
+        raise ValueError("sync_interval must be positive")
+
+    if timing_mode == TimingMode.ASYNC:
+        elapsed_frames = current_frame - motion_start_frame(motion)
+        return clamp_progress(elapsed_frames / duration_frames)
+
+    if timing_mode == TimingMode.SYNC:
+        phase = current_frame % sync_interval
+        return clamp_progress(phase / duration_frames)
+
+    raise ValueError(f"Unsupported timing mode: {timing_mode}")
+
+
+def motion_is_complete(
+    motion: Motion,
+    current_frame: int,
+    duration_frames: int,
+    timing_mode: TimingMode = TimingMode.ASYNC,
+    sync_interval: int = 1,
+) -> bool:
+    return motion_progress(motion, current_frame, duration_frames, timing_mode, sync_interval) >= 1.0
+
+
 def draw_board(pygame: object, screen: object, state: GameState, tile_size: int) -> None:
     for y in range(state.height):
         for x in range(state.width):

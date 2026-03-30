@@ -266,6 +266,70 @@ def test_update_motion_state_removes_completed_sync_motions_by_global_phase() ->
     assert active_motions(motion_state) == []
 
 
+def test_motion_contract_async_transition_progresses_then_completes() -> None:
+    motion_state = make_motion_state()
+    motion = start_motion(motion_state, Tile.PLAYER, (1, 1), (2, 1), 10)
+
+    assert motion_progress(motion, current_frame=10, duration_frames=4, timing_mode=TimingMode.ASYNC) == 0.0
+    assert motion_progress(motion, current_frame=12, duration_frames=4, timing_mode=TimingMode.ASYNC) == 0.5
+    assert update_motion_state(
+        motion_state,
+        current_frame=12,
+        duration_frames=4,
+        timing_mode=TimingMode.ASYNC,
+    ) == []
+    assert active_motions(motion_state) == [motion]
+
+    completed = update_motion_state(
+        motion_state,
+        current_frame=14,
+        duration_frames=4,
+        timing_mode=TimingMode.ASYNC,
+    )
+
+    assert completed == [motion]
+    assert active_motions(motion_state) == []
+
+
+def test_motion_contract_sync_transition_uses_shared_phase_then_completes() -> None:
+    motion_state = make_motion_state()
+    motion = start_motion(motion_state, Tile.PLAYER, (1, 1), (2, 1), 5)
+
+    assert motion_progress(
+        motion,
+        current_frame=8,
+        duration_frames=4,
+        timing_mode=TimingMode.SYNC,
+        sync_interval=8,
+    ) == 0.0
+    assert motion_progress(
+        motion,
+        current_frame=10,
+        duration_frames=4,
+        timing_mode=TimingMode.SYNC,
+        sync_interval=8,
+    ) == 0.5
+    assert update_motion_state(
+        motion_state,
+        current_frame=10,
+        duration_frames=4,
+        timing_mode=TimingMode.SYNC,
+        sync_interval=8,
+    ) == []
+    assert active_motions(motion_state) == [motion]
+
+    completed = update_motion_state(
+        motion_state,
+        current_frame=12,
+        duration_frames=4,
+        timing_mode=TimingMode.SYNC,
+        sync_interval=8,
+    )
+
+    assert completed == [motion]
+    assert active_motions(motion_state) == []
+
+
 def test_tile_color_maps_each_tile_type() -> None:
     assert tile_color(Tile.EMPTY) == (16, 18, 22)
     assert tile_color(Tile.WALL) == (100, 110, 130)

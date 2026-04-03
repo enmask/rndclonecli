@@ -7,9 +7,11 @@ from rnd_foundation import (
     Tile,
     active_motions,
     action_from_pygame_frame_events,
+    action_from_pygame_pressed_keys,
     buffer_action,
     consume_buffered_action,
     default_motion_duration_frames,
+    has_active_player_motion,
     engine_config,
     get_motion,
     is_update_frame,
@@ -197,6 +199,15 @@ def test_motion_state_removes_motion_by_destination_cell() -> None:
     assert removed == motion
     assert get_motion(motion_state, (2, 2)) is None
     assert active_motions(motion_state) == []
+
+
+def test_has_active_player_motion_detects_player_motion_only() -> None:
+    motion_state = make_motion_state()
+    set_motion(motion_state, make_motion(Tile.ROCK, (1, 1), (1, 2), 3))
+    assert has_active_player_motion(motion_state) is False
+
+    set_motion(motion_state, make_motion(Tile.PLAYER, (2, 1), (3, 1), 4))
+    assert has_active_player_motion(motion_state) is True
 
 
 def test_clamp_progress_bounds_values() -> None:
@@ -977,6 +988,28 @@ def test_update_graphics_frame_updates_state_and_reports_quit(monkeypatch: pytes
     assert (state.player_x, state.player_y) == (2, 1)
 
 
+def test_update_graphics_frame_uses_held_key_when_no_keydown_event(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "######",
+        "#P   #",
+        "######",
+    )
+    pressed = [False] * 13
+    pressed[FakePygame.K_d] = True
+
+    should_quit = update_graphics_frame(
+        state,
+        frame_number=0,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        pressed_keys=pressed,
+    )
+
+    assert should_quit is False
+    assert (state.player_x, state.player_y) == (2, 1)
+
+
 def test_update_graphics_frame_starts_player_motion_when_player_moves(monkeypatch: pytest.MonkeyPatch) -> None:
     install_fake_pygame(monkeypatch)
     state = make_state(
@@ -1018,6 +1051,76 @@ def test_update_graphics_frame_does_not_start_player_motion_without_movement(mon
     )
 
     assert active_motions(motion_state) == []
+
+
+def test_update_graphics_frame_blocks_new_move_while_player_motion_is_active(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "#######",
+        "#P    #",
+        "#######",
+    )
+    motion_state = make_motion_state()
+
+    update_graphics_frame(
+        state,
+        frame_number=0,
+        events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+
+    update_graphics_frame(
+        state,
+        frame_number=1,
+        events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.pending_action == "d"
+    assert active_motions(motion_state) == [make_motion(Tile.PLAYER, (1, 1), (2, 1), 0)]
+
+
+def test_update_graphics_frame_consumes_buffered_move_after_player_motion_finishes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "#######",
+        "#P    #",
+        "#######",
+    )
+    motion_state = make_motion_state()
+
+    update_graphics_frame(
+        state,
+        frame_number=0,
+        events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+    update_graphics_frame(
+        state,
+        frame_number=1,
+        events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+    update_graphics_frame(
+        state,
+        frame_number=4,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+
+    assert (state.player_x, state.player_y) == (3, 1)
+    assert state.pending_action is None
+    assert active_motions(motion_state) == [make_motion(Tile.PLAYER, (2, 1), (3, 1), 4)]
 
 
 def test_consume_buffered_action_returns_none_when_buffer_is_empty() -> None:
@@ -1655,6 +1758,11 @@ class FakePygame:
         def get() -> list[FakeEvent]:
             return []
 
+    class key:
+        @staticmethod
+        def get_pressed() -> list[bool]:
+            return [False] * 13
+
     class draw:
         @staticmethod
         def rect(screen: FakeScreen, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
@@ -1698,6 +1806,22 @@ def test_action_from_pygame_frame_events_ignores_non_movement_keys(monkeypatch: 
     ]
 
     assert action_from_pygame_frame_events(events) == "a"
+
+
+def test_action_from_pygame_pressed_keys_uses_held_direction(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+    pressed = [False] * 13
+    pressed[FakePygame.K_d] = True
+
+    assert action_from_pygame_pressed_keys(pressed) == "d"
+
+
+def test_action_from_pygame_pressed_keys_returns_none_without_held_direction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+
+    assert action_from_pygame_pressed_keys([False] * 13) is None
 
 
 def test_pygame_frame_requests_quit_is_separate_from_movement(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1776,6 +1900,33 @@ def test_graphics_mode_sync_timing_consumes_buffered_input_on_sync_frame(
 
     assert (state.player_x, state.player_y) == (2, 1)
     assert state.pending_action is None
+
+
+def test_graphics_mode_repeats_movement_when_direction_is_held(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+
+    class HeldKeyState:
+        frames = 0
+
+        @classmethod
+        def get_pressed(cls) -> list[bool]:
+            cls.frames += 1
+            pressed = [False] * 13
+            if cls.frames <= 5:
+                pressed[FakePygame.K_d] = True
+            return pressed
+
+    monkeypatch.setattr(FakePygame, "key", HeldKeyState)
+
+    state = make_state(
+        "########",
+        "#P     #",
+        "########",
+    )
+
+    run_interactive_realtime_graphics(state, tick_ms=250, tile_size=32, max_frames=5)
+
+    assert (state.player_x, state.player_y) == (3, 1)
 
 
 def test_graphics_mode_uses_screen_size_layout_helper(monkeypatch: pytest.MonkeyPatch) -> None:

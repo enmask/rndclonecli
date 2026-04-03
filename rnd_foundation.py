@@ -348,6 +348,19 @@ def action_from_pygame_frame_events(events: Iterable[object]) -> str | None:
     return None
 
 
+def action_from_pygame_pressed_keys(pressed: object) -> str | None:
+    pygame = importlib.import_module("pygame")
+    if pressed[pygame.K_w] or pressed[pygame.K_UP]:
+        return "w"
+    if pressed[pygame.K_a] or pressed[pygame.K_LEFT]:
+        return "a"
+    if pressed[pygame.K_s] or pressed[pygame.K_DOWN]:
+        return "s"
+    if pressed[pygame.K_d] or pressed[pygame.K_RIGHT]:
+        return "d"
+    return None
+
+
 def tile_color(tile: Tile) -> Tuple[int, int, int]:
     colors = {
         Tile.EMPTY: (16, 18, 22),
@@ -438,6 +451,10 @@ def remove_motion(motion_state: MotionState, cell: Cell) -> Motion | None:
 
 def active_motions(motion_state: MotionState) -> list[Motion]:
     return list(motion_state.values())
+
+
+def has_active_player_motion(motion_state: MotionState) -> bool:
+    return any(motion_tile(motion) == Tile.PLAYER for motion in active_motions(motion_state))
 
 
 def clamp_progress(progress: float) -> float:
@@ -776,15 +793,15 @@ def update_graphics_frame(
     sync_interval: int = 1,
     motion_state: MotionState | None = None,
     motion_duration_frames: int = 4,
+    pressed_keys: object | None = None,
 ) -> bool:
     event_list = list(events)
     should_quit = pygame_frame_requests_quit(event_list)
     if state.alive and not state.won:
-        start_cell = player_cell(state)
         frame_action = action_from_pygame_frame_events(event_list)
-        step_realtime_frame(state, frame_number, frame_action, timing_mode, sync_interval)
+        if frame_action is None and pressed_keys is not None:
+            frame_action = action_from_pygame_pressed_keys(pressed_keys)
         if motion_state is not None:
-            track_player_motion(motion_state, start_cell, state, frame_number)
             update_motion_state(
                 motion_state,
                 frame_number,
@@ -792,6 +809,14 @@ def update_graphics_frame(
                 timing_mode,
                 sync_interval,
             )
+            if has_active_player_motion(motion_state):
+                buffer_action(state, frame_action)
+                return should_quit
+
+        start_cell = player_cell(state)
+        step_realtime_frame(state, frame_number, frame_action, timing_mode, sync_interval)
+        if motion_state is not None:
+            track_player_motion(motion_state, start_cell, state, frame_number)
     return should_quit
 
 
@@ -908,6 +933,7 @@ def run_interactive_realtime_graphics(
             sync_interval,
             motion_state,
             motion_duration_frames,
+            pygame.key.get_pressed(),
         ):
             running = False
 

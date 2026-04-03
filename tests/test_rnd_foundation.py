@@ -10,6 +10,7 @@ from rnd_foundation import (
     buffer_action,
     consume_buffered_action,
     default_motion_duration_frames,
+    engine_config,
     get_motion,
     is_update_frame,
     background_color,
@@ -135,6 +136,16 @@ def test_parse_level_supports_sand() -> None:
 def test_engine_mode_exposes_named_engine_choices() -> None:
     assert EngineMode.RND.value == "rnd"
     assert EngineMode.EM.value == "em"
+
+
+def test_engine_config_maps_rnd_and_em_to_timing_defaults() -> None:
+    assert engine_config(EngineMode.RND) == (TimingMode.ASYNC, 1)
+    assert engine_config(EngineMode.EM) == (TimingMode.SYNC, 8)
+
+
+def test_engine_config_rejects_invalid_engine_mode() -> None:
+    with pytest.raises(ValueError, match="Unsupported engine mode"):
+        engine_config("broken")  # type: ignore[arg-type]
 
 
 def test_make_motion_builds_a_transition_model() -> None:

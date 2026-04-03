@@ -51,6 +51,7 @@ DIRECTIONS = {
 Cell = Tuple[int, int]
 Motion = tuple[Tile, Cell, Cell, int]
 MotionState = dict[Cell, Motion]
+EngineConfig = tuple[TimingMode, int]
 
 
 _TILE_SURFACE_CACHE: dict[tuple[Tile, int], object | None] = {}
@@ -243,6 +244,14 @@ def is_update_frame(
     if timing_mode == TimingMode.SYNC:
         return frame_number % sync_interval == 0
     raise ValueError(f"Unsupported timing mode: {timing_mode}")
+
+
+def engine_config(engine_mode: EngineMode) -> EngineConfig:
+    if engine_mode == EngineMode.RND:
+        return (TimingMode.ASYNC, 1)
+    if engine_mode == EngineMode.EM:
+        return (TimingMode.SYNC, 8)
+    raise ValueError(f"Unsupported engine mode: {engine_mode}")
 
 
 def step_game(state: GameState, action: str | None) -> None:

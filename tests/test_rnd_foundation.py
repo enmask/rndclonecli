@@ -7,7 +7,9 @@ from rnd_foundation import (
     Tile,
     active_motions,
     action_from_pygame_frame_events,
+    action_from_pygame_key,
     action_from_pygame_pressed_keys,
+    action_from_turn_input,
     buffer_action,
     consume_buffered_action,
     default_motion_duration_frames,
@@ -15,6 +17,7 @@ from rnd_foundation import (
     engine_config,
     get_motion,
     is_update_frame,
+    make_hold_state,
     background_color,
     board_background_color,
     draw_background,
@@ -34,6 +37,7 @@ from rnd_foundation import (
     render_frame,
     run_interactive_realtime_graphics,
     screen_size_px,
+    step_game,
     step_realtime_frame,
     tile_appearance,
     tile_color,
@@ -54,6 +58,7 @@ from rnd_foundation import (
     track_player_motion,
     clamp_progress,
     hud_background_color,
+    repeated_held_action,
     update_motion_state,
 )
 
@@ -997,6 +1002,7 @@ def test_update_graphics_frame_uses_held_key_when_no_keydown_event(monkeypatch: 
     )
     pressed = [False] * 13
     pressed[FakePygame.K_d] = True
+    hold_state = make_hold_state()
 
     should_quit = update_graphics_frame(
         state,
@@ -1004,10 +1010,11 @@ def test_update_graphics_frame_uses_held_key_when_no_keydown_event(monkeypatch: 
         events=[],
         timing_mode=TimingMode.ASYNC,
         pressed_keys=pressed,
+        hold_state=hold_state,
     )
 
     assert should_quit is False
-    assert (state.player_x, state.player_y) == (2, 1)
+    assert (state.player_x, state.player_y) == (1, 1)
 
 
 def test_update_graphics_frame_starts_player_motion_when_player_moves(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1193,6 +1200,19 @@ def test_player_can_move_into_sand() -> None:
     assert state.get(2, 1) == Tile.PLAYER
 
 
+def test_player_can_snap_sand_without_moving() -> None:
+    state = make_state(
+        "#####",
+        "#P. #",
+        "#####",
+    )
+
+    state.try_snap(1, 0)
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.get(2, 1) == Tile.EMPTY
+
+
 def test_player_collects_diamond_and_wins_when_last_diamond_taken() -> None:
     state = make_state(
         "#####",
@@ -1206,6 +1226,21 @@ def test_player_collects_diamond_and_wins_when_last_diamond_taken() -> None:
     assert state.won is True
     assert state.alive is True
     assert state.get(2, 1) == Tile.PLAYER
+
+
+def test_player_can_snap_diamond_without_moving_and_win() -> None:
+    state = make_state(
+        "#####",
+        "#P* #",
+        "#####",
+    )
+
+    state.try_snap(1, 0)
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.get(2, 1) == Tile.EMPTY
+    assert state.diamonds_collected == 1
+    assert state.won is True
 
 
 def test_player_can_push_rock_horizontally_if_space_is_free() -> None:
@@ -1232,6 +1267,47 @@ def test_player_cannot_push_rock_vertically() -> None:
     state.try_move_player(0, -1)
 
     assert (state.player_x, state.player_y) == (2, 2)
+    assert state.get(2, 1) == Tile.ROCK
+
+
+def test_player_can_snap_push_rock_horizontally_without_moving() -> None:
+    state = make_state(
+        "######",
+        "#PO  #",
+        "######",
+    )
+
+    state.try_snap(1, 0)
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.get(2, 1) == Tile.EMPTY
+    assert state.get(3, 1) == Tile.ROCK
+
+
+def test_player_cannot_snap_push_rock_vertically() -> None:
+    state = make_state(
+        "#####",
+        "# O #",
+        "# P #",
+        "#####",
+    )
+
+    state.try_snap(0, -1)
+
+    assert (state.player_x, state.player_y) == (2, 2)
+    assert state.get(2, 1) == Tile.ROCK
+
+
+def test_player_cannot_snap_push_rock_into_blocked_space() -> None:
+    state = make_state(
+        "#####",
+        "#PO##",
+        "#####",
+    )
+
+    state.try_snap(1, 0)
+
+    assert (state.player_x, state.player_y) == (1, 1)
     assert state.get(2, 1) == Tile.ROCK
 
 
@@ -1377,6 +1453,19 @@ def test_step_realtime_frame_async_mode_updates_every_frame() -> None:
 
     assert (state.player_x, state.player_y) == (2, 1)
     assert state.get(2, 3) == Tile.ROCK
+
+
+def test_step_game_supports_snap_actions() -> None:
+    state = make_state(
+        "#####",
+        "#P. #",
+        "#####",
+    )
+
+    step_game(state, "D")
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.get(2, 1) == Tile.EMPTY
 
 
 def test_step_realtime_frame_async_mode_consumes_prebuffered_action() -> None:
@@ -1693,9 +1782,10 @@ def test_step_realtime_frame_clears_buffer_when_consumed_action_cannot_move() ->
 
 
 class FakeEvent:
-    def __init__(self, event_type: int, key: int | None = None) -> None:
+    def __init__(self, event_type: int, key: int | None = None, mod: int = 0) -> None:
         self.type = event_type
         self.key = key
+        self.mod = mod
 
 
 class FakeFont:
@@ -1729,6 +1819,7 @@ class FakePygame:
     K_d = 10
     K_RIGHT = 11
     K_x = 12
+    KMOD_CTRL = 64
 
     class display:
         @staticmethod
@@ -1808,6 +1899,16 @@ def test_action_from_pygame_frame_events_ignores_non_movement_keys(monkeypatch: 
     assert action_from_pygame_frame_events(events) == "a"
 
 
+def test_action_from_pygame_frame_events_supports_ctrl_snap_actions(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+
+    events = [
+        FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d, FakePygame.KMOD_CTRL),
+    ]
+
+    assert action_from_pygame_frame_events(events) == "D"
+
+
 def test_action_from_pygame_pressed_keys_uses_held_direction(monkeypatch: pytest.MonkeyPatch) -> None:
     install_fake_pygame(monkeypatch)
     pressed = [False] * 13
@@ -1822,6 +1923,35 @@ def test_action_from_pygame_pressed_keys_returns_none_without_held_direction(
     install_fake_pygame(monkeypatch)
 
     assert action_from_pygame_pressed_keys([False] * 13) is None
+
+
+def test_action_from_pygame_key_supports_ctrl_snap_actions(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+
+    assert action_from_pygame_key(FakePygame.K_d, ctrl_held=True) == "D"
+    assert action_from_pygame_key(FakePygame.K_UP, ctrl_held=True) == "W"
+
+
+def test_repeated_held_action_waits_for_repeat_delay() -> None:
+    hold_state = make_hold_state()
+
+    assert repeated_held_action(hold_state, 0, "d", 4, 4) is None
+    assert repeated_held_action(hold_state, 1, "d", 4, 4) is None
+    assert repeated_held_action(hold_state, 3, "d", 4, 4) is None
+    assert repeated_held_action(hold_state, 4, "d", 4, 4) == "d"
+
+
+def test_repeated_held_action_resets_when_key_is_released() -> None:
+    hold_state = make_hold_state()
+
+    assert repeated_held_action(hold_state, 0, "d", 4, 4) is None
+    assert repeated_held_action(hold_state, 1, None, 4, 4) is None
+    assert repeated_held_action(hold_state, 2, "d", 4, 4) is None
+    assert hold_state == {"action": "d", "press_frame": 2}
+
+
+def test_action_from_turn_input_supports_uppercase_snap_actions() -> None:
+    assert action_from_turn_input("D") == "D"
 
 
 def test_pygame_frame_requests_quit_is_separate_from_movement(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1905,6 +2035,24 @@ def test_graphics_mode_sync_timing_consumes_buffered_input_on_sync_frame(
 def test_graphics_mode_repeats_movement_when_direction_is_held(monkeypatch: pytest.MonkeyPatch) -> None:
     install_fake_pygame(monkeypatch)
 
+    class SequencedEventQueue:
+        frames = [
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+            [],
+            [],
+            [],
+            [],
+        ]
+        index = 0
+
+        @classmethod
+        def get(cls) -> list[FakeEvent]:
+            if cls.index >= len(cls.frames):
+                return []
+            events = cls.frames[cls.index]
+            cls.index += 1
+            return events
+
     class HeldKeyState:
         frames = 0
 
@@ -1916,6 +2064,7 @@ def test_graphics_mode_repeats_movement_when_direction_is_held(monkeypatch: pyte
                 pressed[FakePygame.K_d] = True
             return pressed
 
+    monkeypatch.setattr(FakePygame, "event", SequencedEventQueue)
     monkeypatch.setattr(FakePygame, "key", HeldKeyState)
 
     state = make_state(

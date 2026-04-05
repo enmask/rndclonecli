@@ -46,12 +46,19 @@ DIRECTIONS = {
     "s": (0, 1),
     "d": (1, 0),
 }
+SNAP_ACTIONS = {
+    "W": (0, -1),
+    "A": (-1, 0),
+    "S": (0, 1),
+    "D": (1, 0),
+}
 
 
 Cell = Tuple[int, int]
 Motion = tuple[Tile, Cell, Cell, int]
 MotionState = dict[Cell, Motion]
 EngineConfig = tuple[TimingMode, int]
+HoldState = dict[str, str | int | None]
 
 
 _TILE_SURFACE_CACHE: dict[tuple[Tile, int], object | None] = {}
@@ -119,6 +126,33 @@ class GameState:
             if self.in_bounds(push_x, push_y) and self.get(push_x, push_y) == Tile.EMPTY:
                 self.set(push_x, push_y, Tile.ROCK)
                 self._move_player_to(tx, ty)
+
+    def try_snap(self, dx: int, dy: int) -> None:
+        if not self.alive or self.won:
+            return
+
+        tx, ty = self.player_x + dx, self.player_y + dy
+        if not self.in_bounds(tx, ty):
+            return
+
+        target = self.get(tx, ty)
+
+        if target == Tile.SAND:
+            self.set(tx, ty, Tile.EMPTY)
+            return
+
+        if target == Tile.DIAMOND:
+            self.set(tx, ty, Tile.EMPTY)
+            self.diamonds_collected += 1
+            if self.diamonds_collected >= self.diamonds_total:
+                self.won = True
+            return
+
+        if target == Tile.ROCK and dy == 0:
+            push_x, push_y = tx + dx, ty
+            if self.in_bounds(push_x, push_y) and self.get(push_x, push_y) == Tile.EMPTY:
+                self.set(push_x, push_y, Tile.ROCK)
+                self.set(tx, ty, Tile.EMPTY)
 
     def _move_player_to(self, x: int, y: int) -> None:
         self.set(self.player_x, self.player_y, Tile.EMPTY)
@@ -258,11 +292,14 @@ def step_game(state: GameState, action: str | None) -> None:
     if action in DIRECTIONS and state.alive and not state.won:
         dx, dy = DIRECTIONS[action]
         state.try_move_player(dx, dy)
+    elif action in SNAP_ACTIONS and state.alive and not state.won:
+        dx, dy = SNAP_ACTIONS[action]
+        state.try_snap(dx, dy)
     state.apply_gravity()
 
 
 def buffer_action(state: GameState, action: str | None) -> None:
-    if action in DIRECTIONS:
+    if action in DIRECTIONS or action in SNAP_ACTIONS:
         state.pending_action = action
 
 
@@ -299,7 +336,9 @@ def step_realtime_frame(
 
 
 def action_from_turn_input(text: str) -> str | None:
-    return text if text in DIRECTIONS else None
+    if text in DIRECTIONS or text in SNAP_ACTIONS:
+        return text
+    return None
 
 
 def action_from_curses_key(key: int) -> str | None:
@@ -311,11 +350,28 @@ def action_from_curses_key(key: int) -> str | None:
         return "s"
     if key in (ord("d"), ord("D"), curses.KEY_RIGHT):
         return "d"
+    if key == 23:
+        return "W"
+    if key == 1:
+        return "A"
+    if key == 19:
+        return "S"
+    if key == 4:
+        return "D"
     return None
 
 
-def action_from_pygame_key(key: int) -> str | None:
+def action_from_pygame_key(key: int, ctrl_held: bool = False) -> str | None:
     pygame = importlib.import_module("pygame")
+    if ctrl_held:
+        if key in (pygame.K_w, pygame.K_UP):
+            return "W"
+        if key in (pygame.K_a, pygame.K_LEFT):
+            return "A"
+        if key in (pygame.K_s, pygame.K_DOWN):
+            return "S"
+        if key in (pygame.K_d, pygame.K_RIGHT):
+            return "D"
     if key in (pygame.K_w, pygame.K_UP):
         return "w"
     if key in (pygame.K_a, pygame.K_LEFT):
@@ -342,7 +398,8 @@ def action_from_pygame_frame_events(events: Iterable[object]) -> str | None:
     for event in events:
         if getattr(event, "type", None) != pygame.KEYDOWN:
             continue
-        action = action_from_pygame_key(getattr(event, "key", None))
+        ctrl_held = bool(getattr(event, "mod", 0) & getattr(pygame, "KMOD_CTRL", 0))
+        action = action_from_pygame_key(getattr(event, "key", None), ctrl_held)
         if action is not None:
             return action
     return None
@@ -358,6 +415,45 @@ def action_from_pygame_pressed_keys(pressed: object) -> str | None:
         return "s"
     if pressed[pygame.K_d] or pressed[pygame.K_RIGHT]:
         return "d"
+    return None
+
+
+def make_hold_state() -> HoldState:
+    return {"action": None, "press_frame": None}
+
+
+def repeated_held_action(
+    hold_state: HoldState,
+    frame_number: int,
+    held_action: str | None,
+    initial_delay_frames: int,
+    repeat_interval_frames: int,
+) -> str | None:
+    if initial_delay_frames <= 0:
+        raise ValueError("initial_delay_frames must be positive")
+    if repeat_interval_frames <= 0:
+        raise ValueError("repeat_interval_frames must be positive")
+
+    if held_action is None:
+        hold_state["action"] = None
+        hold_state["press_frame"] = None
+        return None
+
+    if hold_state["action"] != held_action:
+        hold_state["action"] = held_action
+        hold_state["press_frame"] = frame_number
+        return None
+
+    press_frame = hold_state["press_frame"]
+    if not isinstance(press_frame, int):
+        hold_state["press_frame"] = frame_number
+        return None
+
+    elapsed_frames = frame_number - press_frame
+    if elapsed_frames < initial_delay_frames:
+        return None
+    if (elapsed_frames - initial_delay_frames) % repeat_interval_frames == 0:
+        return held_action
     return None
 
 
@@ -794,13 +890,27 @@ def update_graphics_frame(
     motion_state: MotionState | None = None,
     motion_duration_frames: int = 4,
     pressed_keys: object | None = None,
+    hold_state: HoldState | None = None,
 ) -> bool:
     event_list = list(events)
     should_quit = pygame_frame_requests_quit(event_list)
     if state.alive and not state.won:
         frame_action = action_from_pygame_frame_events(event_list)
-        if frame_action is None and pressed_keys is not None:
-            frame_action = action_from_pygame_pressed_keys(pressed_keys)
+        if frame_action is not None and hold_state is not None:
+            hold_state["action"] = frame_action
+            hold_state["press_frame"] = frame_number
+        elif frame_action is None and pressed_keys is not None:
+            held_action = action_from_pygame_pressed_keys(pressed_keys)
+            if hold_state is not None:
+                frame_action = repeated_held_action(
+                    hold_state,
+                    frame_number,
+                    held_action,
+                    motion_duration_frames,
+                    motion_duration_frames,
+                )
+            else:
+                frame_action = held_action
         if motion_state is not None:
             update_motion_state(
                 motion_state,
@@ -821,16 +931,16 @@ def update_graphics_frame(
 
 
 def run_interactive_turn_based(state: GameState) -> None:
-    print("Controls: w/a/s/d to move, q to quit")
+    print("Controls: w/a/s/d move, W/A/S/D snap, q quit")
     while state.alive and not state.won:
         print()
         print(state.render())
-        move = input("Move> ").strip().lower()
-        if move == "q":
+        move = input("Move> ").strip()
+        if move in ("q", "Q"):
             break
         action = action_from_turn_input(move)
         if action is None:
-            print("Use w/a/s/d or q")
+            print("Use w/a/s/d, W/A/S/D, or q")
             continue
         step_game(state, action)
 
@@ -921,6 +1031,7 @@ def run_interactive_realtime_graphics(
     font = pygame.font.SysFont("arial", font_size)
     motion_state = make_motion_state()
     motion_duration_frames = default_motion_duration_frames(timing_mode, sync_interval)
+    hold_state = make_hold_state()
 
     running = True
     frames = 0
@@ -934,6 +1045,7 @@ def run_interactive_realtime_graphics(
             motion_state,
             motion_duration_frames,
             pygame.key.get_pressed(),
+            hold_state,
         ):
             running = False
 
@@ -969,9 +1081,10 @@ def run_scripted(state: GameState, moves: str) -> None:
     print("Initial state:")
     print(state.render())
     for move in moves:
-        if move not in DIRECTIONS or not state.alive or state.won:
+        action = action_from_turn_input(move)
+        if action is None or not state.alive or state.won:
             continue
-        step_game(state, move)
+        step_game(state, action)
     print("\nAfter scripted moves:")
     print(state.render())
 

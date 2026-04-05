@@ -712,7 +712,10 @@ def find_vertical_falling_motions(
         moved_from = before_cells.get(tile, set()) - after_cells.get(tile, set())
         for start_cell in sorted(moved_from):
             destination_cell = (start_cell[0], start_cell[1] + 1)
-            if destination_cell in after_cells.get(tile, set()):
+            if (
+                destination_cell in after_cells.get(tile, set())
+                and destination_cell not in before_cells.get(tile, set())
+            ):
                 motions.append(make_motion(tile, start_cell, destination_cell, frame_number))
 
     return motions

@@ -495,6 +495,20 @@ def test_find_vertical_falling_motions_ignores_horizontal_rock_push() -> None:
     assert find_vertical_falling_motions(before_cells, state, 5) == []
 
 
+def test_find_vertical_falling_motions_ignores_stacked_rock_push_false_fall() -> None:
+    state = make_state(
+        "#######",
+        "#PO   #",
+        "# O   #",
+        "#######",
+    )
+    before_cells = moving_object_cells(state)
+
+    state.try_move_player(1, 0)
+
+    assert find_vertical_falling_motions(before_cells, state, 6) == []
+
+
 def test_track_falling_motions_stores_detected_falling_motion() -> None:
     state = make_state(
         "#####",
@@ -632,6 +646,22 @@ def test_update_motion_state_removes_completed_sync_motions_by_global_phase() ->
 
     assert completed == [motion]
     assert active_motions(motion_state) == []
+
+
+def test_update_motion_state_removes_completed_falling_object_motion() -> None:
+    motion_state = make_motion_state()
+    rock_motion = start_motion(motion_state, Tile.ROCK, (2, 1), (2, 2), 10)
+    diamond_motion = start_motion(motion_state, Tile.DIAMOND, (3, 1), (3, 2), 12)
+
+    completed = update_motion_state(
+        motion_state,
+        current_frame=14,
+        duration_frames=4,
+        timing_mode=TimingMode.ASYNC,
+    )
+
+    assert completed == [rock_motion]
+    assert active_motions(motion_state) == [diamond_motion]
 
 
 def test_default_motion_duration_frames_matches_timing_mode() -> None:
@@ -1119,6 +1149,96 @@ def test_draw_board_renders_multiple_moving_tiles_at_interpolated_positions() ->
     assert (screen, tile_color(Tile.ROCK), (48, 36, 24, 24), 0) in calls
     assert (screen, (30, 30, 30), (36, 24, 24, 24), 1) in calls
     assert (screen, (30, 30, 30), (48, 36, 24, 24), 1) in calls
+
+
+def test_draw_board_renders_falling_rock_at_interpolated_rect() -> None:
+    clear_tile_surface_cache()
+    state = make_state(
+        "#####",
+        "#   #",
+        "# O #",
+        "#P  #",
+        "#####",
+    )
+    motion_state = make_motion_state()
+    set_motion(motion_state, make_motion(Tile.ROCK, (2, 1), (2, 2), 10))
+    calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+
+    class FakeDraw:
+        @staticmethod
+        def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            calls.append((screen, color, rect, width))
+
+    class FakePygame:
+        draw = FakeDraw()
+
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    class FakeScreen:
+        def blit(self, surface: object, rect: object) -> None:
+            raise AssertionError("unexpected sprite blit")
+
+    screen = FakeScreen()
+
+    draw_board(
+        FakePygame,
+        screen,
+        state,
+        tile_size=24,
+        motion_state=motion_state,
+        current_frame=12,
+        motion_duration_frames=4,
+    )
+
+    assert any(call[0] is screen and call[1] == tile_color(Tile.ROCK) and call[2] == (48, 36, 24, 24) and call[3] == 0 for call in calls)
+    assert any(call[0] is screen and call[1] == (30, 30, 30) and call[2] == (48, 36, 24, 24) and call[3] == 1 for call in calls)
+
+
+def test_draw_board_renders_falling_diamond_at_interpolated_rect() -> None:
+    clear_tile_surface_cache()
+    state = make_state(
+        "#####",
+        "#   #",
+        "# * #",
+        "#P  #",
+        "#####",
+    )
+    motion_state = make_motion_state()
+    set_motion(motion_state, make_motion(Tile.DIAMOND, (2, 1), (2, 2), 10))
+    calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+
+    class FakeDraw:
+        @staticmethod
+        def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            calls.append((screen, color, rect, width))
+
+    class FakePygame:
+        draw = FakeDraw()
+
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    class FakeScreen:
+        def blit(self, surface: object, rect: object) -> None:
+            raise AssertionError("unexpected sprite blit")
+
+    screen = FakeScreen()
+
+    draw_board(
+        FakePygame,
+        screen,
+        state,
+        tile_size=24,
+        motion_state=motion_state,
+        current_frame=12,
+        motion_duration_frames=4,
+    )
+
+    assert any(call[0] is screen and call[1] == tile_color(Tile.DIAMOND) and call[2] == (48, 36, 24, 24) and call[3] == 0 for call in calls)
+    assert any(call[0] is screen and call[1] == (30, 30, 30) and call[2] == (48, 36, 24, 24) and call[3] == 1 for call in calls)
 
 
 def test_draw_hud_renders_status_and_help_text() -> None:

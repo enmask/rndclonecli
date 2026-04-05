@@ -40,6 +40,14 @@ class EngineMode(str, Enum):
     EM = "em"
 
 
+DEFAULT_ENGINE_MODE = EngineMode.RND
+RND_BASELINE_TIMING_MODE = TimingMode.ASYNC
+RND_BASELINE_SYNC_INTERVAL = 1
+RND_BASELINE_ASYNC_MOTION_DURATION = 8
+EM_BASELINE_TIMING_MODE = TimingMode.SYNC
+EM_BASELINE_SYNC_INTERVAL = 8
+
+
 DIRECTIONS = {
     "w": (0, -1),
     "a": (-1, 0),
@@ -266,8 +274,8 @@ DEFAULT_LEVEL = [
 
 def is_update_frame(
     frame_number: int,
-    timing_mode: TimingMode = TimingMode.ASYNC,
-    sync_interval: int = 1,
+    timing_mode: TimingMode = RND_BASELINE_TIMING_MODE,
+    sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
 ) -> bool:
     if frame_number < 0:
         raise ValueError("frame_number must be non-negative")
@@ -282,9 +290,9 @@ def is_update_frame(
 
 def engine_config(engine_mode: EngineMode) -> EngineConfig:
     if engine_mode == EngineMode.RND:
-        return (TimingMode.ASYNC, 1)
+        return (RND_BASELINE_TIMING_MODE, RND_BASELINE_SYNC_INTERVAL)
     if engine_mode == EngineMode.EM:
-        return (TimingMode.SYNC, 8)
+        return (EM_BASELINE_TIMING_MODE, EM_BASELINE_SYNC_INTERVAL)
     raise ValueError(f"Unsupported engine mode: {engine_mode}")
 
 
@@ -313,8 +321,8 @@ def step_realtime_frame(
     state: GameState,
     frame_number: int,
     action: str | None,
-    timing_mode: TimingMode = TimingMode.ASYNC,
-    sync_interval: int = 1,
+    timing_mode: TimingMode = RND_BASELINE_TIMING_MODE,
+    sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
 ) -> None:
     if timing_mode == TimingMode.ASYNC:
         buffer_action(state, action)
@@ -565,8 +573,8 @@ def motion_progress(
     motion: Motion,
     current_frame: int,
     duration_frames: int,
-    timing_mode: TimingMode = TimingMode.ASYNC,
-    sync_interval: int = 1,
+    timing_mode: TimingMode = RND_BASELINE_TIMING_MODE,
+    sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
 ) -> float:
     if current_frame < 0:
         raise ValueError("current_frame must be non-negative")
@@ -590,8 +598,8 @@ def motion_is_complete(
     motion: Motion,
     current_frame: int,
     duration_frames: int,
-    timing_mode: TimingMode = TimingMode.ASYNC,
-    sync_interval: int = 1,
+    timing_mode: TimingMode = RND_BASELINE_TIMING_MODE,
+    sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
 ) -> bool:
     return motion_progress(motion, current_frame, duration_frames, timing_mode, sync_interval) >= 1.0
 
@@ -616,8 +624,8 @@ def update_motion_state(
     motion_state: MotionState,
     current_frame: int,
     duration_frames: int,
-    timing_mode: TimingMode = TimingMode.ASYNC,
-    sync_interval: int = 1,
+    timing_mode: TimingMode = RND_BASELINE_TIMING_MODE,
+    sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
 ) -> list[Motion]:
     completed: list[Motion] = []
     for motion in list(active_motions(motion_state)):
@@ -629,9 +637,9 @@ def update_motion_state(
 
 
 def default_motion_duration_frames(
-    timing_mode: TimingMode = TimingMode.ASYNC,
-    sync_interval: int = 1,
-    async_duration_frames: int = 8,
+    timing_mode: TimingMode = RND_BASELINE_TIMING_MODE,
+    sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
+    async_duration_frames: int = RND_BASELINE_ASYNC_MOTION_DURATION,
 ) -> int:
     if async_duration_frames <= 0:
         raise ValueError("async_duration_frames must be positive")
@@ -665,8 +673,8 @@ def motion_position_px(
     current_frame: int,
     tile_size: int,
     duration_frames: int,
-    timing_mode: TimingMode = TimingMode.ASYNC,
-    sync_interval: int = 1,
+    timing_mode: TimingMode = RND_BASELINE_TIMING_MODE,
+    sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
 ) -> Tuple[int, int]:
     progress = motion_progress(motion, current_frame, duration_frames, timing_mode, sync_interval)
     start_x, start_y = motion_start_cell(motion)
@@ -682,8 +690,8 @@ def motion_rect(
     current_frame: int,
     tile_size: int,
     duration_frames: int,
-    timing_mode: TimingMode = TimingMode.ASYNC,
-    sync_interval: int = 1,
+    timing_mode: TimingMode = RND_BASELINE_TIMING_MODE,
+    sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
 ) -> object:
     px, py = motion_position_px(
         motion,
@@ -703,9 +711,9 @@ def draw_board(
     tile_size: int,
     motion_state: MotionState | None = None,
     current_frame: int = 0,
-    motion_duration_frames: int = 4,
-    timing_mode: TimingMode = TimingMode.ASYNC,
-    sync_interval: int = 1,
+    motion_duration_frames: int = RND_BASELINE_ASYNC_MOTION_DURATION,
+    timing_mode: TimingMode = RND_BASELINE_TIMING_MODE,
+    sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
 ) -> None:
     moving_tiles: list[tuple[Tile, object]] = []
     for y in range(state.height):
@@ -814,9 +822,9 @@ def render_frame(
     tile_size: int,
     motion_state: MotionState | None = None,
     current_frame: int = 0,
-    motion_duration_frames: int = 4,
-    timing_mode: TimingMode = TimingMode.ASYNC,
-    sync_interval: int = 1,
+    motion_duration_frames: int = RND_BASELINE_ASYNC_MOTION_DURATION,
+    timing_mode: TimingMode = RND_BASELINE_TIMING_MODE,
+    sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
     hud_padding_x: int = 10,
     hud_top_padding: int | None = None,
     hud_line_gap: int | None = None,
@@ -885,10 +893,10 @@ def update_graphics_frame(
     state: GameState,
     frame_number: int,
     events: Iterable[object],
-    timing_mode: TimingMode = TimingMode.ASYNC,
-    sync_interval: int = 1,
+    timing_mode: TimingMode = RND_BASELINE_TIMING_MODE,
+    sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
     motion_state: MotionState | None = None,
-    motion_duration_frames: int = 4,
+    motion_duration_frames: int = RND_BASELINE_ASYNC_MOTION_DURATION,
     pressed_keys: object | None = None,
     hold_state: HoldState | None = None,
 ) -> bool:
@@ -951,8 +959,8 @@ def run_interactive_turn_based(state: GameState) -> None:
 def run_interactive_realtime_terminal(
     state: GameState,
     tick_ms: int,
-    timing_mode: TimingMode = TimingMode.ASYNC,
-    sync_interval: int = 1,
+    timing_mode: TimingMode = RND_BASELINE_TIMING_MODE,
+    sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
     engine_mode: EngineMode | None = None,
 ) -> None:
     if engine_mode is not None:
@@ -1001,8 +1009,8 @@ def run_interactive_realtime_graphics(
     tile_size: int,
     max_frames: int = 0,
     headless: bool = False,
-    timing_mode: TimingMode = TimingMode.ASYNC,
-    sync_interval: int = 1,
+    timing_mode: TimingMode = RND_BASELINE_TIMING_MODE,
+    sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
     font_size: int = 20,
     hud_height: int | None = None,
     engine_mode: EngineMode | None = None,
@@ -1107,7 +1115,7 @@ def main() -> None:
     parser.add_argument(
         "--engine",
         choices=[engine.value for engine in EngineMode],
-        default=EngineMode.RND.value,
+        default=DEFAULT_ENGINE_MODE.value,
         help="Engine timing mode to use for realtime play",
     )
     parser.add_argument("--tick-ms", type=int, default=250, help="Milliseconds per game tick")

@@ -1,6 +1,7 @@
 import pytest
 
 from rnd_foundation import (
+    DEFAULT_ENGINE_MODE,
     EngineMode,
     GameState,
     TimingMode,
@@ -146,6 +147,11 @@ def test_engine_mode_exposes_named_engine_choices() -> None:
     assert EngineMode.EM.value == "em"
 
 
+def test_default_engine_mode_is_rnd_baseline() -> None:
+    assert DEFAULT_ENGINE_MODE == EngineMode.RND
+    assert engine_config(DEFAULT_ENGINE_MODE) == (TimingMode.ASYNC, 1)
+
+
 def test_engine_config_maps_rnd_and_em_to_timing_defaults() -> None:
     assert engine_config(EngineMode.RND) == (TimingMode.ASYNC, 1)
     assert engine_config(EngineMode.EM) == (TimingMode.SYNC, 8)
@@ -214,6 +220,32 @@ def test_main_passes_selected_engine_to_realtime_terminal(monkeypatch: pytest.Mo
 
     monkeypatch.setattr("rnd_foundation.run_interactive_realtime_terminal", fake_run_interactive_realtime_terminal)
     monkeypatch.setattr("sys.argv", ["rnd_foundation.py", "--realtime", "--engine", "rnd"])
+
+    main()
+
+    assert captured == {
+        "tick_ms": 250,
+        "engine_mode": EngineMode.RND,
+    }
+
+
+def test_main_uses_rnd_engine_baseline_by_default_for_realtime_terminal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run_interactive_realtime_terminal(
+        state: GameState,
+        tick_ms: int,
+        timing_mode: TimingMode = TimingMode.ASYNC,
+        sync_interval: int = 1,
+        engine_mode: EngineMode | None = None,
+    ) -> None:
+        captured["tick_ms"] = tick_ms
+        captured["engine_mode"] = engine_mode
+
+    monkeypatch.setattr("rnd_foundation.run_interactive_realtime_terminal", fake_run_interactive_realtime_terminal)
+    monkeypatch.setattr("sys.argv", ["rnd_foundation.py", "--realtime"])
 
     main()
 
@@ -1187,7 +1219,7 @@ def test_update_graphics_frame_consumes_buffered_move_after_player_motion_finish
     )
     update_graphics_frame(
         state,
-        frame_number=4,
+        frame_number=8,
         events=[],
         timing_mode=TimingMode.ASYNC,
         motion_state=motion_state,
@@ -1195,7 +1227,7 @@ def test_update_graphics_frame_consumes_buffered_move_after_player_motion_finish
 
     assert (state.player_x, state.player_y) == (3, 1)
     assert state.pending_action is None
-    assert active_motions(motion_state) == [make_motion(Tile.PLAYER, (2, 1), (3, 1), 4)]
+    assert active_motions(motion_state) == [make_motion(Tile.PLAYER, (2, 1), (3, 1), 8)]
 
 
 def test_consume_buffered_action_returns_none_when_buffer_is_empty() -> None:

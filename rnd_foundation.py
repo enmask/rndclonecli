@@ -44,9 +44,13 @@ DEFAULT_ENGINE_MODE = EngineMode.RND
 RND_BASELINE_TIMING_MODE = TimingMode.ASYNC
 RND_BASELINE_SYNC_INTERVAL = 1
 RND_BASELINE_ASYNC_MOTION_DURATION = 8
+RND_BASELINE_HOLD_REPEAT_DELAY = 8
+RND_BASELINE_HOLD_REPEAT_INTERVAL = 8
 EM_BASELINE_TIMING_MODE = TimingMode.SYNC
 EM_BASELINE_SYNC_INTERVAL = 8
 EM_BASELINE_MOTION_DURATION = 8
+EM_BASELINE_HOLD_REPEAT_DELAY = 8
+EM_BASELINE_HOLD_REPEAT_INTERVAL = 8
 
 
 DIRECTIONS = {
@@ -302,6 +306,14 @@ def engine_motion_duration_frames(engine_mode: EngineMode) -> int:
         return RND_BASELINE_ASYNC_MOTION_DURATION
     if engine_mode == EngineMode.EM:
         return EM_BASELINE_MOTION_DURATION
+    raise ValueError(f"Unsupported engine mode: {engine_mode}")
+
+
+def engine_hold_repeat_frames(engine_mode: EngineMode) -> tuple[int, int]:
+    if engine_mode == EngineMode.RND:
+        return (RND_BASELINE_HOLD_REPEAT_DELAY, RND_BASELINE_HOLD_REPEAT_INTERVAL)
+    if engine_mode == EngineMode.EM:
+        return (EM_BASELINE_HOLD_REPEAT_DELAY, EM_BASELINE_HOLD_REPEAT_INTERVAL)
     raise ValueError(f"Unsupported engine mode: {engine_mode}")
 
 
@@ -908,6 +920,8 @@ def update_graphics_frame(
     motion_duration_frames: int = RND_BASELINE_ASYNC_MOTION_DURATION,
     pressed_keys: object | None = None,
     hold_state: HoldState | None = None,
+    hold_repeat_delay_frames: int = RND_BASELINE_HOLD_REPEAT_DELAY,
+    hold_repeat_interval_frames: int = RND_BASELINE_HOLD_REPEAT_INTERVAL,
 ) -> bool:
     event_list = list(events)
     should_quit = pygame_frame_requests_quit(event_list)
@@ -923,8 +937,8 @@ def update_graphics_frame(
                     hold_state,
                     frame_number,
                     held_action,
-                    motion_duration_frames,
-                    motion_duration_frames,
+                    hold_repeat_delay_frames,
+                    hold_repeat_interval_frames,
                 )
             else:
                 frame_action = held_action
@@ -1057,8 +1071,11 @@ def run_interactive_realtime_graphics(
     motion_state = make_motion_state()
     if engine_mode is not None:
         motion_duration_frames = engine_motion_duration_frames(engine_mode)
+        hold_repeat_delay_frames, hold_repeat_interval_frames = engine_hold_repeat_frames(engine_mode)
     else:
         motion_duration_frames = default_motion_duration_frames(timing_mode, sync_interval)
+        hold_repeat_delay_frames = motion_duration_frames
+        hold_repeat_interval_frames = motion_duration_frames
     hold_state = make_hold_state()
 
     running = True
@@ -1074,6 +1091,8 @@ def run_interactive_realtime_graphics(
             motion_duration_frames,
             pygame.key.get_pressed(),
             hold_state,
+            hold_repeat_delay_frames,
+            hold_repeat_interval_frames,
         ):
             running = False
 

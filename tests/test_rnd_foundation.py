@@ -16,6 +16,7 @@ from rnd_foundation import (
     default_motion_duration_frames,
     has_active_player_motion,
     engine_config,
+    engine_hold_repeat_frames,
     engine_motion_duration_frames,
     get_motion,
     is_update_frame,
@@ -180,6 +181,16 @@ def test_engine_motion_duration_frames_maps_rnd_and_em_baselines() -> None:
 def test_engine_motion_duration_frames_rejects_invalid_engine_mode() -> None:
     with pytest.raises(ValueError, match="Unsupported engine mode"):
         engine_motion_duration_frames("broken")  # type: ignore[arg-type]
+
+
+def test_engine_hold_repeat_frames_maps_rnd_and_em_baselines() -> None:
+    assert engine_hold_repeat_frames(EngineMode.RND) == (8, 8)
+    assert engine_hold_repeat_frames(EngineMode.EM) == (8, 8)
+
+
+def test_engine_hold_repeat_frames_rejects_invalid_engine_mode() -> None:
+    with pytest.raises(ValueError, match="Unsupported engine mode"):
+        engine_hold_repeat_frames("broken")  # type: ignore[arg-type]
 
 
 def test_main_passes_selected_engine_to_graphics_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1231,6 +1242,49 @@ def test_update_graphics_frame_uses_held_key_when_no_keydown_event(monkeypatch: 
 
     assert should_quit is False
     assert (state.player_x, state.player_y) == (1, 1)
+
+
+def test_update_graphics_frame_uses_explicit_hold_repeat_policy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "######",
+        "#P   #",
+        "######",
+    )
+    calls: list[tuple[int, int]] = []
+
+    def fake_repeated_held_action(
+        hold_state: dict[str, object],
+        frame_number: int,
+        held_action: str | None,
+        initial_delay_frames: int,
+        repeat_interval_frames: int,
+    ) -> str | None:
+        calls.append((initial_delay_frames, repeat_interval_frames))
+        return "d"
+
+    monkeypatch.setattr("rnd_foundation.repeated_held_action", fake_repeated_held_action)
+
+    pressed = [False] * 13
+    pressed[FakePygame.K_d] = True
+
+    should_quit = update_graphics_frame(
+        state,
+        frame_number=3,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        motion_duration_frames=4,
+        pressed_keys=pressed,
+        hold_state=make_hold_state(),
+        hold_repeat_delay_frames=8,
+        hold_repeat_interval_frames=12,
+    )
+
+    assert should_quit is False
+    assert calls == [(8, 12)]
+    assert (state.player_x, state.player_y) == (2, 1)
 
 
 def test_update_graphics_frame_starts_player_motion_when_player_moves(monkeypatch: pytest.MonkeyPatch) -> None:

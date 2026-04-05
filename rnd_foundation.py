@@ -65,6 +65,7 @@ SNAP_ACTIONS = {
     "S": (0, 1),
     "D": (1, 0),
 }
+MOVING_OBJECT_TILES = (Tile.ROCK, Tile.DIAMOND)
 
 
 Cell = Tuple[int, int]
@@ -687,6 +688,46 @@ def track_player_motion(
     if start_cell == destination_cell:
         return None
     return start_motion(motion_state, Tile.PLAYER, start_cell, destination_cell, frame_number)
+
+
+def moving_object_cells(state: GameState) -> dict[Tile, set[Cell]]:
+    cells: dict[Tile, set[Cell]] = {tile: set() for tile in MOVING_OBJECT_TILES}
+    for y in range(state.height):
+        for x in range(state.width):
+            tile = state.get(x, y)
+            if tile in MOVING_OBJECT_TILES:
+                cells[tile].add((x, y))
+    return cells
+
+
+def find_vertical_falling_motions(
+    before_cells: dict[Tile, set[Cell]],
+    state: GameState,
+    frame_number: int,
+) -> list[Motion]:
+    motions: list[Motion] = []
+    after_cells = moving_object_cells(state)
+
+    for tile in MOVING_OBJECT_TILES:
+        moved_from = before_cells.get(tile, set()) - after_cells.get(tile, set())
+        for start_cell in sorted(moved_from):
+            destination_cell = (start_cell[0], start_cell[1] + 1)
+            if destination_cell in after_cells.get(tile, set()):
+                motions.append(make_motion(tile, start_cell, destination_cell, frame_number))
+
+    return motions
+
+
+def track_falling_motions(
+    motion_state: MotionState,
+    before_cells: dict[Tile, set[Cell]],
+    state: GameState,
+    frame_number: int,
+) -> list[Motion]:
+    motions = find_vertical_falling_motions(before_cells, state, frame_number)
+    for motion in motions:
+        set_motion(motion_state, motion)
+    return motions
 
 
 def motion_position_px(

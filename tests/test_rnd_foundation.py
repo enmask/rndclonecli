@@ -16,6 +16,7 @@ from rnd_foundation import (
     default_motion_duration_frames,
     has_active_player_motion,
     engine_config,
+    engine_motion_duration_frames,
     get_motion,
     is_update_frame,
     make_hold_state,
@@ -168,6 +169,16 @@ def test_engine_config_maps_to_expected_default_motion_duration() -> None:
 
     assert default_motion_duration_frames(rnd_timing_mode, rnd_sync_interval) == 8
     assert default_motion_duration_frames(em_timing_mode, em_sync_interval) == 8
+
+
+def test_engine_motion_duration_frames_maps_rnd_and_em_baselines() -> None:
+    assert engine_motion_duration_frames(EngineMode.RND) == 8
+    assert engine_motion_duration_frames(EngineMode.EM) == 8
+
+
+def test_engine_motion_duration_frames_rejects_invalid_engine_mode() -> None:
+    with pytest.raises(ValueError, match="Unsupported engine mode"):
+        engine_motion_duration_frames("broken")  # type: ignore[arg-type]
 
 
 def test_main_passes_selected_engine_to_graphics_runtime(monkeypatch: pytest.MonkeyPatch) -> None:

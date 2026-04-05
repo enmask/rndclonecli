@@ -46,6 +46,7 @@ RND_BASELINE_SYNC_INTERVAL = 1
 RND_BASELINE_ASYNC_MOTION_DURATION = 8
 EM_BASELINE_TIMING_MODE = TimingMode.SYNC
 EM_BASELINE_SYNC_INTERVAL = 8
+EM_BASELINE_MOTION_DURATION = 8
 
 
 DIRECTIONS = {
@@ -293,6 +294,14 @@ def engine_config(engine_mode: EngineMode) -> EngineConfig:
         return (RND_BASELINE_TIMING_MODE, RND_BASELINE_SYNC_INTERVAL)
     if engine_mode == EngineMode.EM:
         return (EM_BASELINE_TIMING_MODE, EM_BASELINE_SYNC_INTERVAL)
+    raise ValueError(f"Unsupported engine mode: {engine_mode}")
+
+
+def engine_motion_duration_frames(engine_mode: EngineMode) -> int:
+    if engine_mode == EngineMode.RND:
+        return RND_BASELINE_ASYNC_MOTION_DURATION
+    if engine_mode == EngineMode.EM:
+        return EM_BASELINE_MOTION_DURATION
     raise ValueError(f"Unsupported engine mode: {engine_mode}")
 
 
@@ -1046,7 +1055,10 @@ def run_interactive_realtime_graphics(
     clock = pygame.time.Clock()
     font = pygame.font.SysFont("arial", font_size)
     motion_state = make_motion_state()
-    motion_duration_frames = default_motion_duration_frames(timing_mode, sync_interval)
+    if engine_mode is not None:
+        motion_duration_frames = engine_motion_duration_frames(engine_mode)
+    else:
+        motion_duration_frames = default_motion_duration_frames(timing_mode, sync_interval)
     hold_state = make_hold_state()
 
     running = True

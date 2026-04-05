@@ -25,6 +25,7 @@ from rnd_foundation import (
     motion_is_complete,
     motion_progress,
     make_motion_state,
+    main,
     parse_level,
     pygame_frame_requests_quit,
     board_size_px,
@@ -153,6 +154,73 @@ def test_engine_config_maps_rnd_and_em_to_timing_defaults() -> None:
 def test_engine_config_rejects_invalid_engine_mode() -> None:
     with pytest.raises(ValueError, match="Unsupported engine mode"):
         engine_config("broken")  # type: ignore[arg-type]
+
+
+def test_engine_config_maps_to_expected_default_motion_duration() -> None:
+    rnd_timing_mode, rnd_sync_interval = engine_config(EngineMode.RND)
+    em_timing_mode, em_sync_interval = engine_config(EngineMode.EM)
+
+    assert default_motion_duration_frames(rnd_timing_mode, rnd_sync_interval) == 8
+    assert default_motion_duration_frames(em_timing_mode, em_sync_interval) == 8
+
+
+def test_main_passes_selected_engine_to_graphics_runtime(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run_interactive_realtime_graphics(
+        state: GameState,
+        tick_ms: int,
+        tile_size: int,
+        max_frames: int = 0,
+        headless: bool = False,
+        timing_mode: TimingMode = TimingMode.ASYNC,
+        sync_interval: int = 1,
+        font_size: int = 20,
+        hud_height: int | None = None,
+        engine_mode: EngineMode | None = None,
+    ) -> None:
+        captured["tick_ms"] = tick_ms
+        captured["tile_size"] = tile_size
+        captured["engine_mode"] = engine_mode
+        captured["font_size"] = font_size
+        captured["hud_height"] = hud_height
+
+    monkeypatch.setattr("rnd_foundation.run_interactive_realtime_graphics", fake_run_interactive_realtime_graphics)
+    monkeypatch.setattr("sys.argv", ["rnd_foundation.py", "--graphics2d", "--engine", "em"])
+
+    main()
+
+    assert captured == {
+        "tick_ms": 250,
+        "tile_size": 48,
+        "engine_mode": EngineMode.EM,
+        "font_size": 20,
+        "hud_height": None,
+    }
+
+
+def test_main_passes_selected_engine_to_realtime_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run_interactive_realtime_terminal(
+        state: GameState,
+        tick_ms: int,
+        timing_mode: TimingMode = TimingMode.ASYNC,
+        sync_interval: int = 1,
+        engine_mode: EngineMode | None = None,
+    ) -> None:
+        captured["tick_ms"] = tick_ms
+        captured["engine_mode"] = engine_mode
+
+    monkeypatch.setattr("rnd_foundation.run_interactive_realtime_terminal", fake_run_interactive_realtime_terminal)
+    monkeypatch.setattr("sys.argv", ["rnd_foundation.py", "--realtime", "--engine", "rnd"])
+
+    main()
+
+    assert captured == {
+        "tick_ms": 250,
+        "engine_mode": EngineMode.RND,
+    }
 
 
 def test_make_motion_builds_a_transition_model() -> None:
@@ -309,7 +377,7 @@ def test_update_motion_state_removes_completed_sync_motions_by_global_phase() ->
 
 
 def test_default_motion_duration_frames_matches_timing_mode() -> None:
-    assert default_motion_duration_frames(TimingMode.ASYNC, sync_interval=8) == 4
+    assert default_motion_duration_frames(TimingMode.ASYNC, sync_interval=8) == 8
     assert default_motion_duration_frames(TimingMode.SYNC, sync_interval=8) == 8
 
 
@@ -2032,12 +2100,94 @@ def test_graphics_mode_sync_timing_consumes_buffered_input_on_sync_frame(
     assert state.pending_action is None
 
 
+def test_graphics_mode_engine_em_applies_sync_timing_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+
+    class SequencedEventQueue:
+        frames = [
+            [],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+            [],
+        ]
+        index = 0
+
+        @classmethod
+        def get(cls) -> list[FakeEvent]:
+            if cls.index >= len(cls.frames):
+                return []
+            events = cls.frames[cls.index]
+            cls.index += 1
+            return events
+
+    monkeypatch.setattr(FakePygame, "event", SequencedEventQueue)
+
+    state = make_state(
+        "######",
+        "#P   #",
+        "######",
+    )
+
+    run_interactive_realtime_graphics(
+        state,
+        tick_ms=250,
+        tile_size=32,
+        max_frames=3,
+        engine_mode=EngineMode.EM,
+    )
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.pending_action == "d"
+
+
+def test_graphics_mode_engine_rnd_applies_async_timing_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+
+    class SequencedEventQueue:
+        frames = [
+            [],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+            [],
+        ]
+        index = 0
+
+        @classmethod
+        def get(cls) -> list[FakeEvent]:
+            if cls.index >= len(cls.frames):
+                return []
+            events = cls.frames[cls.index]
+            cls.index += 1
+            return events
+
+    monkeypatch.setattr(FakePygame, "event", SequencedEventQueue)
+
+    state = make_state(
+        "######",
+        "#P   #",
+        "######",
+    )
+
+    run_interactive_realtime_graphics(
+        state,
+        tick_ms=250,
+        tile_size=32,
+        max_frames=3,
+        engine_mode=EngineMode.RND,
+    )
+
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.pending_action is None
+
+
 def test_graphics_mode_repeats_movement_when_direction_is_held(monkeypatch: pytest.MonkeyPatch) -> None:
     install_fake_pygame(monkeypatch)
 
     class SequencedEventQueue:
         frames = [
             [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+            [],
+            [],
+            [],
+            [],
             [],
             [],
             [],
@@ -2060,7 +2210,7 @@ def test_graphics_mode_repeats_movement_when_direction_is_held(monkeypatch: pyte
         def get_pressed(cls) -> list[bool]:
             cls.frames += 1
             pressed = [False] * 13
-            if cls.frames <= 5:
+            if cls.frames <= 9:
                 pressed[FakePygame.K_d] = True
             return pressed
 
@@ -2073,7 +2223,7 @@ def test_graphics_mode_repeats_movement_when_direction_is_held(monkeypatch: pyte
         "########",
     )
 
-    run_interactive_realtime_graphics(state, tick_ms=250, tile_size=32, max_frames=5)
+    run_interactive_realtime_graphics(state, tick_ms=250, tile_size=32, max_frames=9)
 
     assert (state.player_x, state.player_y) == (3, 1)
 

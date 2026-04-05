@@ -631,7 +631,7 @@ def update_motion_state(
 def default_motion_duration_frames(
     timing_mode: TimingMode = TimingMode.ASYNC,
     sync_interval: int = 1,
-    async_duration_frames: int = 4,
+    async_duration_frames: int = 8,
 ) -> int:
     if async_duration_frames <= 0:
         raise ValueError("async_duration_frames must be positive")
@@ -953,7 +953,11 @@ def run_interactive_realtime_terminal(
     tick_ms: int,
     timing_mode: TimingMode = TimingMode.ASYNC,
     sync_interval: int = 1,
+    engine_mode: EngineMode | None = None,
 ) -> None:
+    if engine_mode is not None:
+        timing_mode, sync_interval = engine_config(engine_mode)
+
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         raise RuntimeError("Realtime terminal mode requires a TTY")
 
@@ -1001,7 +1005,11 @@ def run_interactive_realtime_graphics(
     sync_interval: int = 1,
     font_size: int = 20,
     hud_height: int | None = None,
+    engine_mode: EngineMode | None = None,
 ) -> None:
+    if engine_mode is not None:
+        timing_mode, sync_interval = engine_config(engine_mode)
+
     if importlib.util.find_spec("pygame") is None:
         raise RuntimeError("pygame is required for --graphics2d. Install with: python3 -m pip install pygame")
 
@@ -1096,6 +1104,12 @@ def main() -> None:
     parser.add_argument("--turn-based", action="store_true", help="Run turn-based terminal mode")
     parser.add_argument("--realtime", action="store_true", help="Run realtime terminal mode (curses)")
     parser.add_argument("--graphics2d", action="store_true", help="Run realtime 2D graphics mode (pygame)")
+    parser.add_argument(
+        "--engine",
+        choices=[engine.value for engine in EngineMode],
+        default=EngineMode.RND.value,
+        help="Engine timing mode to use for realtime play",
+    )
     parser.add_argument("--tick-ms", type=int, default=250, help="Milliseconds per game tick")
     parser.add_argument("--tile-size", type=int, default=48, help="Tile size for --graphics2d mode")
     parser.add_argument("--font-size", type=int, default=20, help="HUD font size for --graphics2d mode")
@@ -1103,6 +1117,7 @@ def main() -> None:
     parser.add_argument("--max-frames", type=int, default=0, help="Auto-exit after N frames (test helper)")
     parser.add_argument("--headless", action="store_true", help="Allow SDL dummy-driver runs for headless testing")
     args = parser.parse_args()
+    engine_mode = EngineMode(args.engine)
 
     state = parse_level(DEFAULT_LEVEL)
 
@@ -1117,9 +1132,10 @@ def main() -> None:
             args.headless,
             font_size=args.font_size,
             hud_height=args.hud_height or None,
+            engine_mode=engine_mode,
         )
     elif args.realtime:
-        run_interactive_realtime_terminal(state, args.tick_ms)
+        run_interactive_realtime_terminal(state, args.tick_ms, engine_mode=engine_mode)
     else:
         run_interactive_turn_based(state)
 

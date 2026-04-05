@@ -996,9 +996,12 @@ def update_graphics_frame(
                 return should_quit
 
         start_cell = player_cell(state)
+        before_cells = moving_object_cells(state) if motion_state is not None else None
         step_realtime_frame(state, frame_number, frame_action, timing_mode, sync_interval)
         if motion_state is not None:
             track_player_motion(motion_state, start_cell, state, frame_number)
+            if before_cells is not None:
+                track_falling_motions(motion_state, before_cells, state, frame_number)
     return should_quit
 
 

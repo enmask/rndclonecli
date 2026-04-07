@@ -31,6 +31,7 @@ from rnd_foundation import (
     main,
     parse_level,
     pygame_frame_requests_quit,
+    find_moving_object_motions,
     find_vertical_falling_motions,
     board_size_px,
     clear_tile_surface_cache,
@@ -51,6 +52,7 @@ from rnd_foundation import (
     tile_rect,
     tile_surface,
     track_falling_motions,
+    track_moving_object_motions,
     update_graphics_frame,
     make_motion,
     motion_destination_cell,
@@ -509,6 +511,21 @@ def test_find_vertical_falling_motions_ignores_stacked_rock_push_false_fall() ->
     assert find_vertical_falling_motions(before_cells, state, 6) == []
 
 
+def test_find_moving_object_motions_detects_horizontal_rock_push() -> None:
+    state = make_state(
+        "#######",
+        "#PO   #",
+        "#######",
+    )
+    before_cells = moving_object_cells(state)
+
+    state.try_move_player(1, 0)
+
+    assert find_moving_object_motions(before_cells, state, 8) == [
+        make_motion(Tile.ROCK, (2, 1), (3, 1), 8)
+    ]
+
+
 def test_track_falling_motions_stores_detected_falling_motion() -> None:
     state = make_state(
         "#####",
@@ -523,6 +540,22 @@ def test_track_falling_motions_stores_detected_falling_motion() -> None:
     motions = track_falling_motions(motion_state, before_cells, state, 11)
 
     assert motions == [make_motion(Tile.ROCK, (2, 1), (2, 2), 11)]
+    assert active_motions(motion_state) == motions
+
+
+def test_track_moving_object_motions_stores_detected_horizontal_rock_push() -> None:
+    state = make_state(
+        "#######",
+        "#PO   #",
+        "#######",
+    )
+    before_cells = moving_object_cells(state)
+    motion_state = make_motion_state()
+
+    state.try_move_player(1, 0)
+    motions = track_moving_object_motions(motion_state, before_cells, state, 13)
+
+    assert motions == [make_motion(Tile.ROCK, (2, 1), (3, 1), 13)]
     assert active_motions(motion_state) == motions
 
 
@@ -1241,6 +1274,49 @@ def test_draw_board_renders_falling_diamond_at_interpolated_rect() -> None:
     assert any(call[0] is screen and call[1] == (30, 30, 30) and call[2] == (48, 36, 24, 24) and call[3] == 1 for call in calls)
 
 
+def test_draw_board_renders_pushed_rock_at_interpolated_rect() -> None:
+    clear_tile_surface_cache()
+    state = make_state(
+        "#######",
+        "#P O  #",
+        "#######",
+    )
+    motion_state = make_motion_state()
+    set_motion(motion_state, make_motion(Tile.ROCK, (2, 1), (3, 1), 10))
+    calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+
+    class FakeDraw:
+        @staticmethod
+        def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            calls.append((screen, color, rect, width))
+
+    class FakePygame:
+        draw = FakeDraw()
+
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    class FakeScreen:
+        def blit(self, surface: object, rect: object) -> None:
+            raise AssertionError("unexpected sprite blit")
+
+    screen = FakeScreen()
+
+    draw_board(
+        FakePygame,
+        screen,
+        state,
+        tile_size=24,
+        motion_state=motion_state,
+        current_frame=12,
+        motion_duration_frames=4,
+    )
+
+    assert any(call[0] is screen and call[1] == tile_color(Tile.ROCK) and call[2] == (60, 24, 24, 24) and call[3] == 0 for call in calls)
+    assert any(call[0] is screen and call[1] == (30, 30, 30) and call[2] == (60, 24, 24, 24) and call[3] == 1 for call in calls)
+
+
 def test_draw_hud_renders_status_and_help_text() -> None:
     state = make_state(
         "#####",
@@ -1623,6 +1699,29 @@ def test_update_graphics_frame_tracks_multiple_falling_motions_from_gravity(
     assert should_quit is False
     assert get_motion(motion_state, (2, 2)) == make_motion(Tile.ROCK, (2, 1), (2, 2), 0)
     assert get_motion(motion_state, (4, 2)) == make_motion(Tile.DIAMOND, (4, 1), (4, 2), 0)
+
+
+def test_update_graphics_frame_tracks_horizontal_rock_push_motion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "#######",
+        "#PO   #",
+        "#######",
+    )
+    motion_state = make_motion_state()
+
+    should_quit = update_graphics_frame(
+        state,
+        frame_number=0,
+        events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+
+    assert should_quit is False
+    assert get_motion(motion_state, (3, 1)) == make_motion(Tile.ROCK, (2, 1), (3, 1), 0)
 
 
 def test_update_graphics_frame_does_not_start_player_motion_without_movement(monkeypatch: pytest.MonkeyPatch) -> None:

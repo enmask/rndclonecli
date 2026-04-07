@@ -700,7 +700,7 @@ def moving_object_cells(state: GameState) -> dict[Tile, set[Cell]]:
     return cells
 
 
-def find_vertical_falling_motions(
+def find_moving_object_motions(
     before_cells: dict[Tile, set[Cell]],
     state: GameState,
     frame_number: int,
@@ -711,13 +711,43 @@ def find_vertical_falling_motions(
     for tile in MOVING_OBJECT_TILES:
         moved_from = before_cells.get(tile, set()) - after_cells.get(tile, set())
         for start_cell in sorted(moved_from):
-            destination_cell = (start_cell[0], start_cell[1] + 1)
-            if (
-                destination_cell in after_cells.get(tile, set())
-                and destination_cell not in before_cells.get(tile, set())
-            ):
-                motions.append(make_motion(tile, start_cell, destination_cell, frame_number))
+            candidate_destinations = (
+                (start_cell[0], start_cell[1] + 1),
+                (start_cell[0] - 1, start_cell[1]),
+                (start_cell[0] + 1, start_cell[1]),
+            )
+            for destination_cell in candidate_destinations:
+                if (
+                    destination_cell in after_cells.get(tile, set())
+                    and destination_cell not in before_cells.get(tile, set())
+                ):
+                    motions.append(make_motion(tile, start_cell, destination_cell, frame_number))
+                    break
 
+    return motions
+
+
+def find_vertical_falling_motions(
+    before_cells: dict[Tile, set[Cell]],
+    state: GameState,
+    frame_number: int,
+) -> list[Motion]:
+    return [
+        motion
+        for motion in find_moving_object_motions(before_cells, state, frame_number)
+        if motion_destination_cell(motion)[1] == motion_start_cell(motion)[1] + 1
+    ]
+
+
+def track_moving_object_motions(
+    motion_state: MotionState,
+    before_cells: dict[Tile, set[Cell]],
+    state: GameState,
+    frame_number: int,
+) -> list[Motion]:
+    motions = find_moving_object_motions(before_cells, state, frame_number)
+    for motion in motions:
+        set_motion(motion_state, motion)
     return motions
 
 
@@ -1004,7 +1034,7 @@ def update_graphics_frame(
         if motion_state is not None:
             track_player_motion(motion_state, start_cell, state, frame_number)
             if before_cells is not None:
-                track_falling_motions(motion_state, before_cells, state, frame_number)
+                track_moving_object_motions(motion_state, before_cells, state, frame_number)
     return should_quit
 
 

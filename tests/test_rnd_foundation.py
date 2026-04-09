@@ -301,6 +301,61 @@ def test_custom_element_helpers_match_current_builtin_tile_semantics(
     assert can_fall_element(tile) is can_fall
 
 
+def test_dual_logic_path_keeps_sand_diggable_for_player_movement() -> None:
+    state = make_state(
+        "#####",
+        "#P. #",
+        "#####",
+    )
+
+    state.try_move_player(1, 0)
+
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.get(1, 1) == Tile.EMPTY
+    assert state.get(2, 1) == Tile.PLAYER
+
+
+def test_dual_logic_path_keeps_diamond_collectible_for_player_movement() -> None:
+    state = make_state(
+        "#####",
+        "#P* #",
+        "#####",
+    )
+
+    state.try_move_player(1, 0)
+
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.diamonds_collected == 1
+    assert state.won is True
+
+
+def test_dual_logic_path_keeps_rock_pushable_for_snap_push() -> None:
+    state = make_state(
+        "######",
+        "#PO  #",
+        "######",
+    )
+
+    state.try_snap(1, 0)
+
+    assert state.get(2, 1) == Tile.EMPTY
+    assert state.get(3, 1) == Tile.ROCK
+
+
+def test_dual_logic_path_keeps_falling_elements_subject_to_gravity() -> None:
+    state = make_state(
+        "#####",
+        "# O #",
+        "#P  #",
+        "#####",
+    )
+
+    state.apply_gravity()
+
+    assert state.get(2, 1) == Tile.EMPTY
+    assert state.get(2, 2) == Tile.ROCK
+
+
 @pytest.mark.parametrize("tile", list(Tile))
 def test_builtin_tile_mirror_preserves_symbol(tile: Tile) -> None:
     assert custom_element_for_tile(tile).symbol == tile.value

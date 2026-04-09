@@ -209,15 +209,15 @@ class GameState:
 
         target = self.get(tx, ty)
 
-        if target in (Tile.EMPTY, Tile.SAND, Tile.DIAMOND):
-            if target == Tile.DIAMOND:
+        if target == Tile.EMPTY or is_diggable(target) or is_collectible(target):
+            if is_collectible(target):
                 self.diamonds_collected += 1
                 if self.diamonds_collected >= self.diamonds_total:
                     self.won = True
             self._move_player_to(tx, ty)
             return
 
-        if target == Tile.ROCK and dy == 0:
+        if is_pushable(target) and dy == 0:
             if (tx, ty) in self.motion_locked_positions:
                 return
             if (tx, ty) in self.recently_pushed_positions:
@@ -239,18 +239,18 @@ class GameState:
 
         target = self.get(tx, ty)
 
-        if target == Tile.SAND:
+        if is_diggable(target):
             self.set(tx, ty, Tile.EMPTY)
             return
 
-        if target == Tile.DIAMOND:
+        if is_collectible(target):
             self.set(tx, ty, Tile.EMPTY)
             self.diamonds_collected += 1
             if self.diamonds_collected >= self.diamonds_total:
                 self.won = True
             return
 
-        if target == Tile.ROCK and dy == 0:
+        if is_pushable(target) and dy == 0:
             if (tx, ty) in self.motion_locked_positions:
                 return
             if (tx, ty) in self.recently_pushed_positions:
@@ -276,7 +276,7 @@ class GameState:
         for y in range(self.height - 2, -1, -1):
             for x in range(self.width):
                 tile = self.get(x, y)
-                if tile not in (Tile.ROCK, Tile.DIAMOND):
+                if not can_fall_element(tile):
                     continue
                 if (x, y) in just_pushed_positions:
                     continue
@@ -329,7 +329,7 @@ def parse_level(lines: Iterable[str]) -> GameState:
                 if player_pos is not None:
                     raise ValueError("Only one player is allowed")
                 player_pos = (x, y)
-            if tile == Tile.DIAMOND:
+            if is_collectible(tile):
                 diamonds_total += 1
             grid_row.append(tile)
         grid.append(grid_row)
@@ -470,10 +470,10 @@ def can_player_take_action(state: GameState, action: str | None) -> bool:
         return False
 
     target = state.get(tx, ty)
-    if target in (Tile.EMPTY, Tile.SAND, Tile.DIAMOND):
+    if target == Tile.EMPTY or is_diggable(target) or is_collectible(target):
         return True
 
-    if target == Tile.ROCK and dy == 0:
+    if is_pushable(target) and dy == 0:
         if (tx, ty) in state.motion_locked_positions:
             return False
         if (tx, ty) in state.recently_pushed_positions:

@@ -764,6 +764,39 @@ def tile_appearance(tile: Tile, tile_size: int) -> Tuple[object | None, Tuple[in
     return (tile_surface(tile, tile_size), tile_color(tile))
 
 
+def element_color(element: ElementLike) -> Tuple[int, int, int]:
+    if isinstance(element, Tile):
+        return tile_color(element)
+
+    if element.symbol == ".":
+        return tile_color(Tile.SAND)
+    if element.symbol == "O":
+        return tile_color(Tile.ROCK)
+    if element.symbol == "*":
+        return tile_color(Tile.DIAMOND)
+    if element.symbol == "#":
+        return tile_color(Tile.WALL)
+    if element.symbol == "P":
+        return tile_color(Tile.PLAYER)
+    if element.symbol == " ":
+        return tile_color(Tile.EMPTY)
+    return (220, 90, 90)
+
+
+def element_appearance(element: ElementLike, tile_size: int) -> Tuple[object | None, Tuple[int, int, int]]:
+    if isinstance(element, Tile):
+        return tile_appearance(element, tile_size)
+    return (None, element_color(element))
+
+
+def parsed_cell_appearance(
+    cell: ParsedCell,
+    registry: dict[str, CustomElement],
+    tile_size: int,
+) -> Tuple[object | None, Tuple[int, int, int]]:
+    return element_appearance(parsed_cell_element(cell, registry), tile_size)
+
+
 def tile_rect(pygame: object, x: int, y: int, tile_size: int) -> object:
     return pygame.Rect(x * tile_size, y * tile_size, tile_size, tile_size)
 

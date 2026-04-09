@@ -16,65 +16,70 @@ from rnd_foundation import (
     action_from_turn_input,
     buffer_action,
     consume_buffered_action,
-    default_motion_duration_frames,
-    has_active_player_motion,
+    can_fall_element,
     can_player_take_action,
+    clamp_progress,
+    complete_motion,
+    custom_element_for,
+    custom_element_for_tile,
+    default_motion_duration_frames,
+    draw_background,
+    draw_board,
+    draw_hud,
     engine_config,
     engine_hold_repeat_frames,
     engine_motion_duration_frames,
-    get_motion,
-    held_actions_from_pygame_pressed_keys,
-    is_update_frame,
-    make_hold_state,
-    background_color,
-    board_background_color,
-    draw_background,
-    complete_motion,
-    custom_element_for_tile,
-    motion_is_complete,
-    motion_progress,
-    make_motion_state,
-    main,
-    parse_level,
-    pygame_frame_requests_quit,
     find_moving_object_motions,
     find_vertical_falling_motions,
-    board_size_px,
-    clear_tile_surface_cache,
-    draw_board,
-    draw_hud,
+    get_motion,
+    held_actions_from_pygame_pressed_keys,
+    has_active_player_motion,
+    hud_background_color,
     hud_height_px,
     hud_line_gap_px,
     hud_top_padding_px,
-    render_frame,
-    run_interactive_realtime_graphics,
-    run_interactive_realtime_terminal,
-    screen_size_px,
-    step_game,
-    step_realtime_frame,
-    tile_appearance,
-    tile_color,
-    moving_object_cells,
-    tile_rect,
-    tile_surface,
-    track_falling_motions,
-    track_moving_object_motions,
-    update_graphics_frame,
-    make_motion,
+    is_collectible,
+    is_diggable,
+    is_pushable,
+    is_update_frame,
+    make_hold_state,
+    make_motion_state,
+    main,
     motion_destination_cell,
+    motion_is_complete,
     motion_position_px,
+    motion_progress,
     motion_rect,
     motion_start_cell,
     motion_start_frame,
     motion_tile,
+    moving_object_cells,
+    parse_level,
     player_cell,
+    pygame_frame_requests_quit,
+    background_color,
+    board_background_color,
+    board_size_px,
+    clear_tile_surface_cache,
     remove_motion,
+    render_frame,
+    repeated_held_action,
+    run_interactive_realtime_graphics,
+    run_interactive_realtime_terminal,
+    screen_size_px,
     set_motion,
     start_motion,
+    step_game,
+    step_realtime_frame,
+    tile_appearance,
+    tile_color,
+    tile_rect,
+    tile_surface,
+    track_falling_motions,
+    track_moving_object_motions,
     track_player_motion,
-    clamp_progress,
-    hud_background_color,
-    repeated_held_action,
+    update_graphics_frame,
+    make_motion,
     update_motion_state,
 )
 
@@ -233,6 +238,38 @@ def test_custom_element_for_tile_returns_builtin_mirror() -> None:
     assert custom_element_for_tile(Tile.ROCK) == CUSTOM_ELEMENTS["rock"]
     assert custom_element_for_tile(Tile.DIAMOND) == CUSTOM_ELEMENTS["diamond"]
     assert custom_element_for_tile(Tile.EMPTY) == CustomElement(name="empty", symbol=" ")
+
+
+def test_custom_element_for_accepts_tile_or_custom_element() -> None:
+    custom = CustomElement(name="custom-sand", symbol="z", diggable=True)
+
+    assert custom_element_for(Tile.SAND) == CUSTOM_ELEMENTS["sand"]
+    assert custom_element_for(custom) == custom
+
+
+def test_custom_element_property_helpers_match_builtin_mirrors() -> None:
+    assert is_diggable(Tile.SAND) is True
+    assert is_collectible(Tile.DIAMOND) is True
+    assert is_pushable(Tile.ROCK) is True
+    assert can_fall_element(Tile.ROCK) is True
+    assert is_diggable(Tile.WALL) is False
+    assert is_collectible(Tile.EMPTY) is False
+
+
+def test_custom_element_property_helpers_support_custom_elements() -> None:
+    element = CustomElement(
+        name="custom-gem",
+        symbol="g",
+        diggable=True,
+        collectible=True,
+        pushable=False,
+        can_fall=True,
+    )
+
+    assert is_diggable(element) is True
+    assert is_collectible(element) is True
+    assert is_pushable(element) is False
+    assert can_fall_element(element) is True
 
 
 def test_engine_mode_exposes_named_engine_choices() -> None:

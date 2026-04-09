@@ -88,6 +88,9 @@ class CustomElement:
     can_fall: bool = False
 
 
+ElementLike = Tile | CustomElement
+
+
 CUSTOM_ELEMENTS: dict[str, CustomElement] = {
     "sand": CustomElement(name="sand", symbol=".", diggable=True),
     "rock": CustomElement(name="rock", symbol="O", pushable=True, can_fall=True),
@@ -108,6 +111,28 @@ BUILTIN_TILE_ELEMENTS: dict[Tile, CustomElement] = {
 
 def custom_element_for_tile(tile: Tile) -> CustomElement:
     return BUILTIN_TILE_ELEMENTS[tile]
+
+
+def custom_element_for(element: ElementLike) -> CustomElement:
+    if isinstance(element, CustomElement):
+        return element
+    return custom_element_for_tile(element)
+
+
+def is_diggable(element: ElementLike) -> bool:
+    return custom_element_for(element).diggable
+
+
+def is_collectible(element: ElementLike) -> bool:
+    return custom_element_for(element).collectible
+
+
+def is_pushable(element: ElementLike) -> bool:
+    return custom_element_for(element).pushable
+
+
+def can_fall_element(element: ElementLike) -> bool:
+    return custom_element_for(element).can_fall
 
 
 @dataclass

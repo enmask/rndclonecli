@@ -1,6 +1,7 @@
 import pytest
 
 from rnd_foundation import (
+    CustomElement,
     DEFAULT_ENGINE_MODE,
     EngineMode,
     GameState,
@@ -150,6 +151,37 @@ def test_parse_level_supports_sand() -> None:
     )
 
     assert state.get(2, 1) == Tile.SAND
+
+
+def test_custom_element_stores_declared_properties() -> None:
+    element = CustomElement(
+        name="custom-rock",
+        symbol="r",
+        diggable=False,
+        collectible=False,
+        pushable=True,
+        can_fall=True,
+    )
+
+    assert element.name == "custom-rock"
+    assert element.symbol == "r"
+    assert element.diggable is False
+    assert element.collectible is False
+    assert element.pushable is True
+    assert element.can_fall is True
+
+
+def test_custom_element_defaults_boolean_properties_to_false() -> None:
+    element = CustomElement(name="custom-wall", symbol="w")
+
+    assert element == CustomElement(
+        name="custom-wall",
+        symbol="w",
+        diggable=False,
+        collectible=False,
+        pushable=False,
+        can_fall=False,
+    )
 
 
 def test_engine_mode_exposes_named_engine_choices() -> None:

@@ -78,6 +78,16 @@ HoldState = dict[str, object]
 _TILE_SURFACE_CACHE: dict[tuple[Tile, int], object | None] = {}
 
 
+@dataclass(frozen=True)
+class CustomElement:
+    name: str
+    symbol: str
+    diggable: bool = False
+    collectible: bool = False
+    pushable: bool = False
+    can_fall: bool = False
+
+
 @dataclass
 class GameState:
     grid: List[List[Tile]]

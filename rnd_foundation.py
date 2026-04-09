@@ -130,8 +130,31 @@ def custom_element_symbols(registry: dict[str, CustomElement]) -> dict[str, Cust
 CUSTOM_ELEMENT_SYMBOLS: dict[str, CustomElement] = custom_element_symbols(CUSTOM_ELEMENTS)
 
 
+@dataclass(frozen=True)
+class ParsedCell:
+    tile: Tile | None = None
+    custom_element_name: str | None = None
+
+    def __post_init__(self) -> None:
+        if (self.tile is None) == (self.custom_element_name is None):
+            raise ValueError("ParsedCell must contain exactly one of tile or custom_element_name")
+
+
 def custom_element_for_tile(tile: Tile) -> CustomElement:
     return BUILTIN_TILE_ELEMENTS[tile]
+
+
+def parsed_cell_for_tile(tile: Tile) -> ParsedCell:
+    return ParsedCell(tile=tile)
+
+
+def parsed_cell_element(cell: ParsedCell, registry: dict[str, CustomElement]) -> ElementLike:
+    if cell.tile is not None:
+        return cell.tile
+    custom_element = registry.get(cell.custom_element_name)
+    if custom_element is None:
+        raise ValueError(f"Unknown custom element '{cell.custom_element_name}'")
+    return custom_element
 
 
 def tile_for_symbol(symbol: str) -> Tile | None:

@@ -61,6 +61,7 @@ from rnd_foundation import (
     parse_level,
     player_cell,
     pygame_frame_requests_quit,
+    ParsedCell,
     register_custom_element,
     background_color,
     board_background_color,
@@ -76,6 +77,8 @@ from rnd_foundation import (
     start_motion,
     step_game,
     step_realtime_frame,
+    parsed_cell_element,
+    parsed_cell_for_tile,
     custom_element_symbols,
     tile_for_symbol,
     tile_for_level_symbol,
@@ -198,6 +201,34 @@ def test_custom_element_defaults_boolean_properties_to_false() -> None:
         pushable=False,
         can_fall=False,
     )
+
+
+def test_parsed_cell_can_wrap_builtin_tile() -> None:
+    cell = parsed_cell_for_tile(Tile.ROCK)
+
+    assert cell == ParsedCell(tile=Tile.ROCK)
+    assert parsed_cell_element(cell, CUSTOM_ELEMENTS) == Tile.ROCK
+
+
+def test_parsed_cell_can_reference_registered_custom_element() -> None:
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    register_custom_element(registry, CustomElement(name="slime", symbol="s", diggable=True))
+    cell = ParsedCell(custom_element_name="slime")
+
+    assert parsed_cell_element(cell, registry) == registry["slime"]
+
+
+def test_parsed_cell_rejects_invalid_state_shapes() -> None:
+    with pytest.raises(ValueError, match="exactly one"):
+        ParsedCell()
+
+    with pytest.raises(ValueError, match="exactly one"):
+        ParsedCell(tile=Tile.ROCK, custom_element_name="slime")
+
+
+def test_parsed_cell_element_rejects_unknown_custom_element_name() -> None:
+    with pytest.raises(ValueError, match="Unknown custom element 'slime'"):
+        parsed_cell_element(ParsedCell(custom_element_name="slime"), DEFAULT_CUSTOM_ELEMENTS)
 
 
 def test_custom_element_registry_exposes_builtin_style_examples() -> None:

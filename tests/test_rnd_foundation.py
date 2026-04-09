@@ -15,10 +15,12 @@ from rnd_foundation import (
     consume_buffered_action,
     default_motion_duration_frames,
     has_active_player_motion,
+    can_player_take_action,
     engine_config,
     engine_hold_repeat_frames,
     engine_motion_duration_frames,
     get_motion,
+    held_actions_from_pygame_pressed_keys,
     is_update_frame,
     make_hold_state,
     background_color,
@@ -524,6 +526,52 @@ def test_find_moving_object_motions_detects_horizontal_rock_push() -> None:
     assert find_moving_object_motions(before_cells, state, 8) == [
         make_motion(Tile.ROCK, (2, 1), (3, 1), 8)
     ]
+
+
+def test_pushed_rock_does_not_fall_over_edge_in_same_update() -> None:
+    state = make_state(
+        "#######",
+        "#PO   #",
+        "#     #",
+        "#######",
+    )
+
+    step_game(state, "d")
+
+    assert state.get(2, 1) == Tile.PLAYER
+    assert state.get(3, 1) == Tile.ROCK
+    assert state.get(3, 2) == Tile.EMPTY
+
+
+def test_pushed_rock_falls_on_next_gravity_update_after_edge_push() -> None:
+    state = make_state(
+        "#######",
+        "#PO   #",
+        "#     #",
+        "#######",
+    )
+
+    step_game(state, "d")
+    step_game(state, None)
+
+    assert state.get(3, 1) == Tile.EMPTY
+    assert state.get(3, 2) == Tile.ROCK
+
+
+def test_unsupported_rock_cannot_be_pushed_again_over_hole() -> None:
+    state = make_state(
+        "#######",
+        "#PO   #",
+        "#     #",
+        "#######",
+    )
+
+    step_game(state, "d")
+    step_game(state, "d")
+
+    assert state.get(2, 1) == Tile.PLAYER
+    assert state.get(3, 1) == Tile.EMPTY
+    assert state.get(3, 2) == Tile.ROCK
 
 
 def test_track_falling_motions_stores_detected_falling_motion() -> None:
@@ -1629,6 +1677,148 @@ def test_update_graphics_frame_uses_explicit_hold_repeat_policy(
     assert (state.player_x, state.player_y) == (2, 1)
 
 
+def test_update_graphics_frame_alternates_two_held_directions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "#####",
+        "# P #",
+        "#   #",
+        "#####",
+    )
+    pressed = [False] * 13
+    pressed[FakePygame.K_a] = True
+    pressed[FakePygame.K_s] = True
+    hold_state = make_hold_state()
+
+    update_graphics_frame(
+        state,
+        frame_number=0,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        pressed_keys=pressed,
+        hold_state=hold_state,
+        hold_repeat_delay_frames=8,
+        hold_repeat_interval_frames=8,
+    )
+    update_graphics_frame(
+        state,
+        frame_number=8,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        pressed_keys=pressed,
+        hold_state=hold_state,
+        hold_repeat_delay_frames=8,
+        hold_repeat_interval_frames=8,
+    )
+    update_graphics_frame(
+        state,
+        frame_number=16,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        pressed_keys=pressed,
+        hold_state=hold_state,
+        hold_repeat_delay_frames=8,
+        hold_repeat_interval_frames=8,
+    )
+
+    assert (state.player_x, state.player_y) == (1, 2)
+
+
+def test_update_graphics_frame_preserves_alternation_when_second_held_direction_is_added(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "######",
+        "#P   #",
+        "#    #",
+        "######",
+    )
+    hold_state = make_hold_state()
+    down_and_right = [False] * 13
+    down_and_right[FakePygame.K_s] = True
+    down_and_right[FakePygame.K_d] = True
+
+    update_graphics_frame(
+        state,
+        frame_number=0,
+        events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+        timing_mode=TimingMode.ASYNC,
+        hold_state=hold_state,
+    )
+    update_graphics_frame(
+        state,
+        frame_number=8,
+        events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_s)],
+        timing_mode=TimingMode.ASYNC,
+        pressed_keys=down_and_right,
+        hold_state=hold_state,
+    )
+    update_graphics_frame(
+        state,
+        frame_number=16,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        pressed_keys=down_and_right,
+        hold_state=hold_state,
+        hold_repeat_delay_frames=8,
+        hold_repeat_interval_frames=8,
+    )
+
+    assert (state.player_x, state.player_y) == (3, 2)
+
+
+def test_update_graphics_frame_uses_other_held_direction_when_preferred_one_is_blocked(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "#######",
+        "#P    #",
+        "####  #",
+        "#######",
+    )
+    hold_state = make_hold_state()
+    down_and_right = [False] * 13
+    down_and_right[FakePygame.K_s] = True
+    down_and_right[FakePygame.K_d] = True
+
+    update_graphics_frame(
+        state,
+        frame_number=0,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        pressed_keys=down_and_right,
+        hold_state=hold_state,
+        hold_repeat_delay_frames=8,
+        hold_repeat_interval_frames=8,
+    )
+    update_graphics_frame(
+        state,
+        frame_number=8,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        pressed_keys=down_and_right,
+        hold_state=hold_state,
+        hold_repeat_delay_frames=8,
+        hold_repeat_interval_frames=8,
+    )
+    update_graphics_frame(
+        state,
+        frame_number=16,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        pressed_keys=down_and_right,
+        hold_state=hold_state,
+        hold_repeat_delay_frames=8,
+        hold_repeat_interval_frames=8,
+    )
+
+    assert (state.player_x, state.player_y) == (3, 1)
+
+
 def test_update_graphics_frame_starts_player_motion_when_player_moves(monkeypatch: pytest.MonkeyPatch) -> None:
     install_fake_pygame(monkeypatch)
     state = make_state(
@@ -1721,6 +1911,129 @@ def test_update_graphics_frame_tracks_horizontal_rock_push_motion(
     )
 
     assert should_quit is False
+    assert get_motion(motion_state, (3, 1)) == make_motion(Tile.ROCK, (2, 1), (3, 1), 0)
+
+
+def test_update_graphics_frame_keeps_pushed_rock_on_edge_for_one_update(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "#######",
+        "#PO   #",
+        "#     #",
+        "#######",
+    )
+    motion_state = make_motion_state()
+
+    should_quit = update_graphics_frame(
+        state,
+        frame_number=0,
+        events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+
+    assert should_quit is False
+    assert state.get(3, 1) == Tile.ROCK
+    assert state.get(3, 2) == Tile.EMPTY
+    assert get_motion(motion_state, (3, 1)) == make_motion(Tile.ROCK, (2, 1), (3, 1), 0)
+
+
+def test_update_graphics_frame_starts_fall_on_frame_after_edge_push(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "#######",
+        "#PO   #",
+        "#     #",
+        "#######",
+    )
+    motion_state = make_motion_state()
+
+    update_graphics_frame(
+        state,
+        frame_number=0,
+        events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+    update_graphics_frame(
+        state,
+        frame_number=8,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+
+    assert state.get(3, 1) == Tile.EMPTY
+    assert state.get(3, 2) == Tile.ROCK
+    assert get_motion(motion_state, (3, 2)) == make_motion(Tile.ROCK, (3, 1), (3, 2), 8)
+
+
+def test_update_graphics_frame_keeps_falling_rock_in_place_while_fall_motion_is_active(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "#####",
+        "# O #",
+        "#P  #",
+        "#####",
+    )
+    motion_state = make_motion_state()
+
+    update_graphics_frame(
+        state,
+        frame_number=0,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+    update_graphics_frame(
+        state,
+        frame_number=1,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+
+    assert state.get(2, 2) == Tile.ROCK
+    assert state.get(2, 1) == Tile.EMPTY
+    assert state.get(2, 3) == Tile.WALL
+    assert get_motion(motion_state, (2, 2)) == make_motion(Tile.ROCK, (2, 1), (2, 2), 0)
+
+
+def test_update_graphics_frame_keeps_snap_pushed_rock_on_edge_for_horizontal_glide(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "#######",
+        "#PO   #",
+        "#     #",
+        "#######",
+    )
+    motion_state = make_motion_state()
+
+    update_graphics_frame(
+        state,
+        frame_number=0,
+        events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d, mod=FakePygame.KMOD_CTRL)],
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+    update_graphics_frame(
+        state,
+        frame_number=1,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+
+    assert state.get(3, 1) == Tile.ROCK
+    assert state.get(3, 2) == Tile.EMPTY
     assert get_motion(motion_state, (3, 1)) == make_motion(Tile.ROCK, (2, 1), (3, 1), 0)
 
 
@@ -2602,6 +2915,15 @@ def test_action_from_pygame_pressed_keys_uses_held_direction(monkeypatch: pytest
     assert action_from_pygame_pressed_keys(pressed) == "d"
 
 
+def test_held_actions_from_pygame_pressed_keys_returns_orthogonal_pair(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+    pressed = [False] * 13
+    pressed[FakePygame.K_a] = True
+    pressed[FakePygame.K_s] = True
+
+    assert held_actions_from_pygame_pressed_keys(pressed) == ("s", "a")
+
+
 def test_action_from_pygame_pressed_keys_returns_none_without_held_direction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -2632,7 +2954,16 @@ def test_repeated_held_action_resets_when_key_is_released() -> None:
     assert repeated_held_action(hold_state, 0, "d", 4, 4) is None
     assert repeated_held_action(hold_state, 1, None, 4, 4) is None
     assert repeated_held_action(hold_state, 2, "d", 4, 4) is None
-    assert hold_state == {"action": "d", "press_frame": 2}
+    assert hold_state == {"action": ("d",), "press_frame": 2, "last_output_action": None}
+
+
+def test_repeated_held_action_alternates_two_orthogonal_directions() -> None:
+    hold_state = make_hold_state()
+
+    assert repeated_held_action(hold_state, 0, ("s", "a"), 4, 4) is None
+    assert repeated_held_action(hold_state, 4, ("s", "a"), 4, 4) == "s"
+    assert repeated_held_action(hold_state, 8, ("s", "a"), 4, 4) == "a"
+    assert repeated_held_action(hold_state, 12, ("s", "a"), 4, 4) == "s"
 
 
 def test_action_from_turn_input_supports_uppercase_snap_actions() -> None:

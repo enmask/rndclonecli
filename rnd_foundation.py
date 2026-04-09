@@ -72,7 +72,7 @@ Cell = Tuple[int, int]
 Motion = tuple[Tile, Cell, Cell, int]
 MotionState = dict[Cell, Motion]
 EngineConfig = tuple[TimingMode, int]
-HoldState = dict[str, str | int | None]
+HoldState = dict[str, object]
 
 
 _TILE_SURFACE_CACHE: dict[tuple[Tile, int], object | None] = {}
@@ -88,6 +88,9 @@ class GameState:
     alive: bool = True
     won: bool = False
     falling_positions: Set[Tuple[int, int]] = field(default_factory=set)
+    just_pushed_positions: Set[Tuple[int, int]] = field(default_factory=set)
+    recently_pushed_positions: Set[Tuple[int, int]] = field(default_factory=set)
+    motion_locked_positions: Set[Tuple[int, int]] = field(default_factory=set)
     pending_action: str | None = None
 
     @property
@@ -136,9 +139,15 @@ class GameState:
             return
 
         if target == Tile.ROCK and dy == 0:
+            if (tx, ty) in self.motion_locked_positions:
+                return
+            if (tx, ty) in self.recently_pushed_positions:
+                return
             push_x, push_y = tx + dx, ty
             if self.in_bounds(push_x, push_y) and self.get(push_x, push_y) == Tile.EMPTY:
                 self.set(push_x, push_y, Tile.ROCK)
+                self.just_pushed_positions = {(push_x, push_y)}
+                self.recently_pushed_positions = {(push_x, push_y)}
                 self._move_player_to(tx, ty)
 
     def try_snap(self, dx: int, dy: int) -> None:
@@ -163,10 +172,16 @@ class GameState:
             return
 
         if target == Tile.ROCK and dy == 0:
+            if (tx, ty) in self.motion_locked_positions:
+                return
+            if (tx, ty) in self.recently_pushed_positions:
+                return
             push_x, push_y = tx + dx, ty
             if self.in_bounds(push_x, push_y) and self.get(push_x, push_y) == Tile.EMPTY:
                 self.set(push_x, push_y, Tile.ROCK)
                 self.set(tx, ty, Tile.EMPTY)
+                self.just_pushed_positions = {(push_x, push_y)}
+                self.recently_pushed_positions = {(push_x, push_y)}
 
     def _move_player_to(self, x: int, y: int) -> None:
         self.set(self.player_x, self.player_y, Tile.EMPTY)
@@ -177,11 +192,16 @@ class GameState:
         if not self.alive or self.won:
             return
 
+        just_pushed_positions = set(self.just_pushed_positions)
         new_falling_positions: Set[Tuple[int, int]] = set()
         for y in range(self.height - 2, -1, -1):
             for x in range(self.width):
                 tile = self.get(x, y)
                 if tile not in (Tile.ROCK, Tile.DIAMOND):
+                    continue
+                if (x, y) in just_pushed_positions:
+                    continue
+                if (x, y) in self.motion_locked_positions:
                     continue
 
                 was_falling = (x, y) in self.falling_positions
@@ -202,6 +222,8 @@ class GameState:
                     return
 
         self.falling_positions = new_falling_positions
+        self.just_pushed_positions.clear()
+        self.recently_pushed_positions = just_pushed_positions
 
 
 def parse_level(lines: Iterable[str]) -> GameState:
@@ -365,6 +387,32 @@ def step_realtime_frame(
     step_game(state, action)
 
 
+def can_player_take_action(state: GameState, action: str | None) -> bool:
+    if action not in DIRECTIONS:
+        return False
+    if not state.alive or state.won:
+        return False
+
+    dx, dy = DIRECTIONS[action]
+    tx, ty = state.player_x + dx, state.player_y + dy
+    if not state.in_bounds(tx, ty):
+        return False
+
+    target = state.get(tx, ty)
+    if target in (Tile.EMPTY, Tile.SAND, Tile.DIAMOND):
+        return True
+
+    if target == Tile.ROCK and dy == 0:
+        if (tx, ty) in state.motion_locked_positions:
+            return False
+        if (tx, ty) in state.recently_pushed_positions:
+            return False
+        push_x, push_y = tx + dx, ty
+        return state.in_bounds(push_x, push_y) and state.get(push_x, push_y) == Tile.EMPTY
+
+    return False
+
+
 def action_from_turn_input(text: str) -> str | None:
     if text in DIRECTIONS or text in SNAP_ACTIONS:
         return text
@@ -448,14 +496,28 @@ def action_from_pygame_pressed_keys(pressed: object) -> str | None:
     return None
 
 
+def held_actions_from_pygame_pressed_keys(pressed: object) -> tuple[str, ...]:
+    pygame = importlib.import_module("pygame")
+    actions: list[str] = []
+    if pressed[pygame.K_w] or pressed[pygame.K_UP]:
+        actions.append("w")
+    if pressed[pygame.K_s] or pressed[pygame.K_DOWN]:
+        actions.append("s")
+    if pressed[pygame.K_a] or pressed[pygame.K_LEFT]:
+        actions.append("a")
+    if pressed[pygame.K_d] or pressed[pygame.K_RIGHT]:
+        actions.append("d")
+    return tuple(actions)
+
+
 def make_hold_state() -> HoldState:
-    return {"action": None, "press_frame": None}
+    return {"action": None, "press_frame": None, "last_output_action": None}
 
 
 def repeated_held_action(
     hold_state: HoldState,
     frame_number: int,
-    held_action: str | None,
+    held_action: str | tuple[str, ...] | None,
     initial_delay_frames: int,
     repeat_interval_frames: int,
 ) -> str | None:
@@ -465,14 +527,25 @@ def repeated_held_action(
         raise ValueError("repeat_interval_frames must be positive")
 
     if held_action is None:
+        held_actions: tuple[str, ...] = ()
+    elif isinstance(held_action, str):
+        held_actions = (held_action,)
+    else:
+        held_actions = held_action
+
+    if not held_actions:
         hold_state["action"] = None
         hold_state["press_frame"] = None
+        hold_state["last_output_action"] = None
         return None
 
-    if hold_state["action"] != held_action:
-        hold_state["action"] = held_action
-        hold_state["press_frame"] = frame_number
-        return None
+    if hold_state["action"] != held_actions:
+        previous_output_action = hold_state["last_output_action"]
+        hold_state["action"] = held_actions
+        if previous_output_action not in held_actions:
+            hold_state["press_frame"] = frame_number
+            hold_state["last_output_action"] = None
+            return None
 
     press_frame = hold_state["press_frame"]
     if not isinstance(press_frame, int):
@@ -483,7 +556,18 @@ def repeated_held_action(
     if elapsed_frames < initial_delay_frames:
         return None
     if (elapsed_frames - initial_delay_frames) % repeat_interval_frames == 0:
-        return held_action
+        if len(held_actions) == 1:
+            action = held_actions[0]
+        elif len(held_actions) == 2:
+            last_output_action = hold_state["last_output_action"]
+            if last_output_action == held_actions[0]:
+                action = held_actions[1]
+            else:
+                action = held_actions[0]
+        else:
+            action = held_actions[0]
+        hold_state["last_output_action"] = action
+        return action
     return None
 
 
@@ -1002,20 +1086,33 @@ def update_graphics_frame(
     if state.alive and not state.won:
         frame_action = action_from_pygame_frame_events(event_list)
         if frame_action is not None and hold_state is not None:
-            hold_state["action"] = frame_action
+            hold_state["action"] = (frame_action,)
             hold_state["press_frame"] = frame_number
+            hold_state["last_output_action"] = frame_action
         elif frame_action is None and pressed_keys is not None:
-            held_action = action_from_pygame_pressed_keys(pressed_keys)
+            held_actions = held_actions_from_pygame_pressed_keys(pressed_keys)
             if hold_state is not None:
                 frame_action = repeated_held_action(
                     hold_state,
                     frame_number,
-                    held_action,
+                    held_actions,
                     hold_repeat_delay_frames,
                     hold_repeat_interval_frames,
                 )
+                if (
+                    frame_action is not None
+                    and len(held_actions) > 1
+                    and not can_player_take_action(state, frame_action)
+                ):
+                    for alternate_action in held_actions:
+                        if alternate_action == frame_action:
+                            continue
+                        if can_player_take_action(state, alternate_action):
+                            frame_action = alternate_action
+                            hold_state["last_output_action"] = alternate_action
+                            break
             else:
-                frame_action = held_action
+                frame_action = held_actions[0] if held_actions else None
         if motion_state is not None:
             update_motion_state(
                 motion_state,
@@ -1024,9 +1121,16 @@ def update_graphics_frame(
                 timing_mode,
                 sync_interval,
             )
+            state.motion_locked_positions = {
+                motion_destination_cell(motion)
+                for motion in active_motions(motion_state)
+                if motion_tile(motion) in MOVING_OBJECT_TILES
+            }
             if has_active_player_motion(motion_state):
                 buffer_action(state, frame_action)
                 return should_quit
+        else:
+            state.motion_locked_positions = set()
 
         start_cell = player_cell(state)
         before_cells = moving_object_cells(state) if motion_state is not None else None

@@ -88,6 +88,15 @@ class CustomElement:
     can_fall: bool = False
 
 
+CUSTOM_ELEMENTS: dict[str, CustomElement] = {
+    "sand": CustomElement(name="sand", symbol=".", diggable=True),
+    "rock": CustomElement(name="rock", symbol="O", pushable=True, can_fall=True),
+    "diamond": CustomElement(name="diamond", symbol="*", collectible=True, can_fall=True),
+    "wall": CustomElement(name="wall", symbol="#"),
+    "player": CustomElement(name="player", symbol="P"),
+}
+
+
 @dataclass
 class GameState:
     grid: List[List[Tile]]

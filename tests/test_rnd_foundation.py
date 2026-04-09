@@ -1,6 +1,7 @@
 import pytest
 
 from rnd_foundation import (
+    CUSTOM_ELEMENTS,
     CustomElement,
     DEFAULT_ENGINE_MODE,
     EngineMode,
@@ -182,6 +183,39 @@ def test_custom_element_defaults_boolean_properties_to_false() -> None:
         pushable=False,
         can_fall=False,
     )
+
+
+def test_custom_element_registry_exposes_builtin_style_examples() -> None:
+    assert CUSTOM_ELEMENTS["sand"] == CustomElement(
+        name="sand",
+        symbol=".",
+        diggable=True,
+        collectible=False,
+        pushable=False,
+        can_fall=False,
+    )
+    assert CUSTOM_ELEMENTS["rock"] == CustomElement(
+        name="rock",
+        symbol="O",
+        diggable=False,
+        collectible=False,
+        pushable=True,
+        can_fall=True,
+    )
+    assert CUSTOM_ELEMENTS["diamond"] == CustomElement(
+        name="diamond",
+        symbol="*",
+        diggable=False,
+        collectible=True,
+        pushable=False,
+        can_fall=True,
+    )
+
+
+def test_custom_element_registry_uses_unique_symbols() -> None:
+    symbols = [element.symbol for element in CUSTOM_ELEMENTS.values()]
+
+    assert len(symbols) == len(set(symbols))
 
 
 def test_engine_mode_exposes_named_engine_choices() -> None:

@@ -75,6 +75,7 @@ from rnd_foundation import (
     step_game,
     step_realtime_frame,
     tile_for_symbol,
+    tile_for_level_symbol,
     tile_appearance,
     tile_color,
     tile_rect,
@@ -329,6 +330,35 @@ def test_symbol_lookup_helpers_return_builtin_or_custom_matches() -> None:
 def test_symbol_lookup_helpers_return_none_for_unknown_symbols() -> None:
     assert tile_for_symbol("x") is None
     assert custom_element_for_symbol("x") is None
+
+
+def test_tile_for_level_symbol_returns_builtin_tiles_from_mapping_layer() -> None:
+    assert tile_for_level_symbol("#") == Tile.WALL
+    assert tile_for_level_symbol(".") == Tile.SAND
+    assert tile_for_level_symbol("O") == Tile.ROCK
+    assert tile_for_level_symbol("*") == Tile.DIAMOND
+    assert tile_for_level_symbol("P") == Tile.PLAYER
+
+
+def test_tile_for_level_symbol_rejects_unknown_symbol() -> None:
+    with pytest.raises(ValueError, match="Unsupported tile 'x'"):
+        tile_for_level_symbol("x")
+
+
+def test_parse_level_uses_symbol_mapping_layer_for_registered_builtin_symbols() -> None:
+    state = parse_level(
+        [
+            "#####",
+            "#P.*#",
+            "# O #",
+            "#####",
+        ]
+    )
+
+    assert state.get(1, 1) == Tile.PLAYER
+    assert state.get(2, 1) == Tile.SAND
+    assert state.get(3, 1) == Tile.DIAMOND
+    assert state.get(2, 2) == Tile.ROCK
 
 
 def test_engine_mode_exposes_named_engine_choices() -> None:

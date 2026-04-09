@@ -125,6 +125,16 @@ def custom_element_for_symbol(symbol: str) -> CustomElement | None:
     return CUSTOM_ELEMENT_SYMBOLS.get(symbol)
 
 
+def tile_for_level_symbol(symbol: str) -> Tile:
+    tile = tile_for_symbol(symbol)
+    if tile is not None:
+        return tile
+    element = custom_element_for_symbol(symbol)
+    if element is not None:
+        raise ValueError(f"Custom element symbol '{symbol}' is not yet mapped to a built-in tile")
+    raise ValueError(f"Unsupported tile '{symbol}'")
+
+
 def custom_element_for(element: ElementLike) -> CustomElement:
     if isinstance(element, CustomElement):
         return element
@@ -308,21 +318,13 @@ def parse_level(lines: Iterable[str]) -> GameState:
     player_pos: Tuple[int, int] | None = None
     diamonds_total = 0
 
-    legend = {
-        "#": Tile.WALL,
-        " ": Tile.EMPTY,
-        ".": Tile.SAND,
-        "O": Tile.ROCK,
-        "*": Tile.DIAMOND,
-        "P": Tile.PLAYER,
-    }
-
     for y, row in enumerate(raw):
         grid_row: List[Tile] = []
         for x, ch in enumerate(row):
-            if ch not in legend:
-                raise ValueError(f"Unsupported tile '{ch}' at ({x},{y})")
-            tile = legend[ch]
+            try:
+                tile = tile_for_level_symbol(ch)
+            except ValueError as exc:
+                raise ValueError(f"{exc} at ({x},{y})") from None
             if tile == Tile.PLAYER:
                 if player_pos is not None:
                     raise ValueError("Only one player is allowed")

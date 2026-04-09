@@ -175,6 +175,44 @@ def tile_for_level_symbol(symbol: str) -> Tile:
     raise ValueError(f"Unsupported tile '{symbol}'")
 
 
+def parsed_cell_for_level_symbol(
+    symbol: str,
+    registry: dict[str, CustomElement],
+) -> ParsedCell:
+    tile = tile_for_symbol(symbol)
+    if tile is not None:
+        return parsed_cell_for_tile(tile)
+    element = custom_element_symbols(registry).get(symbol)
+    if element is not None:
+        return ParsedCell(custom_element_name=element.name)
+    raise ValueError(f"Unsupported tile '{symbol}'")
+
+
+def parse_level_cells(
+    lines: Iterable[str],
+    registry: dict[str, CustomElement],
+) -> list[list[ParsedCell]]:
+    raw = [line.rstrip("\n") for line in lines if line.strip("\n")]
+    if not raw:
+        raise ValueError("Level is empty")
+
+    width = len(raw[0])
+    if any(len(row) != width for row in raw):
+        raise ValueError("All level rows must have equal width")
+
+    grid: list[list[ParsedCell]] = []
+    for y, row in enumerate(raw):
+        grid_row: list[ParsedCell] = []
+        for x, ch in enumerate(row):
+            try:
+                grid_row.append(parsed_cell_for_level_symbol(ch, registry))
+            except ValueError as exc:
+                raise ValueError(f"{exc} at ({x},{y})") from None
+        grid.append(grid_row)
+
+    return grid
+
+
 def custom_element_for(element: ElementLike) -> CustomElement:
     if isinstance(element, CustomElement):
         return element

@@ -62,6 +62,7 @@ from rnd_foundation import (
     player_cell,
     pygame_frame_requests_quit,
     ParsedCell,
+    parse_level_cells,
     register_custom_element,
     background_color,
     board_background_color,
@@ -77,6 +78,7 @@ from rnd_foundation import (
     start_motion,
     step_game,
     step_realtime_frame,
+    parsed_cell_for_level_symbol,
     parsed_cell_element,
     parsed_cell_for_tile,
     custom_element_symbols,
@@ -229,6 +231,60 @@ def test_parsed_cell_rejects_invalid_state_shapes() -> None:
 def test_parsed_cell_element_rejects_unknown_custom_element_name() -> None:
     with pytest.raises(ValueError, match="Unknown custom element 'slime'"):
         parsed_cell_element(ParsedCell(custom_element_name="slime"), DEFAULT_CUSTOM_ELEMENTS)
+
+
+def test_parsed_cell_for_level_symbol_returns_builtin_tile_cells() -> None:
+    assert parsed_cell_for_level_symbol("O", DEFAULT_CUSTOM_ELEMENTS) == ParsedCell(tile=Tile.ROCK)
+    assert parsed_cell_for_level_symbol("P", DEFAULT_CUSTOM_ELEMENTS) == ParsedCell(tile=Tile.PLAYER)
+
+
+def test_parsed_cell_for_level_symbol_returns_custom_element_cells() -> None:
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    register_custom_element(registry, CustomElement(name="slime", symbol="s", diggable=True))
+
+    assert parsed_cell_for_level_symbol("s", registry) == ParsedCell(custom_element_name="slime")
+
+
+def test_parse_level_cells_supports_builtin_and_custom_symbols() -> None:
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    register_custom_element(registry, CustomElement(name="slime", symbol="s", diggable=True))
+
+    cells = parse_level_cells(
+        [
+            "#####",
+            "#Ps #",
+            "#####",
+        ],
+        registry,
+    )
+
+    assert cells == [
+        [ParsedCell(tile=Tile.WALL), ParsedCell(tile=Tile.WALL), ParsedCell(tile=Tile.WALL), ParsedCell(tile=Tile.WALL), ParsedCell(tile=Tile.WALL)],
+        [ParsedCell(tile=Tile.WALL), ParsedCell(tile=Tile.PLAYER), ParsedCell(custom_element_name="slime"), ParsedCell(tile=Tile.EMPTY), ParsedCell(tile=Tile.WALL)],
+        [ParsedCell(tile=Tile.WALL), ParsedCell(tile=Tile.WALL), ParsedCell(tile=Tile.WALL), ParsedCell(tile=Tile.WALL), ParsedCell(tile=Tile.WALL)],
+    ]
+
+
+def test_parse_level_cells_rejects_empty_input() -> None:
+    with pytest.raises(ValueError, match="Level is empty"):
+        parse_level_cells([], DEFAULT_CUSTOM_ELEMENTS)
+
+
+def test_parse_level_cells_rejects_uneven_rows() -> None:
+    with pytest.raises(ValueError, match="equal width"):
+        parse_level_cells(["#####", "#P #", "#####"], DEFAULT_CUSTOM_ELEMENTS)
+
+
+def test_parse_level_cells_rejects_unsupported_symbol() -> None:
+    with pytest.raises(ValueError, match="Unsupported tile 'x' at \\(1,1\\)"):
+        parse_level_cells(
+            [
+                "###",
+                "#x#",
+                "###",
+            ],
+            DEFAULT_CUSTOM_ELEMENTS,
+        )
 
 
 def test_custom_element_registry_exposes_builtin_style_examples() -> None:

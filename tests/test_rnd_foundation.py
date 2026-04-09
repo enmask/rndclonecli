@@ -6,6 +6,7 @@ from rnd_foundation import (
     CUSTOM_ELEMENTS,
     CUSTOM_ELEMENT_SYMBOLS,
     CustomElement,
+    DEFAULT_CUSTOM_ELEMENTS,
     DEFAULT_ENGINE_MODE,
     EngineMode,
     GameState,
@@ -60,6 +61,7 @@ from rnd_foundation import (
     parse_level,
     player_cell,
     pygame_frame_requests_quit,
+    register_custom_element,
     background_color,
     board_background_color,
     board_size_px,
@@ -74,6 +76,7 @@ from rnd_foundation import (
     start_motion,
     step_game,
     step_realtime_frame,
+    custom_element_symbols,
     tile_for_symbol,
     tile_for_level_symbol,
     tile_appearance,
@@ -222,6 +225,33 @@ def test_custom_element_registry_exposes_builtin_style_examples() -> None:
         pushable=False,
         can_fall=True,
     )
+
+
+def test_default_custom_elements_seed_runtime_custom_element_registry() -> None:
+    assert CUSTOM_ELEMENTS == DEFAULT_CUSTOM_ELEMENTS
+
+
+def test_register_custom_element_adds_new_named_element() -> None:
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    slime = CustomElement(name="slime", symbol="s", diggable=True)
+
+    register_custom_element(registry, slime)
+
+    assert registry["slime"] == slime
+
+
+def test_register_custom_element_rejects_duplicate_name_with_different_definition() -> None:
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+
+    with pytest.raises(ValueError, match="name 'sand' is already registered"):
+        register_custom_element(registry, CustomElement(name="sand", symbol="x"))
+
+
+def test_register_custom_element_rejects_duplicate_symbol() -> None:
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+
+    with pytest.raises(ValueError, match="symbol '\\.' is already registered"):
+        register_custom_element(registry, CustomElement(name="slime", symbol="."))
 
 
 def test_custom_element_registry_uses_unique_symbols() -> None:
@@ -373,6 +403,18 @@ def test_custom_element_symbol_mapping_exposes_registered_symbols() -> None:
     assert CUSTOM_ELEMENT_SYMBOLS["."] == CUSTOM_ELEMENTS["sand"]
     assert CUSTOM_ELEMENT_SYMBOLS["O"] == CUSTOM_ELEMENTS["rock"]
     assert CUSTOM_ELEMENT_SYMBOLS["*"] == CUSTOM_ELEMENTS["diamond"]
+
+
+def test_custom_element_symbols_builds_symbol_lookup_for_given_registry() -> None:
+    registry = {
+        "slime": CustomElement(name="slime", symbol="s", diggable=True),
+        "gem": CustomElement(name="gem", symbol="g", collectible=True),
+    }
+
+    assert custom_element_symbols(registry) == {
+        "s": registry["slime"],
+        "g": registry["gem"],
+    }
 
 
 def test_symbol_lookup_helpers_return_builtin_or_custom_matches() -> None:

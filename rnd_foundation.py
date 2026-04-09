@@ -91,13 +91,26 @@ class CustomElement:
 ElementLike = Tile | CustomElement
 
 
-CUSTOM_ELEMENTS: dict[str, CustomElement] = {
+DEFAULT_CUSTOM_ELEMENTS: dict[str, CustomElement] = {
     "sand": CustomElement(name="sand", symbol=".", diggable=True),
     "rock": CustomElement(name="rock", symbol="O", pushable=True, can_fall=True),
     "diamond": CustomElement(name="diamond", symbol="*", collectible=True, can_fall=True),
     "wall": CustomElement(name="wall", symbol="#"),
     "player": CustomElement(name="player", symbol="P"),
 }
+CUSTOM_ELEMENTS: dict[str, CustomElement] = dict(DEFAULT_CUSTOM_ELEMENTS)
+
+
+def register_custom_element(registry: dict[str, CustomElement], element: CustomElement) -> None:
+    existing = registry.get(element.name)
+    if existing is not None and existing != element:
+        raise ValueError(f"Custom element name '{element.name}' is already registered")
+
+    for name, registered in registry.items():
+        if name != element.name and registered.symbol == element.symbol:
+            raise ValueError(f"Custom element symbol '{element.symbol}' is already registered")
+
+    registry[element.name] = element
 
 BUILTIN_TILE_ELEMENTS: dict[Tile, CustomElement] = {
     Tile.EMPTY: CustomElement(name="empty", symbol=" "),
@@ -108,9 +121,13 @@ BUILTIN_TILE_ELEMENTS: dict[Tile, CustomElement] = {
     Tile.PLAYER: CUSTOM_ELEMENTS["player"],
 }
 BUILTIN_TILE_SYMBOLS: dict[str, Tile] = {tile.value: tile for tile in Tile}
-CUSTOM_ELEMENT_SYMBOLS: dict[str, CustomElement] = {
-    element.symbol: element for element in CUSTOM_ELEMENTS.values()
-}
+
+
+def custom_element_symbols(registry: dict[str, CustomElement]) -> dict[str, CustomElement]:
+    return {element.symbol: element for element in registry.values()}
+
+
+CUSTOM_ELEMENT_SYMBOLS: dict[str, CustomElement] = custom_element_symbols(CUSTOM_ELEMENTS)
 
 
 def custom_element_for_tile(tile: Tile) -> CustomElement:

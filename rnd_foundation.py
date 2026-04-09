@@ -96,6 +96,19 @@ CUSTOM_ELEMENTS: dict[str, CustomElement] = {
     "player": CustomElement(name="player", symbol="P"),
 }
 
+BUILTIN_TILE_ELEMENTS: dict[Tile, CustomElement] = {
+    Tile.EMPTY: CustomElement(name="empty", symbol=" "),
+    Tile.WALL: CUSTOM_ELEMENTS["wall"],
+    Tile.SAND: CUSTOM_ELEMENTS["sand"],
+    Tile.ROCK: CUSTOM_ELEMENTS["rock"],
+    Tile.DIAMOND: CUSTOM_ELEMENTS["diamond"],
+    Tile.PLAYER: CUSTOM_ELEMENTS["player"],
+}
+
+
+def custom_element_for_tile(tile: Tile) -> CustomElement:
+    return BUILTIN_TILE_ELEMENTS[tile]
+
 
 @dataclass
 class GameState:

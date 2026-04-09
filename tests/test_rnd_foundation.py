@@ -1,6 +1,7 @@
 import pytest
 
 from rnd_foundation import (
+    BUILTIN_TILE_ELEMENTS,
     CUSTOM_ELEMENTS,
     CustomElement,
     DEFAULT_ENGINE_MODE,
@@ -29,6 +30,7 @@ from rnd_foundation import (
     board_background_color,
     draw_background,
     complete_motion,
+    custom_element_for_tile,
     motion_is_complete,
     motion_progress,
     make_motion_state,
@@ -216,6 +218,21 @@ def test_custom_element_registry_uses_unique_symbols() -> None:
     symbols = [element.symbol for element in CUSTOM_ELEMENTS.values()]
 
     assert len(symbols) == len(set(symbols))
+
+
+def test_builtin_tile_elements_mirror_current_builtin_tiles() -> None:
+    assert BUILTIN_TILE_ELEMENTS[Tile.EMPTY] == CustomElement(name="empty", symbol=" ")
+    assert BUILTIN_TILE_ELEMENTS[Tile.WALL] == CUSTOM_ELEMENTS["wall"]
+    assert BUILTIN_TILE_ELEMENTS[Tile.SAND] == CUSTOM_ELEMENTS["sand"]
+    assert BUILTIN_TILE_ELEMENTS[Tile.ROCK] == CUSTOM_ELEMENTS["rock"]
+    assert BUILTIN_TILE_ELEMENTS[Tile.DIAMOND] == CUSTOM_ELEMENTS["diamond"]
+    assert BUILTIN_TILE_ELEMENTS[Tile.PLAYER] == CUSTOM_ELEMENTS["player"]
+
+
+def test_custom_element_for_tile_returns_builtin_mirror() -> None:
+    assert custom_element_for_tile(Tile.ROCK) == CUSTOM_ELEMENTS["rock"]
+    assert custom_element_for_tile(Tile.DIAMOND) == CUSTOM_ELEMENTS["diamond"]
+    assert custom_element_for_tile(Tile.EMPTY) == CustomElement(name="empty", symbol=" ")
 
 
 def test_engine_mode_exposes_named_engine_choices() -> None:

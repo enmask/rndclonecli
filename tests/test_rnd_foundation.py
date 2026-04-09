@@ -2,7 +2,9 @@ import pytest
 
 from rnd_foundation import (
     BUILTIN_TILE_ELEMENTS,
+    BUILTIN_TILE_SYMBOLS,
     CUSTOM_ELEMENTS,
+    CUSTOM_ELEMENT_SYMBOLS,
     CustomElement,
     DEFAULT_ENGINE_MODE,
     EngineMode,
@@ -21,6 +23,7 @@ from rnd_foundation import (
     clamp_progress,
     complete_motion,
     custom_element_for,
+    custom_element_for_symbol,
     custom_element_for_tile,
     default_motion_duration_frames,
     draw_background,
@@ -71,6 +74,7 @@ from rnd_foundation import (
     start_motion,
     step_game,
     step_realtime_frame,
+    tile_for_symbol,
     tile_appearance,
     tile_color,
     tile_rect,
@@ -299,6 +303,32 @@ def test_custom_element_helpers_match_current_builtin_tile_semantics(
 @pytest.mark.parametrize("tile", list(Tile))
 def test_builtin_tile_mirror_preserves_symbol(tile: Tile) -> None:
     assert custom_element_for_tile(tile).symbol == tile.value
+
+
+def test_builtin_tile_symbol_mapping_exposes_current_tile_symbols() -> None:
+    assert BUILTIN_TILE_SYMBOLS["#"] == Tile.WALL
+    assert BUILTIN_TILE_SYMBOLS["."] == Tile.SAND
+    assert BUILTIN_TILE_SYMBOLS["O"] == Tile.ROCK
+    assert BUILTIN_TILE_SYMBOLS["*"] == Tile.DIAMOND
+    assert BUILTIN_TILE_SYMBOLS["P"] == Tile.PLAYER
+
+
+def test_custom_element_symbol_mapping_exposes_registered_symbols() -> None:
+    assert CUSTOM_ELEMENT_SYMBOLS["."] == CUSTOM_ELEMENTS["sand"]
+    assert CUSTOM_ELEMENT_SYMBOLS["O"] == CUSTOM_ELEMENTS["rock"]
+    assert CUSTOM_ELEMENT_SYMBOLS["*"] == CUSTOM_ELEMENTS["diamond"]
+
+
+def test_symbol_lookup_helpers_return_builtin_or_custom_matches() -> None:
+    assert tile_for_symbol("O") == Tile.ROCK
+    assert tile_for_symbol("P") == Tile.PLAYER
+    assert custom_element_for_symbol(".") == CUSTOM_ELEMENTS["sand"]
+    assert custom_element_for_symbol("*") == CUSTOM_ELEMENTS["diamond"]
+
+
+def test_symbol_lookup_helpers_return_none_for_unknown_symbols() -> None:
+    assert tile_for_symbol("x") is None
+    assert custom_element_for_symbol("x") is None
 
 
 def test_engine_mode_exposes_named_engine_choices() -> None:

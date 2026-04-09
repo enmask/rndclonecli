@@ -107,10 +107,22 @@ BUILTIN_TILE_ELEMENTS: dict[Tile, CustomElement] = {
     Tile.DIAMOND: CUSTOM_ELEMENTS["diamond"],
     Tile.PLAYER: CUSTOM_ELEMENTS["player"],
 }
+BUILTIN_TILE_SYMBOLS: dict[str, Tile] = {tile.value: tile for tile in Tile}
+CUSTOM_ELEMENT_SYMBOLS: dict[str, CustomElement] = {
+    element.symbol: element for element in CUSTOM_ELEMENTS.values()
+}
 
 
 def custom_element_for_tile(tile: Tile) -> CustomElement:
     return BUILTIN_TILE_ELEMENTS[tile]
+
+
+def tile_for_symbol(symbol: str) -> Tile | None:
+    return BUILTIN_TILE_SYMBOLS.get(symbol)
+
+
+def custom_element_for_symbol(symbol: str) -> CustomElement | None:
+    return CUSTOM_ELEMENT_SYMBOLS.get(symbol)
 
 
 def custom_element_for(element: ElementLike) -> CustomElement:

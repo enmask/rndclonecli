@@ -272,6 +272,35 @@ def test_custom_element_property_helpers_support_custom_elements() -> None:
     assert can_fall_element(element) is True
 
 
+@pytest.mark.parametrize(
+    ("tile", "diggable", "collectible", "pushable", "can_fall"),
+    [
+        (Tile.EMPTY, False, False, False, False),
+        (Tile.WALL, False, False, False, False),
+        (Tile.SAND, True, False, False, False),
+        (Tile.ROCK, False, False, True, True),
+        (Tile.DIAMOND, False, True, False, True),
+        (Tile.PLAYER, False, False, False, False),
+    ],
+)
+def test_custom_element_helpers_match_current_builtin_tile_semantics(
+    tile: Tile,
+    diggable: bool,
+    collectible: bool,
+    pushable: bool,
+    can_fall: bool,
+) -> None:
+    assert is_diggable(tile) is diggable
+    assert is_collectible(tile) is collectible
+    assert is_pushable(tile) is pushable
+    assert can_fall_element(tile) is can_fall
+
+
+@pytest.mark.parametrize("tile", list(Tile))
+def test_builtin_tile_mirror_preserves_symbol(tile: Tile) -> None:
+    assert custom_element_for_tile(tile).symbol == tile.value
+
+
 def test_engine_mode_exposes_named_engine_choices() -> None:
     assert EngineMode.RND.value == "rnd"
     assert EngineMode.EM.value == "em"

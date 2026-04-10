@@ -83,6 +83,12 @@ from rnd_foundation import (
     parsed_cell_appearance,
     parsed_cell_for_level_symbol,
     parsed_cell_element,
+    parsed_cell_is_collectible,
+    parsed_cell_is_diggable,
+    parsed_cell_is_empty,
+    parsed_cell_is_player,
+    parsed_cell_is_pushable,
+    parsed_cell_can_fall,
     parsed_cell_for_tile,
     custom_element_symbols,
     tile_for_symbol,
@@ -311,6 +317,38 @@ def test_parsed_cell_appearance_resolves_builtin_and_custom_cells() -> None:
 
     assert parsed_cell_appearance(ParsedCell(tile=Tile.ROCK), registry, 24) == tile_appearance(Tile.ROCK, 24)
     assert parsed_cell_appearance(ParsedCell(custom_element_name="slime"), registry, 24) == (None, (220, 90, 90))
+
+
+def test_parsed_cell_property_helpers_support_builtin_cells() -> None:
+    registry = DEFAULT_CUSTOM_ELEMENTS
+
+    assert parsed_cell_is_diggable(ParsedCell(tile=Tile.SAND), registry) is True
+    assert parsed_cell_is_collectible(ParsedCell(tile=Tile.DIAMOND), registry) is True
+    assert parsed_cell_is_pushable(ParsedCell(tile=Tile.ROCK), registry) is True
+    assert parsed_cell_can_fall(ParsedCell(tile=Tile.ROCK), registry) is True
+    assert parsed_cell_is_empty(ParsedCell(tile=Tile.EMPTY)) is True
+    assert parsed_cell_is_player(ParsedCell(tile=Tile.PLAYER)) is True
+
+
+def test_parsed_cell_property_helpers_support_custom_element_cells() -> None:
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    register_custom_element(
+        registry,
+        CustomElement(
+            name="slime",
+            symbol="s",
+            diggable=True,
+            collectible=False,
+            pushable=True,
+            can_fall=False,
+        ),
+    )
+    slime_cell = ParsedCell(custom_element_name="slime")
+
+    assert parsed_cell_is_diggable(slime_cell, registry) is True
+    assert parsed_cell_is_collectible(slime_cell, registry) is False
+    assert parsed_cell_is_pushable(slime_cell, registry) is True
+    assert parsed_cell_can_fall(slime_cell, registry) is False
 
 
 def test_custom_element_registry_exposes_builtin_style_examples() -> None:

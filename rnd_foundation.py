@@ -235,6 +235,30 @@ def can_fall_element(element: ElementLike) -> bool:
     return custom_element_for(element).can_fall
 
 
+def parsed_cell_is_diggable(cell: ParsedCell, registry: dict[str, CustomElement]) -> bool:
+    return is_diggable(parsed_cell_element(cell, registry))
+
+
+def parsed_cell_is_collectible(cell: ParsedCell, registry: dict[str, CustomElement]) -> bool:
+    return is_collectible(parsed_cell_element(cell, registry))
+
+
+def parsed_cell_is_pushable(cell: ParsedCell, registry: dict[str, CustomElement]) -> bool:
+    return is_pushable(parsed_cell_element(cell, registry))
+
+
+def parsed_cell_can_fall(cell: ParsedCell, registry: dict[str, CustomElement]) -> bool:
+    return can_fall_element(parsed_cell_element(cell, registry))
+
+
+def parsed_cell_is_empty(cell: ParsedCell) -> bool:
+    return cell.tile == Tile.EMPTY
+
+
+def parsed_cell_is_player(cell: ParsedCell) -> bool:
+    return cell.tile == Tile.PLAYER
+
+
 @dataclass
 class GameState:
     grid: List[List[Tile]]

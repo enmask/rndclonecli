@@ -638,6 +638,93 @@ def test_player_can_dig_default_custom_slime_symbol() -> None:
     assert state.get(2, 1) == Tile.PLAYER
 
 
+def test_builtin_sand_and_custom_slime_parse_to_equivalent_states() -> None:
+    sand_state = parse_level(
+        [
+            "#####",
+            "#P. #",
+            "# *O#",
+            "#####",
+        ]
+    )
+    slime_state = parse_level(
+        [
+            "#####",
+            "#Ps #",
+            "# *O#",
+            "#####",
+        ]
+    )
+
+    assert slime_state.grid == sand_state.grid
+    assert slime_state.player_x == sand_state.player_x
+    assert slime_state.player_y == sand_state.player_y
+    assert slime_state.diamonds_total == sand_state.diamonds_total
+
+
+def test_builtin_sand_and_custom_slime_have_equivalent_movement_behavior() -> None:
+    sand_state = parse_level(
+        [
+            "#####",
+            "#P. #",
+            "#####",
+        ]
+    )
+    slime_state = parse_level(
+        [
+            "#####",
+            "#Ps #",
+            "#####",
+        ]
+    )
+
+    step_game(sand_state, "d")
+    step_game(slime_state, "d")
+
+    assert slime_state.grid == sand_state.grid
+    assert slime_state.player_x == sand_state.player_x
+    assert slime_state.player_y == sand_state.player_y
+    assert slime_state.alive == sand_state.alive
+    assert slime_state.won == sand_state.won
+
+
+def test_builtin_sand_and_custom_slime_have_equivalent_snap_behavior() -> None:
+    sand_state = parse_level(
+        [
+            "#####",
+            "#P. #",
+            "#####",
+        ]
+    )
+    slime_state = parse_level(
+        [
+            "#####",
+            "#Ps #",
+            "#####",
+        ]
+    )
+
+    step_game(sand_state, "D")
+    step_game(slime_state, "D")
+
+    assert slime_state.grid == sand_state.grid
+    assert slime_state.player_x == sand_state.player_x
+    assert slime_state.player_y == sand_state.player_y
+
+
+def test_builtin_collectible_count_is_unchanged_in_presence_of_custom_slime() -> None:
+    state = parse_level(
+        [
+            "######",
+            "#Ps* #",
+            "######",
+        ]
+    )
+
+    assert state.diamonds_total == 1
+    assert state.diamonds_collected == 0
+
+
 def test_parse_level_uses_symbol_mapping_layer_for_registered_builtin_symbols() -> None:
     state = parse_level(
         [

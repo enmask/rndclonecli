@@ -93,6 +93,7 @@ ElementLike = Tile | CustomElement
 
 DEFAULT_CUSTOM_ELEMENTS: dict[str, CustomElement] = {
     "sand": CustomElement(name="sand", symbol=".", diggable=True),
+    "slime": CustomElement(name="slime", symbol="s", diggable=True),
     "rock": CustomElement(name="rock", symbol="O", pushable=True, can_fall=True),
     "diamond": CustomElement(name="diamond", symbol="*", collectible=True, can_fall=True),
     "wall": CustomElement(name="wall", symbol="#"),
@@ -165,12 +166,25 @@ def custom_element_for_symbol(symbol: str) -> CustomElement | None:
     return CUSTOM_ELEMENT_SYMBOLS.get(symbol)
 
 
+def surrogate_tile_for_custom_element(element: CustomElement) -> Tile | None:
+    if element.diggable and not element.collectible and not element.pushable and not element.can_fall:
+        return Tile.SAND
+    if element.collectible and element.can_fall and not element.diggable and not element.pushable:
+        return Tile.DIAMOND
+    if element.pushable and element.can_fall and not element.diggable and not element.collectible:
+        return Tile.ROCK
+    return None
+
+
 def tile_for_level_symbol(symbol: str) -> Tile:
     tile = tile_for_symbol(symbol)
     if tile is not None:
         return tile
     element = custom_element_for_symbol(symbol)
     if element is not None:
+        surrogate_tile = surrogate_tile_for_custom_element(element)
+        if surrogate_tile is not None:
+            return surrogate_tile
         raise ValueError(f"Custom element symbol '{symbol}' is not yet mapped to a built-in tile")
     raise ValueError(f"Unsupported tile '{symbol}'")
 
@@ -449,7 +463,7 @@ def parse_level(lines: Iterable[str]) -> GameState:
 
 DEFAULT_LEVEL = [
     "########################################",
-    "#...... ..*.O .....O.O....... ....O....#",
+    "#ss.... ..*.O .....O.O....... ....O....#",
     "#.OPO...... .........O*..O.... ..... ..#",
     "#.......... ..O.....O.O..O........O....#",
     "#O.OO.........O......O..O....O...O.....#",

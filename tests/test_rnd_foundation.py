@@ -80,6 +80,7 @@ from rnd_foundation import (
     start_motion,
     step_game,
     step_realtime_frame,
+    surrogate_tile_for_custom_element,
     parsed_cell_appearance,
     parsed_cell_for_level_symbol,
     parsed_cell_element,
@@ -238,8 +239,8 @@ def test_parsed_cell_rejects_invalid_state_shapes() -> None:
 
 
 def test_parsed_cell_element_rejects_unknown_custom_element_name() -> None:
-    with pytest.raises(ValueError, match="Unknown custom element 'slime'"):
-        parsed_cell_element(ParsedCell(custom_element_name="slime"), DEFAULT_CUSTOM_ELEMENTS)
+    with pytest.raises(ValueError, match="Unknown custom element 'gel'"):
+        parsed_cell_element(ParsedCell(custom_element_name="gel"), DEFAULT_CUSTOM_ELEMENTS)
 
 
 def test_parsed_cell_for_level_symbol_returns_builtin_tile_cells() -> None:
@@ -335,15 +336,15 @@ def test_parsed_cell_property_helpers_support_custom_element_cells() -> None:
     register_custom_element(
         registry,
         CustomElement(
-            name="slime",
-            symbol="s",
+            name="crumbly",
+            symbol="c",
             diggable=True,
             collectible=False,
             pushable=True,
             can_fall=False,
         ),
     )
-    slime_cell = ParsedCell(custom_element_name="slime")
+    slime_cell = ParsedCell(custom_element_name="crumbly")
 
     assert parsed_cell_is_diggable(slime_cell, registry) is True
     assert parsed_cell_is_collectible(slime_cell, registry) is False
@@ -355,6 +356,14 @@ def test_custom_element_registry_exposes_builtin_style_examples() -> None:
     assert CUSTOM_ELEMENTS["sand"] == CustomElement(
         name="sand",
         symbol=".",
+        diggable=True,
+        collectible=False,
+        pushable=False,
+        can_fall=False,
+    )
+    assert CUSTOM_ELEMENTS["slime"] == CustomElement(
+        name="slime",
+        symbol="s",
         diggable=True,
         collectible=False,
         pushable=False,
@@ -402,7 +411,7 @@ def test_register_custom_element_rejects_duplicate_symbol() -> None:
     registry = dict(DEFAULT_CUSTOM_ELEMENTS)
 
     with pytest.raises(ValueError, match="symbol '\\.' is already registered"):
-        register_custom_element(registry, CustomElement(name="slime", symbol="."))
+        register_custom_element(registry, CustomElement(name="goo", symbol="."))
 
 
 def test_custom_element_registry_uses_unique_symbols() -> None:
@@ -583,14 +592,50 @@ def test_symbol_lookup_helpers_return_none_for_unknown_symbols() -> None:
 def test_tile_for_level_symbol_returns_builtin_tiles_from_mapping_layer() -> None:
     assert tile_for_level_symbol("#") == Tile.WALL
     assert tile_for_level_symbol(".") == Tile.SAND
+    assert tile_for_level_symbol("s") == Tile.SAND
     assert tile_for_level_symbol("O") == Tile.ROCK
     assert tile_for_level_symbol("*") == Tile.DIAMOND
     assert tile_for_level_symbol("P") == Tile.PLAYER
 
 
+def test_surrogate_tile_for_custom_element_maps_supported_builtin_like_shapes() -> None:
+    assert surrogate_tile_for_custom_element(CUSTOM_ELEMENTS["slime"]) == Tile.SAND
+    assert surrogate_tile_for_custom_element(CUSTOM_ELEMENTS["diamond"]) == Tile.DIAMOND
+    assert surrogate_tile_for_custom_element(CUSTOM_ELEMENTS["rock"]) == Tile.ROCK
+    assert surrogate_tile_for_custom_element(CUSTOM_ELEMENTS["wall"]) is None
+
+
 def test_tile_for_level_symbol_rejects_unknown_symbol() -> None:
     with pytest.raises(ValueError, match="Unsupported tile 'x'"):
         tile_for_level_symbol("x")
+
+
+def test_parse_level_accepts_default_custom_slime_symbol_via_surrogate_tile() -> None:
+    state = parse_level(
+        [
+            "#####",
+            "#Ps #",
+            "#####",
+        ]
+    )
+
+    assert state.get(2, 1) == Tile.SAND
+
+
+def test_player_can_dig_default_custom_slime_symbol() -> None:
+    state = parse_level(
+        [
+            "#####",
+            "#Ps #",
+            "#####",
+        ]
+    )
+
+    step_game(state, "d")
+
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.get(1, 1) == Tile.EMPTY
+    assert state.get(2, 1) == Tile.PLAYER
 
 
 def test_parse_level_uses_symbol_mapping_layer_for_registered_builtin_symbols() -> None:

@@ -948,12 +948,28 @@ def element_appearance(element: ElementLike, tile_size: int) -> Tuple[object | N
     return (None, element_color(element))
 
 
+def element_cell_color(cell: ElementCell, registry: dict[str, CustomElement]) -> Tuple[int, int, int]:
+    element = custom_element_for_cell(cell, registry)
+    if element is None:
+        return tile_color(Tile.EMPTY)
+    return element_color(element)
+
+
+def element_cell_appearance(
+    cell: ElementCell,
+    registry: dict[str, CustomElement],
+    tile_size: int,
+) -> Tuple[object | None, Tuple[int, int, int]]:
+    tile = tile_for_element_cell(cell, registry)
+    return element_appearance(tile, tile_size)
+
+
 def parsed_cell_appearance(
     cell: ParsedCell,
     registry: dict[str, CustomElement],
     tile_size: int,
 ) -> Tuple[object | None, Tuple[int, int, int]]:
-    return element_appearance(parsed_cell_element(cell, registry), tile_size)
+    return element_cell_appearance(cell_for_parsed_cell(cell), registry, tile_size)
 
 
 def tile_rect(pygame: object, x: int, y: int, tile_size: int) -> object:

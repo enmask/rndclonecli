@@ -45,6 +45,8 @@ from rnd_foundation import (
     custom_element_for_cell,
     custom_element_for_symbol,
     custom_element_for_tile,
+    element_cell_appearance,
+    element_cell_color,
     element_appearance,
     element_color,
     default_motion_duration_frames,
@@ -374,12 +376,24 @@ def test_element_appearance_supports_builtin_tiles_and_custom_elements() -> None
     assert element_appearance(CustomElement(name="custom-gem", symbol="*"), 24) == (None, tile_color(Tile.DIAMOND))
 
 
+def test_element_cell_color_supports_empty_builtin_and_custom_cells() -> None:
+    assert element_cell_color(None, DEFAULT_CUSTOM_ELEMENTS) == tile_color(Tile.EMPTY)
+    assert element_cell_color(ROCK_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) == tile_color(Tile.ROCK)
+    assert element_cell_color(SLIME_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) == (220, 90, 90)
+
+
+def test_element_cell_appearance_supports_builtin_and_custom_cells() -> None:
+    assert element_cell_appearance(ROCK_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS, 24) == tile_appearance(Tile.ROCK, 24)
+    assert element_cell_appearance(SLIME_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS, 24) == tile_appearance(Tile.SAND, 24)
+    assert element_cell_appearance(None, DEFAULT_CUSTOM_ELEMENTS, 24) == tile_appearance(Tile.EMPTY, 24)
+
+
 def test_parsed_cell_appearance_resolves_builtin_and_custom_cells() -> None:
     registry = dict(DEFAULT_CUSTOM_ELEMENTS)
     register_custom_element(registry, CustomElement(name="slime", symbol="s", diggable=True))
 
     assert parsed_cell_appearance(ParsedCell(tile=Tile.ROCK), registry, 24) == tile_appearance(Tile.ROCK, 24)
-    assert parsed_cell_appearance(ParsedCell(custom_element_name="slime"), registry, 24) == (None, (220, 90, 90))
+    assert parsed_cell_appearance(ParsedCell(custom_element_name="slime"), registry, 24) == tile_appearance(Tile.SAND, 24)
 
 
 def test_parsed_cell_property_helpers_support_builtin_cells() -> None:

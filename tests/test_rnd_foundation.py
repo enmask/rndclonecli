@@ -318,6 +318,25 @@ def test_parse_level_element_cells_supports_builtin_and_custom_symbols() -> None
     ]
 
 
+def test_parse_level_element_cells_supports_builtin_only_levels() -> None:
+    cells = parse_level_element_cells(
+        [
+            "#####",
+            "#P.*#",
+            "# O #",
+            "#####",
+        ],
+        DEFAULT_CUSTOM_ELEMENTS,
+    )
+
+    assert cells == [
+        [WALL_ELEMENT_ID, WALL_ELEMENT_ID, WALL_ELEMENT_ID, WALL_ELEMENT_ID, WALL_ELEMENT_ID],
+        [WALL_ELEMENT_ID, PLAYER_ELEMENT_ID, SAND_ELEMENT_ID, DIAMOND_ELEMENT_ID, WALL_ELEMENT_ID],
+        [WALL_ELEMENT_ID, None, ROCK_ELEMENT_ID, None, WALL_ELEMENT_ID],
+        [WALL_ELEMENT_ID, WALL_ELEMENT_ID, WALL_ELEMENT_ID, WALL_ELEMENT_ID, WALL_ELEMENT_ID],
+    ]
+
+
 def test_parse_level_cells_rejects_empty_input() -> None:
     with pytest.raises(ValueError, match="Level is empty"):
         parse_level_cells([], DEFAULT_CUSTOM_ELEMENTS)
@@ -914,6 +933,47 @@ def test_builtin_collectible_count_is_unchanged_in_presence_of_custom_slime() ->
         ]
     )
 
+    assert state.diamonds_total == 1
+    assert state.diamonds_collected == 0
+
+
+def test_builtin_only_level_round_trips_through_unified_parse_bridge() -> None:
+    lines = [
+        "#####",
+        "#P.*#",
+        "# O #",
+        "#####",
+    ]
+
+    element_cells = parse_level_element_cells(lines, DEFAULT_CUSTOM_ELEMENTS)
+    bridged_grid = tile_grid_for_element_cells(element_cells, DEFAULT_CUSTOM_ELEMENTS)
+    state = parse_level(lines)
+
+    assert bridged_grid == state.grid
+
+
+def test_builtin_only_state_after_move_matches_unified_parse_bridge_baseline() -> None:
+    lines = [
+        "######",
+        "#P O*#",
+        "######",
+    ]
+
+    state = parse_level(lines)
+    baseline_grid = tile_grid_for_element_cells(
+        parse_level_element_cells(lines, DEFAULT_CUSTOM_ELEMENTS),
+        DEFAULT_CUSTOM_ELEMENTS,
+    )
+
+    assert state.grid == baseline_grid
+
+    step_game(state, "d")
+
+    assert state.render_lines() == [
+        "######",
+        "# PO*#",
+        "######",
+    ]
     assert state.diamonds_total == 1
     assert state.diamonds_collected == 0
 

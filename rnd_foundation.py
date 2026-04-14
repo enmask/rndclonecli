@@ -91,13 +91,22 @@ class CustomElement:
 ElementLike = Tile | CustomElement
 
 
+EMPTY_ELEMENT_ID = "empty"
+WALL_ELEMENT_ID = "wall"
+SAND_ELEMENT_ID = "sand"
+SLIME_ELEMENT_ID = "slime"
+ROCK_ELEMENT_ID = "rock"
+DIAMOND_ELEMENT_ID = "diamond"
+PLAYER_ELEMENT_ID = "player"
+
+
 DEFAULT_CUSTOM_ELEMENTS: dict[str, CustomElement] = {
-    "sand": CustomElement(name="sand", symbol=".", diggable=True),
-    "slime": CustomElement(name="slime", symbol="s", diggable=True),
-    "rock": CustomElement(name="rock", symbol="O", pushable=True, can_fall=True),
-    "diamond": CustomElement(name="diamond", symbol="*", collectible=True, can_fall=True),
-    "wall": CustomElement(name="wall", symbol="#"),
-    "player": CustomElement(name="player", symbol="P"),
+    SAND_ELEMENT_ID: CustomElement(name=SAND_ELEMENT_ID, symbol=".", diggable=True),
+    SLIME_ELEMENT_ID: CustomElement(name=SLIME_ELEMENT_ID, symbol="s", diggable=True),
+    ROCK_ELEMENT_ID: CustomElement(name=ROCK_ELEMENT_ID, symbol="O", pushable=True, can_fall=True),
+    DIAMOND_ELEMENT_ID: CustomElement(name=DIAMOND_ELEMENT_ID, symbol="*", collectible=True, can_fall=True),
+    WALL_ELEMENT_ID: CustomElement(name=WALL_ELEMENT_ID, symbol="#"),
+    PLAYER_ELEMENT_ID: CustomElement(name=PLAYER_ELEMENT_ID, symbol="P"),
 }
 CUSTOM_ELEMENTS: dict[str, CustomElement] = dict(DEFAULT_CUSTOM_ELEMENTS)
 
@@ -114,14 +123,21 @@ def register_custom_element(registry: dict[str, CustomElement], element: CustomE
     registry[element.name] = element
 
 BUILTIN_TILE_ELEMENTS: dict[Tile, CustomElement] = {
-    Tile.EMPTY: CustomElement(name="empty", symbol=" "),
-    Tile.WALL: CUSTOM_ELEMENTS["wall"],
-    Tile.SAND: CUSTOM_ELEMENTS["sand"],
-    Tile.ROCK: CUSTOM_ELEMENTS["rock"],
-    Tile.DIAMOND: CUSTOM_ELEMENTS["diamond"],
-    Tile.PLAYER: CUSTOM_ELEMENTS["player"],
+    Tile.EMPTY: CustomElement(name=EMPTY_ELEMENT_ID, symbol=" "),
+    Tile.WALL: CUSTOM_ELEMENTS[WALL_ELEMENT_ID],
+    Tile.SAND: CUSTOM_ELEMENTS[SAND_ELEMENT_ID],
+    Tile.ROCK: CUSTOM_ELEMENTS[ROCK_ELEMENT_ID],
+    Tile.DIAMOND: CUSTOM_ELEMENTS[DIAMOND_ELEMENT_ID],
+    Tile.PLAYER: CUSTOM_ELEMENTS[PLAYER_ELEMENT_ID],
 }
 BUILTIN_TILE_SYMBOLS: dict[str, Tile] = {tile.value: tile for tile in Tile}
+BUILTIN_TILE_ELEMENT_IDS: dict[Tile, str] = {
+    tile: element.name for tile, element in BUILTIN_TILE_ELEMENTS.items()
+}
+BUILTIN_ELEMENTS: dict[str, CustomElement] = {
+    element_id: BUILTIN_TILE_ELEMENTS[tile]
+    for tile, element_id in BUILTIN_TILE_ELEMENT_IDS.items()
+}
 
 
 def custom_element_symbols(registry: dict[str, CustomElement]) -> dict[str, CustomElement]:
@@ -143,6 +159,17 @@ class ParsedCell:
 
 def custom_element_for_tile(tile: Tile) -> CustomElement:
     return BUILTIN_TILE_ELEMENTS[tile]
+
+
+def element_id_for_tile(tile: Tile) -> str:
+    return BUILTIN_TILE_ELEMENT_IDS[tile]
+
+
+def builtin_element_for_id(element_id: str) -> CustomElement:
+    try:
+        return BUILTIN_ELEMENTS[element_id]
+    except KeyError as exc:
+        raise ValueError(f"Unknown built-in element id '{element_id}'") from exc
 
 
 def parsed_cell_for_tile(tile: Tile) -> ParsedCell:

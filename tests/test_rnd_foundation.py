@@ -1,17 +1,26 @@
 import pytest
 
 from rnd_foundation import (
+    BUILTIN_ELEMENTS,
     BUILTIN_TILE_ELEMENTS,
+    BUILTIN_TILE_ELEMENT_IDS,
     BUILTIN_TILE_SYMBOLS,
     CUSTOM_ELEMENTS,
     CUSTOM_ELEMENT_SYMBOLS,
     CustomElement,
+    DIAMOND_ELEMENT_ID,
     DEFAULT_CUSTOM_ELEMENTS,
     DEFAULT_ENGINE_MODE,
     EngineMode,
     GameState,
+    EMPTY_ELEMENT_ID,
+    PLAYER_ELEMENT_ID,
+    ROCK_ELEMENT_ID,
+    SAND_ELEMENT_ID,
+    SLIME_ELEMENT_ID,
     TimingMode,
     Tile,
+    WALL_ELEMENT_ID,
     active_motions,
     action_from_pygame_frame_events,
     action_from_pygame_key,
@@ -32,9 +41,11 @@ from rnd_foundation import (
     draw_background,
     draw_board,
     draw_hud,
+    builtin_element_for_id,
     engine_config,
     engine_hold_repeat_frames,
     engine_motion_duration_frames,
+    element_id_for_tile,
     find_moving_object_motions,
     find_vertical_falling_motions,
     get_motion,
@@ -427,6 +438,49 @@ def test_builtin_tile_elements_mirror_current_builtin_tiles() -> None:
     assert BUILTIN_TILE_ELEMENTS[Tile.ROCK] == CUSTOM_ELEMENTS["rock"]
     assert BUILTIN_TILE_ELEMENTS[Tile.DIAMOND] == CUSTOM_ELEMENTS["diamond"]
     assert BUILTIN_TILE_ELEMENTS[Tile.PLAYER] == CUSTOM_ELEMENTS["player"]
+
+
+def test_builtin_tile_element_ids_expose_stable_builtin_names() -> None:
+    assert BUILTIN_TILE_ELEMENT_IDS == {
+        Tile.EMPTY: EMPTY_ELEMENT_ID,
+        Tile.WALL: WALL_ELEMENT_ID,
+        Tile.SAND: SAND_ELEMENT_ID,
+        Tile.ROCK: ROCK_ELEMENT_ID,
+        Tile.DIAMOND: DIAMOND_ELEMENT_ID,
+        Tile.PLAYER: PLAYER_ELEMENT_ID,
+    }
+
+
+def test_builtin_elements_are_addressable_by_builtin_element_id() -> None:
+    assert BUILTIN_ELEMENTS[EMPTY_ELEMENT_ID] == CustomElement(name=EMPTY_ELEMENT_ID, symbol=" ")
+    assert BUILTIN_ELEMENTS[WALL_ELEMENT_ID] == CUSTOM_ELEMENTS["wall"]
+    assert BUILTIN_ELEMENTS[SAND_ELEMENT_ID] == CUSTOM_ELEMENTS["sand"]
+    assert BUILTIN_ELEMENTS[ROCK_ELEMENT_ID] == CUSTOM_ELEMENTS["rock"]
+    assert BUILTIN_ELEMENTS[DIAMOND_ELEMENT_ID] == CUSTOM_ELEMENTS["diamond"]
+    assert BUILTIN_ELEMENTS[PLAYER_ELEMENT_ID] == CUSTOM_ELEMENTS["player"]
+
+
+def test_element_id_for_tile_returns_stable_builtin_ids() -> None:
+    assert element_id_for_tile(Tile.EMPTY) == EMPTY_ELEMENT_ID
+    assert element_id_for_tile(Tile.WALL) == WALL_ELEMENT_ID
+    assert element_id_for_tile(Tile.SAND) == SAND_ELEMENT_ID
+    assert element_id_for_tile(Tile.ROCK) == ROCK_ELEMENT_ID
+    assert element_id_for_tile(Tile.DIAMOND) == DIAMOND_ELEMENT_ID
+    assert element_id_for_tile(Tile.PLAYER) == PLAYER_ELEMENT_ID
+
+
+def test_builtin_element_for_id_returns_builtin_elements() -> None:
+    assert builtin_element_for_id(EMPTY_ELEMENT_ID) == CustomElement(name=EMPTY_ELEMENT_ID, symbol=" ")
+    assert builtin_element_for_id(WALL_ELEMENT_ID) == CUSTOM_ELEMENTS["wall"]
+    assert builtin_element_for_id(SAND_ELEMENT_ID) == CUSTOM_ELEMENTS["sand"]
+    assert builtin_element_for_id(ROCK_ELEMENT_ID) == CUSTOM_ELEMENTS["rock"]
+    assert builtin_element_for_id(DIAMOND_ELEMENT_ID) == CUSTOM_ELEMENTS["diamond"]
+    assert builtin_element_for_id(PLAYER_ELEMENT_ID) == CUSTOM_ELEMENTS["player"]
+
+
+def test_builtin_element_for_id_rejects_unknown_id() -> None:
+    with pytest.raises(ValueError, match="Unknown built-in element id 'unknown'"):
+        builtin_element_for_id("unknown")
 
 
 def test_custom_element_for_tile_returns_builtin_mirror() -> None:

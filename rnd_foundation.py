@@ -440,6 +440,12 @@ class GameState:
     def set(self, x: int, y: int, tile: Tile) -> None:
         self.grid[y][x] = tile
 
+    def get_cell(self, x: int, y: int) -> ElementCell:
+        return cell_for_tile(self.get(x, y))
+
+    def set_cell(self, x: int, y: int, cell: ElementCell) -> None:
+        self.set(x, y, tile_for_element_cell(cell, CUSTOM_ELEMENTS))
+
     def render_lines(self) -> List[str]:
         return ["".join(cell.value for cell in row) for row in self.grid]
 
@@ -458,24 +464,24 @@ class GameState:
         if not self.in_bounds(tx, ty):
             return
 
-        target = self.get(tx, ty)
+        target = self.get_cell(tx, ty)
 
-        if target == Tile.EMPTY or is_diggable(target) or is_collectible(target):
-            if is_collectible(target):
+        if cell_is_empty(target) or cell_is_diggable(target, CUSTOM_ELEMENTS) or cell_is_collectible(target, CUSTOM_ELEMENTS):
+            if cell_is_collectible(target, CUSTOM_ELEMENTS):
                 self.diamonds_collected += 1
                 if self.diamonds_collected >= self.diamonds_total:
                     self.won = True
             self._move_player_to(tx, ty)
             return
 
-        if is_pushable(target) and dy == 0:
+        if cell_is_pushable(target, CUSTOM_ELEMENTS) and dy == 0:
             if (tx, ty) in self.motion_locked_positions:
                 return
             if (tx, ty) in self.recently_pushed_positions:
                 return
             push_x, push_y = tx + dx, ty
-            if self.in_bounds(push_x, push_y) and self.get(push_x, push_y) == Tile.EMPTY:
-                self.set(push_x, push_y, Tile.ROCK)
+            if self.in_bounds(push_x, push_y) and cell_is_empty(self.get_cell(push_x, push_y)):
+                self.set(push_x, push_y, tile_for_element_cell(target, CUSTOM_ELEMENTS))
                 self.just_pushed_positions = {(push_x, push_y)}
                 self.recently_pushed_positions = {(push_x, push_y)}
                 self._move_player_to(tx, ty)
@@ -488,35 +494,35 @@ class GameState:
         if not self.in_bounds(tx, ty):
             return
 
-        target = self.get(tx, ty)
+        target = self.get_cell(tx, ty)
 
-        if is_diggable(target):
-            self.set(tx, ty, Tile.EMPTY)
+        if cell_is_diggable(target, CUSTOM_ELEMENTS):
+            self.set_cell(tx, ty, None)
             return
 
-        if is_collectible(target):
-            self.set(tx, ty, Tile.EMPTY)
+        if cell_is_collectible(target, CUSTOM_ELEMENTS):
+            self.set_cell(tx, ty, None)
             self.diamonds_collected += 1
             if self.diamonds_collected >= self.diamonds_total:
                 self.won = True
             return
 
-        if is_pushable(target) and dy == 0:
+        if cell_is_pushable(target, CUSTOM_ELEMENTS) and dy == 0:
             if (tx, ty) in self.motion_locked_positions:
                 return
             if (tx, ty) in self.recently_pushed_positions:
                 return
             push_x, push_y = tx + dx, ty
-            if self.in_bounds(push_x, push_y) and self.get(push_x, push_y) == Tile.EMPTY:
-                self.set(push_x, push_y, Tile.ROCK)
-                self.set(tx, ty, Tile.EMPTY)
+            if self.in_bounds(push_x, push_y) and cell_is_empty(self.get_cell(push_x, push_y)):
+                self.set(push_x, push_y, tile_for_element_cell(target, CUSTOM_ELEMENTS))
+                self.set_cell(tx, ty, None)
                 self.just_pushed_positions = {(push_x, push_y)}
                 self.recently_pushed_positions = {(push_x, push_y)}
 
     def _move_player_to(self, x: int, y: int) -> None:
-        self.set(self.player_x, self.player_y, Tile.EMPTY)
+        self.set_cell(self.player_x, self.player_y, None)
         self.player_x, self.player_y = x, y
-        self.set(self.player_x, self.player_y, Tile.PLAYER)
+        self.set_cell(self.player_x, self.player_y, PLAYER_ELEMENT_ID)
 
     def apply_gravity(self) -> None:
         if not self.alive or self.won:
@@ -527,7 +533,8 @@ class GameState:
         for y in range(self.height - 2, -1, -1):
             for x in range(self.width):
                 tile = self.get(x, y)
-                if not can_fall_element(tile):
+                cell = self.get_cell(x, y)
+                if not cell_can_fall(cell, CUSTOM_ELEMENTS):
                     continue
                 if (x, y) in just_pushed_positions:
                     continue
@@ -535,17 +542,17 @@ class GameState:
                     continue
 
                 was_falling = (x, y) in self.falling_positions
-                below = self.get(x, y + 1)
+                below = self.get_cell(x, y + 1)
 
-                if below == Tile.EMPTY:
+                if cell_is_empty(below):
                     self.set(x, y + 1, tile)
-                    self.set(x, y, Tile.EMPTY)
+                    self.set_cell(x, y, None)
                     new_falling_positions.add((x, y + 1))
                     continue
 
-                if below == Tile.PLAYER and was_falling:
+                if cell_is_player(below, CUSTOM_ELEMENTS) and was_falling:
                     self.set(x, y + 1, tile)
-                    self.set(x, y, Tile.EMPTY)
+                    self.set_cell(x, y, None)
                     new_falling_positions.add((x, y + 1))
                     self.falling_positions = new_falling_positions
                     self.alive = False
@@ -706,17 +713,17 @@ def can_player_take_action(state: GameState, action: str | None) -> bool:
     if not state.in_bounds(tx, ty):
         return False
 
-    target = state.get(tx, ty)
-    if target == Tile.EMPTY or is_diggable(target) or is_collectible(target):
+    target = state.get_cell(tx, ty)
+    if cell_is_empty(target) or cell_is_diggable(target, CUSTOM_ELEMENTS) or cell_is_collectible(target, CUSTOM_ELEMENTS):
         return True
 
-    if is_pushable(target) and dy == 0:
+    if cell_is_pushable(target, CUSTOM_ELEMENTS) and dy == 0:
         if (tx, ty) in state.motion_locked_positions:
             return False
         if (tx, ty) in state.recently_pushed_positions:
             return False
         push_x, push_y = tx + dx, ty
-        return state.in_bounds(push_x, push_y) and state.get(push_x, push_y) == Tile.EMPTY
+        return state.in_bounds(push_x, push_y) and cell_is_empty(state.get_cell(push_x, push_y))
 
     return False
 

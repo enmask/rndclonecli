@@ -212,6 +212,24 @@ def test_parse_level_supports_sand() -> None:
     assert state.get(2, 1) == Tile.SAND
 
 
+def test_game_state_cell_accessors_bridge_tile_backed_grid() -> None:
+    state = make_state(
+        "#####",
+        "#P.O#",
+        "#####",
+    )
+
+    assert state.get_cell(1, 1) == PLAYER_ELEMENT_ID
+    assert state.get_cell(2, 1) == SAND_ELEMENT_ID
+    assert state.get_cell(3, 1) == ROCK_ELEMENT_ID
+
+    state.set_cell(2, 1, None)
+    state.set_cell(3, 1, SAND_ELEMENT_ID)
+
+    assert state.get(2, 1) == Tile.EMPTY
+    assert state.get(3, 1) == Tile.SAND
+
+
 def test_custom_element_stores_declared_properties() -> None:
     element = CustomElement(
         name="custom-rock",

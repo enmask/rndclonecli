@@ -82,6 +82,7 @@ from rnd_foundation import (
     motion_tile,
     moving_object_cells,
     parse_level,
+    parse_level_element_cells,
     player_cell,
     pygame_frame_requests_quit,
     ParsedCell,
@@ -118,6 +119,8 @@ from rnd_foundation import (
     tile_for_level_symbol,
     tile_appearance,
     tile_for_cell,
+    tile_for_element_cell,
+    tile_grid_for_element_cells,
     tile_color,
     tile_rect,
     tile_surface,
@@ -295,6 +298,23 @@ def test_parse_level_cells_supports_builtin_and_custom_symbols() -> None:
         [ParsedCell(tile=Tile.WALL), ParsedCell(tile=Tile.WALL), ParsedCell(tile=Tile.WALL), ParsedCell(tile=Tile.WALL), ParsedCell(tile=Tile.WALL)],
         [ParsedCell(tile=Tile.WALL), ParsedCell(tile=Tile.PLAYER), ParsedCell(custom_element_name="slime"), ParsedCell(tile=Tile.EMPTY), ParsedCell(tile=Tile.WALL)],
         [ParsedCell(tile=Tile.WALL), ParsedCell(tile=Tile.WALL), ParsedCell(tile=Tile.WALL), ParsedCell(tile=Tile.WALL), ParsedCell(tile=Tile.WALL)],
+    ]
+
+
+def test_parse_level_element_cells_supports_builtin_and_custom_symbols() -> None:
+    cells = parse_level_element_cells(
+        [
+            "#####",
+            "#Ps #",
+            "#####",
+        ],
+        DEFAULT_CUSTOM_ELEMENTS,
+    )
+
+    assert cells == [
+        [WALL_ELEMENT_ID, WALL_ELEMENT_ID, WALL_ELEMENT_ID, WALL_ELEMENT_ID, WALL_ELEMENT_ID],
+        [WALL_ELEMENT_ID, PLAYER_ELEMENT_ID, SLIME_ELEMENT_ID, None, WALL_ELEMENT_ID],
+        [WALL_ELEMENT_ID, WALL_ELEMENT_ID, WALL_ELEMENT_ID, WALL_ELEMENT_ID, WALL_ELEMENT_ID],
     ]
 
 
@@ -525,6 +545,35 @@ def test_tile_for_cell_round_trips_builtin_cells() -> None:
     assert tile_for_cell(ROCK_ELEMENT_ID) == Tile.ROCK
     assert tile_for_cell(DIAMOND_ELEMENT_ID) == Tile.DIAMOND
     assert tile_for_cell(PLAYER_ELEMENT_ID) == Tile.PLAYER
+
+
+def test_tile_for_element_cell_supports_builtin_and_custom_cells() -> None:
+    assert tile_for_element_cell(None, DEFAULT_CUSTOM_ELEMENTS) == Tile.EMPTY
+    assert tile_for_element_cell(ROCK_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) == Tile.ROCK
+    assert tile_for_element_cell(SLIME_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) == Tile.SAND
+
+
+def test_tile_grid_for_element_cells_converts_builtin_and_custom_cells() -> None:
+    assert tile_grid_for_element_cells(
+        [
+            [WALL_ELEMENT_ID, PLAYER_ELEMENT_ID, SLIME_ELEMENT_ID, None, WALL_ELEMENT_ID],
+            [WALL_ELEMENT_ID, ROCK_ELEMENT_ID, DIAMOND_ELEMENT_ID, SAND_ELEMENT_ID, WALL_ELEMENT_ID],
+        ],
+        DEFAULT_CUSTOM_ELEMENTS,
+    ) == [
+        [Tile.WALL, Tile.PLAYER, Tile.SAND, Tile.EMPTY, Tile.WALL],
+        [Tile.WALL, Tile.ROCK, Tile.DIAMOND, Tile.SAND, Tile.WALL],
+    ]
+
+
+def test_tile_for_element_cell_rejects_unknown_or_unmapped_custom_cells() -> None:
+    with pytest.raises(ValueError, match="Unknown custom element 'gel'"):
+        tile_for_element_cell("gel", DEFAULT_CUSTOM_ELEMENTS)
+
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    register_custom_element(registry, CustomElement(name="mystery", symbol="m"))
+    with pytest.raises(ValueError, match="Custom element 'mystery' is not yet mapped"):
+        tile_for_element_cell("mystery", registry)
 
 
 def test_cell_is_empty_matches_none_based_unified_cell_model() -> None:

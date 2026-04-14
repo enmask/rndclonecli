@@ -199,6 +199,22 @@ def cell_is_empty(cell: ElementCell) -> bool:
     return cell is None
 
 
+def tile_for_element_cell(cell: ElementCell, registry: dict[str, CustomElement]) -> Tile:
+    if cell is None:
+        return Tile.EMPTY
+    if cell in BUILTIN_ELEMENTS:
+        return builtin_tile_for_element_id(cell)
+
+    custom_element = registry.get(cell)
+    if custom_element is None:
+        raise ValueError(f"Unknown custom element '{cell}'")
+
+    surrogate_tile = surrogate_tile_for_custom_element(custom_element)
+    if surrogate_tile is not None:
+        return surrogate_tile
+    raise ValueError(f"Custom element '{cell}' is not yet mapped to a built-in tile")
+
+
 def parsed_cell_for_cell(cell: ElementCell) -> ParsedCell:
     if cell is None:
         return ParsedCell(tile=Tile.EMPTY)
@@ -293,6 +309,21 @@ def parse_level_cells(
         grid.append(grid_row)
 
     return grid
+
+
+def parse_level_element_cells(
+    lines: Iterable[str],
+    registry: dict[str, CustomElement],
+) -> list[list[ElementCell]]:
+    parsed_grid = parse_level_cells(lines, registry)
+    return [[cell_for_parsed_cell(cell) for cell in row] for row in parsed_grid]
+
+
+def tile_grid_for_element_cells(
+    grid: list[list[ElementCell]],
+    registry: dict[str, CustomElement],
+) -> list[list[Tile]]:
+    return [[tile_for_element_cell(cell, registry) for cell in row] for row in grid]
 
 
 def custom_element_for(element: ElementLike) -> CustomElement:
@@ -526,33 +557,19 @@ class GameState:
 
 
 def parse_level(lines: Iterable[str]) -> GameState:
-    raw = [line.rstrip("\n") for line in lines if line.strip("\n")]
-    if not raw:
-        raise ValueError("Level is empty")
-
-    width = len(raw[0])
-    if any(len(row) != width for row in raw):
-        raise ValueError("All level rows must have equal width")
-
-    grid: List[List[Tile]] = []
+    element_cells = parse_level_element_cells(lines, CUSTOM_ELEMENTS)
+    grid = tile_grid_for_element_cells(element_cells, CUSTOM_ELEMENTS)
     player_pos: Tuple[int, int] | None = None
     diamonds_total = 0
 
-    for y, row in enumerate(raw):
-        grid_row: List[Tile] = []
-        for x, ch in enumerate(row):
-            try:
-                tile = tile_for_level_symbol(ch)
-            except ValueError as exc:
-                raise ValueError(f"{exc} at ({x},{y})") from None
+    for y, row in enumerate(grid):
+        for x, tile in enumerate(row):
             if tile == Tile.PLAYER:
                 if player_pos is not None:
                     raise ValueError("Only one player is allowed")
                 player_pos = (x, y)
             if is_collectible(tile):
                 diamonds_total += 1
-            grid_row.append(tile)
-        grid.append(grid_row)
 
     if player_pos is None:
         raise ValueError("Level must contain a player 'P'")

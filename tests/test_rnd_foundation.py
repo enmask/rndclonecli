@@ -27,6 +27,9 @@ from rnd_foundation import (
     action_from_pygame_pressed_keys,
     action_from_turn_input,
     buffer_action,
+    builtin_tile_for_element_id,
+    cell_for_tile,
+    cell_is_empty,
     consume_buffered_action,
     can_fall_element,
     can_player_take_action,
@@ -106,6 +109,7 @@ from rnd_foundation import (
     tile_for_symbol,
     tile_for_level_symbol,
     tile_appearance,
+    tile_for_cell,
     tile_color,
     tile_rect,
     tile_surface,
@@ -481,6 +485,43 @@ def test_builtin_element_for_id_returns_builtin_elements() -> None:
 def test_builtin_element_for_id_rejects_unknown_id() -> None:
     with pytest.raises(ValueError, match="Unknown built-in element id 'unknown'"):
         builtin_element_for_id("unknown")
+
+
+def test_builtin_tile_for_element_id_returns_builtin_tiles() -> None:
+    assert builtin_tile_for_element_id(EMPTY_ELEMENT_ID) == Tile.EMPTY
+    assert builtin_tile_for_element_id(WALL_ELEMENT_ID) == Tile.WALL
+    assert builtin_tile_for_element_id(SAND_ELEMENT_ID) == Tile.SAND
+    assert builtin_tile_for_element_id(ROCK_ELEMENT_ID) == Tile.ROCK
+    assert builtin_tile_for_element_id(DIAMOND_ELEMENT_ID) == Tile.DIAMOND
+    assert builtin_tile_for_element_id(PLAYER_ELEMENT_ID) == Tile.PLAYER
+
+
+def test_builtin_tile_for_element_id_rejects_unknown_id() -> None:
+    with pytest.raises(ValueError, match="Unknown built-in element id 'unknown'"):
+        builtin_tile_for_element_id("unknown")
+
+
+def test_cell_for_tile_uses_none_for_empty_and_element_ids_for_builtins() -> None:
+    assert cell_for_tile(Tile.EMPTY) is None
+    assert cell_for_tile(Tile.WALL) == WALL_ELEMENT_ID
+    assert cell_for_tile(Tile.SAND) == SAND_ELEMENT_ID
+    assert cell_for_tile(Tile.ROCK) == ROCK_ELEMENT_ID
+    assert cell_for_tile(Tile.DIAMOND) == DIAMOND_ELEMENT_ID
+    assert cell_for_tile(Tile.PLAYER) == PLAYER_ELEMENT_ID
+
+
+def test_tile_for_cell_round_trips_builtin_cells() -> None:
+    assert tile_for_cell(None) == Tile.EMPTY
+    assert tile_for_cell(WALL_ELEMENT_ID) == Tile.WALL
+    assert tile_for_cell(SAND_ELEMENT_ID) == Tile.SAND
+    assert tile_for_cell(ROCK_ELEMENT_ID) == Tile.ROCK
+    assert tile_for_cell(DIAMOND_ELEMENT_ID) == Tile.DIAMOND
+    assert tile_for_cell(PLAYER_ELEMENT_ID) == Tile.PLAYER
+
+
+def test_cell_is_empty_matches_none_based_unified_cell_model() -> None:
+    assert cell_is_empty(None) is True
+    assert cell_is_empty(SAND_ELEMENT_ID) is False
 
 
 def test_custom_element_for_tile_returns_builtin_mirror() -> None:

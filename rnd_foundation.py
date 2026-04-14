@@ -89,6 +89,7 @@ class CustomElement:
 
 
 ElementLike = Tile | CustomElement
+ElementCell = str | None
 
 
 EMPTY_ELEMENT_ID = "empty"
@@ -138,6 +139,9 @@ BUILTIN_ELEMENTS: dict[str, CustomElement] = {
     element_id: BUILTIN_TILE_ELEMENTS[tile]
     for tile, element_id in BUILTIN_TILE_ELEMENT_IDS.items()
 }
+BUILTIN_ELEMENT_ID_TILES: dict[str, Tile] = {
+    element_id: tile for tile, element_id in BUILTIN_TILE_ELEMENT_IDS.items()
+}
 
 
 def custom_element_symbols(registry: dict[str, CustomElement]) -> dict[str, CustomElement]:
@@ -170,6 +174,29 @@ def builtin_element_for_id(element_id: str) -> CustomElement:
         return BUILTIN_ELEMENTS[element_id]
     except KeyError as exc:
         raise ValueError(f"Unknown built-in element id '{element_id}'") from exc
+
+
+def builtin_tile_for_element_id(element_id: str) -> Tile:
+    try:
+        return BUILTIN_ELEMENT_ID_TILES[element_id]
+    except KeyError as exc:
+        raise ValueError(f"Unknown built-in element id '{element_id}'") from exc
+
+
+def cell_for_tile(tile: Tile) -> ElementCell:
+    if tile == Tile.EMPTY:
+        return None
+    return element_id_for_tile(tile)
+
+
+def tile_for_cell(cell: ElementCell) -> Tile:
+    if cell is None:
+        return Tile.EMPTY
+    return builtin_tile_for_element_id(cell)
+
+
+def cell_is_empty(cell: ElementCell) -> bool:
+    return cell is None
 
 
 def parsed_cell_for_tile(tile: Tile) -> ParsedCell:

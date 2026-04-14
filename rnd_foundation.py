@@ -410,7 +410,7 @@ def parsed_cell_is_player(cell: ParsedCell) -> bool:
 
 @dataclass
 class GameState:
-    grid: List[List[Tile]]
+    grid: List[List[ElementCell]]
     player_x: int
     player_y: int
     diamonds_total: int
@@ -435,19 +435,19 @@ class GameState:
         return 0 <= x < self.width and 0 <= y < self.height
 
     def get(self, x: int, y: int) -> Tile:
-        return self.grid[y][x]
+        return tile_for_element_cell(self.grid[y][x], CUSTOM_ELEMENTS)
 
     def set(self, x: int, y: int, tile: Tile) -> None:
-        self.grid[y][x] = tile
+        self.grid[y][x] = cell_for_tile(tile)
 
     def get_cell(self, x: int, y: int) -> ElementCell:
-        return cell_for_tile(self.get(x, y))
+        return self.grid[y][x]
 
     def set_cell(self, x: int, y: int, cell: ElementCell) -> None:
-        self.set(x, y, tile_for_element_cell(cell, CUSTOM_ELEMENTS))
+        self.grid[y][x] = cell
 
     def render_lines(self) -> List[str]:
-        return ["".join(cell.value for cell in row) for row in self.grid]
+        return ["".join(self.get(x, y).value for x in range(self.width)) for y in range(self.height)]
 
     def render(self) -> str:
         status = (
@@ -565,24 +565,23 @@ class GameState:
 
 def parse_level(lines: Iterable[str]) -> GameState:
     element_cells = parse_level_element_cells(lines, CUSTOM_ELEMENTS)
-    grid = tile_grid_for_element_cells(element_cells, CUSTOM_ELEMENTS)
     player_pos: Tuple[int, int] | None = None
     diamonds_total = 0
 
-    for y, row in enumerate(grid):
-        for x, tile in enumerate(row):
-            if tile == Tile.PLAYER:
+    for y, row in enumerate(element_cells):
+        for x, cell in enumerate(row):
+            if cell_is_player(cell, CUSTOM_ELEMENTS):
                 if player_pos is not None:
                     raise ValueError("Only one player is allowed")
                 player_pos = (x, y)
-            if is_collectible(tile):
+            if cell_is_collectible(cell, CUSTOM_ELEMENTS):
                 diamonds_total += 1
 
     if player_pos is None:
         raise ValueError("Level must contain a player 'P'")
 
     return GameState(
-        grid=grid,
+        grid=element_cells,
         player_x=player_pos[0],
         player_y=player_pos[1],
         diamonds_total=diamonds_total,

@@ -866,6 +866,24 @@ def test_parse_level_accepts_default_custom_slime_symbol_via_surrogate_tile() ->
     assert state.get(2, 1) == Tile.SAND
 
 
+def test_parse_level_keeps_default_custom_slime_as_true_custom_cell() -> None:
+    state = parse_level(
+        [
+            "#####",
+            "#Ps #",
+            "#####",
+        ]
+    )
+
+    assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
+    assert state.grid[1][2] == SLIME_ELEMENT_ID
+    assert state.render_lines() == [
+        "#####",
+        "#P. #",
+        "#####",
+    ]
+
+
 def test_player_can_dig_default_custom_slime_symbol() -> None:
     state = parse_level(
         [
@@ -900,10 +918,12 @@ def test_builtin_sand_and_custom_slime_parse_to_equivalent_states() -> None:
         ]
     )
 
-    assert slime_state.grid == sand_state.grid
+    assert slime_state.render_lines() == sand_state.render_lines()
     assert slime_state.player_x == sand_state.player_x
     assert slime_state.player_y == sand_state.player_y
     assert slime_state.diamonds_total == sand_state.diamonds_total
+    assert sand_state.get_cell(2, 1) == SAND_ELEMENT_ID
+    assert slime_state.get_cell(2, 1) == SLIME_ELEMENT_ID
 
 
 def test_builtin_sand_and_custom_slime_have_equivalent_movement_behavior() -> None:
@@ -925,7 +945,7 @@ def test_builtin_sand_and_custom_slime_have_equivalent_movement_behavior() -> No
     step_game(sand_state, "d")
     step_game(slime_state, "d")
 
-    assert slime_state.grid == sand_state.grid
+    assert slime_state.render_lines() == sand_state.render_lines()
     assert slime_state.player_x == sand_state.player_x
     assert slime_state.player_y == sand_state.player_y
     assert slime_state.alive == sand_state.alive
@@ -951,7 +971,7 @@ def test_builtin_sand_and_custom_slime_have_equivalent_snap_behavior() -> None:
     step_game(sand_state, "D")
     step_game(slime_state, "D")
 
-    assert slime_state.grid == sand_state.grid
+    assert slime_state.render_lines() == sand_state.render_lines()
     assert slime_state.player_x == sand_state.player_x
     assert slime_state.player_y == sand_state.player_y
 
@@ -978,10 +998,9 @@ def test_builtin_only_level_round_trips_through_unified_parse_bridge() -> None:
     ]
 
     element_cells = parse_level_element_cells(lines, DEFAULT_CUSTOM_ELEMENTS)
-    bridged_grid = tile_grid_for_element_cells(element_cells, DEFAULT_CUSTOM_ELEMENTS)
     state = parse_level(lines)
 
-    assert bridged_grid == state.grid
+    assert element_cells == state.grid
 
 
 def test_builtin_only_state_after_move_matches_unified_parse_bridge_baseline() -> None:
@@ -992,10 +1011,7 @@ def test_builtin_only_state_after_move_matches_unified_parse_bridge_baseline() -
     ]
 
     state = parse_level(lines)
-    baseline_grid = tile_grid_for_element_cells(
-        parse_level_element_cells(lines, DEFAULT_CUSTOM_ELEMENTS),
-        DEFAULT_CUSTOM_ELEMENTS,
-    )
+    baseline_grid = parse_level_element_cells(lines, DEFAULT_CUSTOM_ELEMENTS)
 
     assert state.grid == baseline_grid
 

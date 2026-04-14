@@ -75,6 +75,7 @@ from rnd_foundation import (
     make_motion_state,
     main,
     motion_destination_cell,
+    motion_cell,
     motion_is_complete,
     motion_position_px,
     motion_progress,
@@ -228,6 +229,16 @@ def test_game_state_cell_accessors_bridge_tile_backed_grid() -> None:
 
     assert state.get(2, 1) == Tile.EMPTY
     assert state.get(3, 1) == Tile.SAND
+
+
+def test_make_motion_stores_element_cell_identity() -> None:
+    player_motion = make_motion(Tile.PLAYER, (1, 2), (2, 2), 7)
+    rock_motion = make_motion(ROCK_ELEMENT_ID, (2, 1), (2, 2), 8)
+
+    assert motion_cell(player_motion) == PLAYER_ELEMENT_ID
+    assert motion_cell(rock_motion) == ROCK_ELEMENT_ID
+    assert motion_tile(player_motion) == Tile.PLAYER
+    assert motion_tile(rock_motion) == Tile.ROCK
 
 
 def test_custom_element_stores_declared_properties() -> None:
@@ -1339,8 +1350,8 @@ def test_moving_object_cells_tracks_rocks_and_diamonds_only() -> None:
     )
 
     assert moving_object_cells(state) == {
-        Tile.ROCK: {(2, 1), (2, 2)},
-        Tile.DIAMOND: {(3, 1)},
+        ROCK_ELEMENT_ID: {(2, 1), (2, 2)},
+        DIAMOND_ELEMENT_ID: {(3, 1)},
     }
 
 

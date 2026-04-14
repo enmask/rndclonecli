@@ -65,11 +65,11 @@ SNAP_ACTIONS = {
     "S": (0, 1),
     "D": (1, 0),
 }
-MOVING_OBJECT_TILES = (Tile.ROCK, Tile.DIAMOND)
 
 
+ElementCell = str | None
 Cell = Tuple[int, int]
-Motion = tuple[Tile, Cell, Cell, int]
+Motion = tuple[ElementCell, Cell, Cell, int]
 MotionState = dict[Cell, Motion]
 EngineConfig = tuple[TimingMode, int]
 HoldState = dict[str, object]
@@ -89,7 +89,6 @@ class CustomElement:
 
 
 ElementLike = Tile | CustomElement
-ElementCell = str | None
 
 
 EMPTY_ELEMENT_ID = "empty"
@@ -99,6 +98,9 @@ SLIME_ELEMENT_ID = "slime"
 ROCK_ELEMENT_ID = "rock"
 DIAMOND_ELEMENT_ID = "diamond"
 PLAYER_ELEMENT_ID = "player"
+
+
+MOVING_OBJECT_TILES = (ROCK_ELEMENT_ID, DIAMOND_ELEMENT_ID)
 
 
 DEFAULT_CUSTOM_ELEMENTS: dict[str, CustomElement] = {
@@ -982,16 +984,21 @@ def tile_rect(pygame: object, x: int, y: int, tile_size: int) -> object:
     return pygame.Rect(x * tile_size, y * tile_size, tile_size, tile_size)
 
 
-def make_motion(tile: Tile, start_cell: Cell, destination_cell: Cell, start_frame: int) -> Motion:
+def make_motion(tile: ElementCell | Tile, start_cell: Cell, destination_cell: Cell, start_frame: int) -> Motion:
     if start_frame < 0:
         raise ValueError("start_frame must be non-negative")
     if start_cell == destination_cell:
         raise ValueError("motion must move between different cells")
-    return (tile, start_cell, destination_cell, start_frame)
+    motion_cell = cell_for_tile(tile) if isinstance(tile, Tile) else tile
+    return (motion_cell, start_cell, destination_cell, start_frame)
+
+
+def motion_cell(motion: Motion) -> ElementCell:
+    return motion[0]
 
 
 def motion_tile(motion: Motion) -> Tile:
-    return motion[0]
+    return tile_for_element_cell(motion_cell(motion), CUSTOM_ELEMENTS)
 
 
 def motion_start_cell(motion: Motion) -> Cell:
@@ -1027,7 +1034,7 @@ def active_motions(motion_state: MotionState) -> list[Motion]:
 
 
 def has_active_player_motion(motion_state: MotionState) -> bool:
-    return any(motion_tile(motion) == Tile.PLAYER for motion in active_motions(motion_state))
+    return any(motion_cell(motion) == PLAYER_ELEMENT_ID for motion in active_motions(motion_state))
 
 
 def clamp_progress(progress: float) -> float:
@@ -1075,7 +1082,7 @@ def motion_is_complete(
 
 def start_motion(
     motion_state: MotionState,
-    tile: Tile,
+    tile: ElementCell | Tile,
     start_cell: Cell,
     destination_cell: Cell,
     start_frame: int,
@@ -1134,21 +1141,21 @@ def track_player_motion(
     destination_cell = player_cell(state)
     if start_cell == destination_cell:
         return None
-    return start_motion(motion_state, Tile.PLAYER, start_cell, destination_cell, frame_number)
+    return start_motion(motion_state, PLAYER_ELEMENT_ID, start_cell, destination_cell, frame_number)
 
 
-def moving_object_cells(state: GameState) -> dict[Tile, set[Cell]]:
-    cells: dict[Tile, set[Cell]] = {tile: set() for tile in MOVING_OBJECT_TILES}
+def moving_object_cells(state: GameState) -> dict[ElementCell, set[Cell]]:
+    cells: dict[ElementCell, set[Cell]] = {tile: set() for tile in MOVING_OBJECT_TILES}
     for y in range(state.height):
         for x in range(state.width):
-            tile = state.get(x, y)
+            tile = state.get_cell(x, y)
             if tile in MOVING_OBJECT_TILES:
                 cells[tile].add((x, y))
     return cells
 
 
 def find_moving_object_motions(
-    before_cells: dict[Tile, set[Cell]],
+    before_cells: dict[ElementCell, set[Cell]],
     state: GameState,
     frame_number: int,
 ) -> list[Motion]:
@@ -1175,7 +1182,7 @@ def find_moving_object_motions(
 
 
 def find_vertical_falling_motions(
-    before_cells: dict[Tile, set[Cell]],
+    before_cells: dict[ElementCell, set[Cell]],
     state: GameState,
     frame_number: int,
 ) -> list[Motion]:
@@ -1188,7 +1195,7 @@ def find_vertical_falling_motions(
 
 def track_moving_object_motions(
     motion_state: MotionState,
-    before_cells: dict[Tile, set[Cell]],
+    before_cells: dict[ElementCell, set[Cell]],
     state: GameState,
     frame_number: int,
 ) -> list[Motion]:
@@ -1200,7 +1207,7 @@ def track_moving_object_motions(
 
 def track_falling_motions(
     motion_state: MotionState,
-    before_cells: dict[Tile, set[Cell]],
+    before_cells: dict[ElementCell, set[Cell]],
     state: GameState,
     frame_number: int,
 ) -> list[Motion]:
@@ -1257,17 +1264,18 @@ def draw_board(
     timing_mode: TimingMode = RND_BASELINE_TIMING_MODE,
     sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
 ) -> None:
-    moving_tiles: list[tuple[Tile, object]] = []
+    moving_tiles: list[tuple[ElementCell, object]] = []
     for y in range(state.height):
         for x in range(state.width):
             tile = state.get(x, y)
+            cell = state.get_cell(x, y)
             rect = tile_rect(pygame, x, y, tile_size)
             if motion_state is not None:
                 motion = get_motion(motion_state, (x, y))
-                if motion is not None and motion_tile(motion) == tile:
+                if motion is not None and motion_cell(motion) == cell:
                     moving_tiles.append(
                         (
-                            tile,
+                            cell,
                             motion_rect(
                                 pygame,
                                 motion,
@@ -1287,8 +1295,8 @@ def draw_board(
                 pygame.draw.rect(screen, fallback_color, rect)
             pygame.draw.rect(screen, (30, 30, 30), rect, 1)
 
-    for tile, rect in moving_tiles:
-        surface, fallback_color = tile_appearance(tile, tile_size)
+    for cell, rect in moving_tiles:
+        surface, fallback_color = element_cell_appearance(cell, CUSTOM_ELEMENTS, tile_size)
         if surface is not None:
             screen.blit(surface, rect)
         else:
@@ -1487,7 +1495,7 @@ def update_graphics_frame(
             state.motion_locked_positions = {
                 motion_destination_cell(motion)
                 for motion in active_motions(motion_state)
-                if motion_tile(motion) in MOVING_OBJECT_TILES
+                if motion_cell(motion) in MOVING_OBJECT_TILES
             }
             if has_active_player_motion(motion_state):
                 buffer_action(state, frame_action)

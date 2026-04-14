@@ -199,6 +199,20 @@ def cell_is_empty(cell: ElementCell) -> bool:
     return cell is None
 
 
+def parsed_cell_for_cell(cell: ElementCell) -> ParsedCell:
+    if cell is None:
+        return ParsedCell(tile=Tile.EMPTY)
+    if cell in BUILTIN_ELEMENTS:
+        return ParsedCell(tile=builtin_tile_for_element_id(cell))
+    return ParsedCell(custom_element_name=cell)
+
+
+def cell_for_parsed_cell(cell: ParsedCell) -> ElementCell:
+    if cell.tile is not None:
+        return cell_for_tile(cell.tile)
+    return cell.custom_element_name
+
+
 def parsed_cell_for_tile(tile: Tile) -> ParsedCell:
     return ParsedCell(tile=tile)
 
@@ -287,6 +301,17 @@ def custom_element_for(element: ElementLike) -> CustomElement:
     return custom_element_for_tile(element)
 
 
+def custom_element_for_cell(cell: ElementCell, registry: dict[str, CustomElement]) -> CustomElement | None:
+    if cell is None:
+        return None
+    if cell in BUILTIN_ELEMENTS:
+        return builtin_element_for_id(cell)
+    custom_element = registry.get(cell)
+    if custom_element is None:
+        raise ValueError(f"Unknown custom element '{cell}'")
+    return custom_element
+
+
 def is_diggable(element: ElementLike) -> bool:
     return custom_element_for(element).diggable
 
@@ -301,6 +326,31 @@ def is_pushable(element: ElementLike) -> bool:
 
 def can_fall_element(element: ElementLike) -> bool:
     return custom_element_for(element).can_fall
+
+
+def cell_is_diggable(cell: ElementCell, registry: dict[str, CustomElement]) -> bool:
+    element = custom_element_for_cell(cell, registry)
+    return element.diggable if element is not None else False
+
+
+def cell_is_collectible(cell: ElementCell, registry: dict[str, CustomElement]) -> bool:
+    element = custom_element_for_cell(cell, registry)
+    return element.collectible if element is not None else False
+
+
+def cell_is_pushable(cell: ElementCell, registry: dict[str, CustomElement]) -> bool:
+    element = custom_element_for_cell(cell, registry)
+    return element.pushable if element is not None else False
+
+
+def cell_can_fall(cell: ElementCell, registry: dict[str, CustomElement]) -> bool:
+    element = custom_element_for_cell(cell, registry)
+    return element.can_fall if element is not None else False
+
+
+def cell_is_player(cell: ElementCell, registry: dict[str, CustomElement]) -> bool:
+    element = custom_element_for_cell(cell, registry)
+    return element is not None and element.name == PLAYER_ELEMENT_ID
 
 
 def parsed_cell_is_diggable(cell: ParsedCell, registry: dict[str, CustomElement]) -> bool:

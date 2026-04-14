@@ -28,14 +28,21 @@ from rnd_foundation import (
     action_from_turn_input,
     buffer_action,
     builtin_tile_for_element_id,
+    cell_can_fall,
+    cell_for_parsed_cell,
     cell_for_tile,
+    cell_is_collectible,
+    cell_is_diggable,
     cell_is_empty,
+    cell_is_player,
+    cell_is_pushable,
     consume_buffered_action,
     can_fall_element,
     can_player_take_action,
     clamp_progress,
     complete_motion,
     custom_element_for,
+    custom_element_for_cell,
     custom_element_for_symbol,
     custom_element_for_tile,
     element_appearance,
@@ -96,6 +103,7 @@ from rnd_foundation import (
     step_realtime_frame,
     surrogate_tile_for_custom_element,
     parsed_cell_appearance,
+    parsed_cell_for_cell,
     parsed_cell_for_level_symbol,
     parsed_cell_element,
     parsed_cell_is_collectible,
@@ -522,6 +530,47 @@ def test_tile_for_cell_round_trips_builtin_cells() -> None:
 def test_cell_is_empty_matches_none_based_unified_cell_model() -> None:
     assert cell_is_empty(None) is True
     assert cell_is_empty(SAND_ELEMENT_ID) is False
+
+
+def test_parsed_cell_for_cell_round_trips_builtin_and_custom_cells() -> None:
+    assert parsed_cell_for_cell(None) == ParsedCell(tile=Tile.EMPTY)
+    assert parsed_cell_for_cell(ROCK_ELEMENT_ID) == ParsedCell(tile=Tile.ROCK)
+    assert parsed_cell_for_cell(SLIME_ELEMENT_ID) == ParsedCell(custom_element_name=SLIME_ELEMENT_ID)
+
+
+def test_cell_for_parsed_cell_round_trips_builtin_and_custom_cells() -> None:
+    assert cell_for_parsed_cell(ParsedCell(tile=Tile.EMPTY)) is None
+    assert cell_for_parsed_cell(ParsedCell(tile=Tile.ROCK)) == ROCK_ELEMENT_ID
+    assert cell_for_parsed_cell(ParsedCell(custom_element_name=SLIME_ELEMENT_ID)) == SLIME_ELEMENT_ID
+
+
+def test_custom_element_for_cell_supports_empty_builtin_and_custom_cells() -> None:
+    assert custom_element_for_cell(None, DEFAULT_CUSTOM_ELEMENTS) is None
+    assert custom_element_for_cell(ROCK_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) == CUSTOM_ELEMENTS["rock"]
+    assert custom_element_for_cell(SLIME_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) == CUSTOM_ELEMENTS["slime"]
+
+
+def test_custom_element_for_cell_rejects_unknown_custom_element_id() -> None:
+    with pytest.raises(ValueError, match="Unknown custom element 'gel'"):
+        custom_element_for_cell("gel", DEFAULT_CUSTOM_ELEMENTS)
+
+
+def test_cell_property_helpers_support_builtin_and_custom_cells() -> None:
+    assert cell_is_diggable(SAND_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) is True
+    assert cell_is_collectible(DIAMOND_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) is True
+    assert cell_is_pushable(ROCK_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) is True
+    assert cell_can_fall(ROCK_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) is True
+    assert cell_is_player(PLAYER_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) is True
+    assert cell_is_diggable(SLIME_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) is True
+    assert cell_is_empty(None) is True
+
+
+def test_cell_property_helpers_return_false_for_empty_cells() -> None:
+    assert cell_is_diggable(None, DEFAULT_CUSTOM_ELEMENTS) is False
+    assert cell_is_collectible(None, DEFAULT_CUSTOM_ELEMENTS) is False
+    assert cell_is_pushable(None, DEFAULT_CUSTOM_ELEMENTS) is False
+    assert cell_can_fall(None, DEFAULT_CUSTOM_ELEMENTS) is False
+    assert cell_is_player(None, DEFAULT_CUSTOM_ELEMENTS) is False
 
 
 def test_custom_element_for_tile_returns_builtin_mirror() -> None:

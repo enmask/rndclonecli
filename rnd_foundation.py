@@ -95,6 +95,7 @@ EMPTY_ELEMENT_ID = "empty"
 WALL_ELEMENT_ID = "wall"
 SAND_ELEMENT_ID = "sand"
 SLIME_ELEMENT_ID = "slime"
+BRICK_ELEMENT_ID = "brick"
 ROCK_ELEMENT_ID = "rock"
 DIAMOND_ELEMENT_ID = "diamond"
 PLAYER_ELEMENT_ID = "player"
@@ -106,6 +107,7 @@ MOVING_OBJECT_TILES = (ROCK_ELEMENT_ID, DIAMOND_ELEMENT_ID)
 DEFAULT_CUSTOM_ELEMENTS: dict[str, CustomElement] = {
     SAND_ELEMENT_ID: CustomElement(name=SAND_ELEMENT_ID, symbol=".", diggable=True),
     SLIME_ELEMENT_ID: CustomElement(name=SLIME_ELEMENT_ID, symbol="s", diggable=True),
+    BRICK_ELEMENT_ID: CustomElement(name=BRICK_ELEMENT_ID, symbol="B"),
     ROCK_ELEMENT_ID: CustomElement(name=ROCK_ELEMENT_ID, symbol="O", pushable=True, can_fall=True),
     DIAMOND_ELEMENT_ID: CustomElement(name=DIAMOND_ELEMENT_ID, symbol="*", collectible=True, can_fall=True),
     WALL_ELEMENT_ID: CustomElement(name=WALL_ELEMENT_ID, symbol="#"),
@@ -969,6 +971,7 @@ def color_for_element_id(element_id: str | None) -> Tuple[int, int, int]:
         WALL_ELEMENT_ID: tile_color(Tile.WALL),
         SAND_ELEMENT_ID: tile_color(Tile.SAND),
         SLIME_ELEMENT_ID: (220, 90, 90),
+        BRICK_ELEMENT_ID: (150, 80, 80),
         ROCK_ELEMENT_ID: tile_color(Tile.ROCK),
         DIAMOND_ELEMENT_ID: tile_color(Tile.DIAMOND),
         PLAYER_ELEMENT_ID: tile_color(Tile.PLAYER),

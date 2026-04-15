@@ -8,6 +8,7 @@ from rnd_foundation import (
     CUSTOM_ELEMENTS,
     CUSTOM_ELEMENT_SYMBOLS,
     CustomElement,
+    BRICK_ELEMENT_ID,
     DIAMOND_ELEMENT_ID,
     DEFAULT_CUSTOM_ELEMENTS,
     DEFAULT_ENGINE_MODE,
@@ -217,6 +218,21 @@ def test_parse_level_supports_sand() -> None:
     )
 
     assert state.get(2, 1) == Tile.SAND
+
+
+def test_parse_level_supports_true_custom_brick_cell() -> None:
+    state = make_state(
+        "#####",
+        "#PB #",
+        "#####",
+    )
+
+    assert state.get_cell(2, 1) == BRICK_ELEMENT_ID
+    assert state.render_lines() == [
+        "#####",
+        "#PB #",
+        "#####",
+    ]
 
 
 def test_game_state_cell_accessors_bridge_tile_backed_grid() -> None:
@@ -455,6 +471,7 @@ def test_color_for_element_id_supports_builtin_and_custom_ids() -> None:
     assert color_for_element_id(ROCK_ELEMENT_ID) == tile_color(Tile.ROCK)
     assert color_for_element_id(DIAMOND_ELEMENT_ID) == tile_color(Tile.DIAMOND)
     assert color_for_element_id(SLIME_ELEMENT_ID) == (220, 90, 90)
+    assert color_for_element_id(BRICK_ELEMENT_ID) == (150, 80, 80)
     assert color_for_element_id("mystery") == (220, 90, 90)
 
 
@@ -712,6 +729,9 @@ def test_tile_grid_for_element_cells_converts_builtin_and_custom_cells() -> None
 def test_tile_for_element_cell_rejects_unknown_or_unmapped_custom_cells() -> None:
     with pytest.raises(ValueError, match="Unknown custom element 'gel'"):
         tile_for_element_cell("gel", DEFAULT_CUSTOM_ELEMENTS)
+
+    with pytest.raises(ValueError, match="Custom element 'brick' is not yet mapped"):
+        tile_for_element_cell(BRICK_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS)
 
     registry = dict(DEFAULT_CUSTOM_ELEMENTS)
     register_custom_element(registry, CustomElement(name="mystery", symbol="m"))
@@ -2072,6 +2092,39 @@ def test_draw_board_renders_true_custom_slime_cell_from_game_state() -> None:
     assert (screen, (30, 30, 30), (16, 8, 8, 8), 1) in calls
 
 
+def test_draw_board_renders_true_custom_brick_cell_from_game_state() -> None:
+    state = make_state(
+        "#####",
+        "#PB #",
+        "#####",
+    )
+    calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+
+    class FakeDraw:
+        @staticmethod
+        def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            calls.append((screen, color, rect, width))
+
+    class FakePygame:
+        draw = FakeDraw()
+
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    class FakeScreen:
+        def blit(self, surface: object, rect: object) -> None:
+            raise AssertionError("unexpected sprite blit")
+
+    screen = FakeScreen()
+
+    draw_board(FakePygame, screen, state, tile_size=8)
+
+    assert state.get_cell(2, 1) == BRICK_ELEMENT_ID
+    assert (screen, (150, 80, 80), (16, 8, 8, 8), 0) in calls
+    assert (screen, (30, 30, 30), (16, 8, 8, 8), 1) in calls
+
+
 def test_draw_board_uses_tile_size_for_rect_geometry() -> None:
     state = make_state(
         "##",
@@ -3245,6 +3298,24 @@ def test_player_can_move_into_sand() -> None:
     assert (state.player_x, state.player_y) == (2, 1)
     assert state.get(1, 1) == Tile.EMPTY
     assert state.get(2, 1) == Tile.PLAYER
+
+
+def test_player_cannot_move_into_true_custom_brick_cell() -> None:
+    state = make_state(
+        "#####",
+        "#PB #",
+        "#####",
+    )
+
+    state.try_move_player(1, 0)
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.get_cell(2, 1) == BRICK_ELEMENT_ID
+    assert state.render_lines() == [
+        "#####",
+        "#PB #",
+        "#####",
+    ]
 
 
 def test_player_can_snap_sand_without_moving() -> None:

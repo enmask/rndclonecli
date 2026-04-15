@@ -386,6 +386,13 @@ def cell_is_player(cell: ElementCell, registry: dict[str, CustomElement]) -> boo
     return element is not None and element.name == PLAYER_ELEMENT_ID
 
 
+def symbol_for_element_cell(cell: ElementCell, registry: dict[str, CustomElement]) -> str:
+    element = custom_element_for_cell(cell, registry)
+    if element is None:
+        return " "
+    return element.symbol
+
+
 def parsed_cell_is_diggable(cell: ParsedCell, registry: dict[str, CustomElement]) -> bool:
     return is_diggable(parsed_cell_element(cell, registry))
 
@@ -436,11 +443,17 @@ class GameState:
     def in_bounds(self, x: int, y: int) -> bool:
         return 0 <= x < self.width and 0 <= y < self.height
 
-    def get(self, x: int, y: int) -> Tile:
+    def get_tile(self, x: int, y: int) -> Tile:
         return tile_for_element_cell(self.grid[y][x], CUSTOM_ELEMENTS)
 
-    def set(self, x: int, y: int, tile: Tile) -> None:
+    def set_tile(self, x: int, y: int, tile: Tile) -> None:
         self.grid[y][x] = cell_for_tile(tile)
+
+    def get(self, x: int, y: int) -> Tile:
+        return self.get_tile(x, y)
+
+    def set(self, x: int, y: int, tile: Tile) -> None:
+        self.set_tile(x, y, tile)
 
     def get_cell(self, x: int, y: int) -> ElementCell:
         return self.grid[y][x]
@@ -449,7 +462,10 @@ class GameState:
         self.grid[y][x] = cell
 
     def render_lines(self) -> List[str]:
-        return ["".join(self.get(x, y).value for x in range(self.width)) for y in range(self.height)]
+        return [
+            "".join(symbol_for_element_cell(self.get_cell(x, y), CUSTOM_ELEMENTS) for x in range(self.width))
+            for y in range(self.height)
+        ]
 
     def render(self) -> str:
         status = (
@@ -483,7 +499,7 @@ class GameState:
                 return
             push_x, push_y = tx + dx, ty
             if self.in_bounds(push_x, push_y) and cell_is_empty(self.get_cell(push_x, push_y)):
-                self.set(push_x, push_y, tile_for_element_cell(target, CUSTOM_ELEMENTS))
+                self.set_cell(push_x, push_y, target)
                 self.just_pushed_positions = {(push_x, push_y)}
                 self.recently_pushed_positions = {(push_x, push_y)}
                 self._move_player_to(tx, ty)
@@ -516,7 +532,7 @@ class GameState:
                 return
             push_x, push_y = tx + dx, ty
             if self.in_bounds(push_x, push_y) and cell_is_empty(self.get_cell(push_x, push_y)):
-                self.set(push_x, push_y, tile_for_element_cell(target, CUSTOM_ELEMENTS))
+                self.set_cell(push_x, push_y, target)
                 self.set_cell(tx, ty, None)
                 self.just_pushed_positions = {(push_x, push_y)}
                 self.recently_pushed_positions = {(push_x, push_y)}
@@ -534,7 +550,6 @@ class GameState:
         new_falling_positions: Set[Tuple[int, int]] = set()
         for y in range(self.height - 2, -1, -1):
             for x in range(self.width):
-                tile = self.get(x, y)
                 cell = self.get_cell(x, y)
                 if not cell_can_fall(cell, CUSTOM_ELEMENTS):
                     continue
@@ -547,13 +562,13 @@ class GameState:
                 below = self.get_cell(x, y + 1)
 
                 if cell_is_empty(below):
-                    self.set(x, y + 1, tile)
+                    self.set_cell(x, y + 1, cell)
                     self.set_cell(x, y, None)
                     new_falling_positions.add((x, y + 1))
                     continue
 
                 if cell_is_player(below, CUSTOM_ELEMENTS) and was_falling:
-                    self.set(x, y + 1, tile)
+                    self.set_cell(x, y + 1, cell)
                     self.set_cell(x, y, None)
                     new_falling_positions.add((x, y + 1))
                     self.falling_positions = new_falling_positions

@@ -125,6 +125,7 @@ from rnd_foundation import (
     tile_for_cell,
     tile_for_element_cell,
     tile_grid_for_element_cells,
+    symbol_for_element_cell,
     tile_color,
     tile_rect,
     tile_surface,
@@ -254,6 +255,20 @@ def test_game_state_tile_bridge_set_preserves_tile_compatibility() -> None:
 
     assert state.get_cell(2, 1) == DIAMOND_ELEMENT_ID
     assert state.get(2, 1) == Tile.DIAMOND
+
+
+def test_game_state_explicit_tile_compatibility_helpers_match_get_and_set() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    state.set_tile(2, 1, Tile.ROCK)
+
+    assert state.get_tile(2, 1) == Tile.ROCK
+    assert state.get(2, 1) == Tile.ROCK
+    assert state.get_cell(2, 1) == ROCK_ELEMENT_ID
 
 
 def test_make_motion_stores_element_cell_identity() -> None:
@@ -423,6 +438,12 @@ def test_element_color_matches_builtin_tile_colors() -> None:
 def test_element_color_uses_symbol_based_fallback_for_custom_elements() -> None:
     assert element_color(CustomElement(name="custom-rock", symbol="O")) == tile_color(Tile.ROCK)
     assert element_color(CustomElement(name="custom-slime", symbol="s")) == (220, 90, 90)
+
+
+def test_symbol_for_element_cell_supports_empty_builtin_and_custom_cells() -> None:
+    assert symbol_for_element_cell(None, DEFAULT_CUSTOM_ELEMENTS) == " "
+    assert symbol_for_element_cell(ROCK_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) == "O"
+    assert symbol_for_element_cell(SLIME_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) == "s"
 
 
 def test_color_for_element_id_supports_builtin_and_custom_ids() -> None:
@@ -934,7 +955,7 @@ def test_parse_level_keeps_default_custom_slime_as_true_custom_cell() -> None:
     assert state.grid[1][2] == SLIME_ELEMENT_ID
     assert state.render_lines() == [
         "#####",
-        "#P. #",
+        "#Ps #",
         "#####",
     ]
 
@@ -973,7 +994,9 @@ def test_builtin_sand_and_custom_slime_parse_to_equivalent_states() -> None:
         ]
     )
 
-    assert slime_state.render_lines() == sand_state.render_lines()
+    assert [[slime_state.get(x, y) for x in range(slime_state.width)] for y in range(slime_state.height)] == [
+        [sand_state.get(x, y) for x in range(sand_state.width)] for y in range(sand_state.height)
+    ]
     assert slime_state.player_x == sand_state.player_x
     assert slime_state.player_y == sand_state.player_y
     assert slime_state.diamonds_total == sand_state.diamonds_total
@@ -1000,7 +1023,9 @@ def test_builtin_sand_and_custom_slime_have_equivalent_movement_behavior() -> No
     step_game(sand_state, "d")
     step_game(slime_state, "d")
 
-    assert slime_state.render_lines() == sand_state.render_lines()
+    assert [[slime_state.get(x, y) for x in range(slime_state.width)] for y in range(slime_state.height)] == [
+        [sand_state.get(x, y) for x in range(sand_state.width)] for y in range(sand_state.height)
+    ]
     assert slime_state.player_x == sand_state.player_x
     assert slime_state.player_y == sand_state.player_y
     assert slime_state.alive == sand_state.alive
@@ -1026,7 +1051,9 @@ def test_builtin_sand_and_custom_slime_have_equivalent_snap_behavior() -> None:
     step_game(sand_state, "D")
     step_game(slime_state, "D")
 
-    assert slime_state.render_lines() == sand_state.render_lines()
+    assert [[slime_state.get(x, y) for x in range(slime_state.width)] for y in range(slime_state.height)] == [
+        [sand_state.get(x, y) for x in range(sand_state.width)] for y in range(sand_state.height)
+    ]
     assert slime_state.player_x == sand_state.player_x
     assert slime_state.player_y == sand_state.player_y
 

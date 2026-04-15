@@ -3284,6 +3284,80 @@ def test_update_graphics_frame_tracks_horizontal_custom_slime_push_motion_when_e
         CUSTOM_ELEMENTS.update(original_registry)
 
 
+def test_custom_slime_fall_moves_logically_and_renders_with_custom_motion_appearance(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    registry[SLIME_ELEMENT_ID] = CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        pushable=True,
+        can_fall=True,
+    )
+
+    original_registry = dict(CUSTOM_ELEMENTS)
+    try:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(registry)
+        state = make_state(
+            "#####",
+            "# s #",
+            "#P  #",
+            "#####",
+        )
+        motion_state = make_motion_state()
+
+        should_quit = update_graphics_frame(
+            state,
+            frame_number=0,
+            events=[],
+            timing_mode=TimingMode.ASYNC,
+            motion_state=motion_state,
+        )
+
+        assert should_quit is False
+        assert state.get_cell(2, 2) == SLIME_ELEMENT_ID
+        assert get_motion(motion_state, (2, 2)) == make_motion(SLIME_ELEMENT_ID, (2, 1), (2, 2), 0)
+
+        calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+
+        class FakeDraw:
+            @staticmethod
+            def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+                calls.append((screen, color, rect, width))
+
+        class FakeBoardPygame:
+            draw = FakeDraw()
+
+            @staticmethod
+            def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+                return (x, y, width, height)
+
+        class FakeScreen:
+            def blit(self, surface: object, rect: object) -> None:
+                raise AssertionError("unexpected sprite blit")
+
+        screen = FakeScreen()
+
+        draw_board(
+            FakeBoardPygame,
+            screen,
+            state,
+            tile_size=24,
+            motion_state=motion_state,
+            current_frame=2,
+            motion_duration_frames=4,
+        )
+
+        assert (screen, (220, 90, 90), (48, 36, 24, 24), 0) in calls
+        assert (screen, (30, 30, 30), (48, 36, 24, 24), 1) in calls
+    finally:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(original_registry)
+
+
 def test_update_graphics_frame_does_not_track_custom_slime_push_motion_when_not_falling_enabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

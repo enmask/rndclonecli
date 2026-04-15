@@ -1634,6 +1634,37 @@ def test_find_moving_object_motions_detects_horizontal_rock_push() -> None:
     ]
 
 
+def test_find_moving_object_motions_detects_horizontal_custom_slime_push_when_enabled() -> None:
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    registry[SLIME_ELEMENT_ID] = CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        pushable=True,
+        can_fall=True,
+    )
+
+    original_registry = dict(CUSTOM_ELEMENTS)
+    try:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(registry)
+        state = make_state(
+            "#######",
+            "#Ps   #",
+            "#######",
+        )
+        before_cells = moving_object_cells(state)
+
+        state.try_move_player(1, 0)
+
+        assert find_moving_object_motions(before_cells, state, 8) == [
+            make_motion(SLIME_ELEMENT_ID, (2, 1), (3, 1), 8)
+        ]
+    finally:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(original_registry)
+
+
 def test_pushed_rock_does_not_fall_over_edge_in_same_update() -> None:
     state = make_state(
         "#######",
@@ -1711,6 +1742,38 @@ def test_track_moving_object_motions_stores_detected_horizontal_rock_push() -> N
 
     assert motions == [make_motion(Tile.ROCK, (2, 1), (3, 1), 13)]
     assert active_motions(motion_state) == motions
+
+
+def test_track_moving_object_motions_stores_detected_horizontal_custom_slime_push_when_enabled() -> None:
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    registry[SLIME_ELEMENT_ID] = CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        pushable=True,
+        can_fall=True,
+    )
+
+    original_registry = dict(CUSTOM_ELEMENTS)
+    try:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(registry)
+        state = make_state(
+            "#######",
+            "#Ps   #",
+            "#######",
+        )
+        before_cells = moving_object_cells(state)
+        motion_state = make_motion_state()
+
+        state.try_move_player(1, 0)
+        motions = track_moving_object_motions(motion_state, before_cells, state, 13)
+
+        assert motions == [make_motion(SLIME_ELEMENT_ID, (2, 1), (3, 1), 13)]
+        assert active_motions(motion_state) == motions
+    finally:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(original_registry)
 
 
 def test_track_falling_motions_stores_multiple_detected_falling_motions() -> None:
@@ -3117,6 +3180,45 @@ def test_update_graphics_frame_tracks_horizontal_rock_push_motion(
 
     assert should_quit is False
     assert get_motion(motion_state, (3, 1)) == make_motion(Tile.ROCK, (2, 1), (3, 1), 0)
+
+
+def test_update_graphics_frame_tracks_horizontal_custom_slime_push_motion_when_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    registry[SLIME_ELEMENT_ID] = CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        pushable=True,
+        can_fall=True,
+    )
+
+    original_registry = dict(CUSTOM_ELEMENTS)
+    try:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(registry)
+        state = make_state(
+            "#######",
+            "#Ps   #",
+            "#######",
+        )
+        motion_state = make_motion_state()
+
+        should_quit = update_graphics_frame(
+            state,
+            frame_number=0,
+            events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+            timing_mode=TimingMode.ASYNC,
+            motion_state=motion_state,
+        )
+
+        assert should_quit is False
+        assert get_motion(motion_state, (3, 1)) == make_motion(SLIME_ELEMENT_ID, (2, 1), (3, 1), 0)
+    finally:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(original_registry)
 
 
 def test_update_graphics_frame_keeps_pushed_rock_on_edge_for_one_update(

@@ -813,6 +813,27 @@ def test_cell_is_motion_trackable_matches_current_falling_policy() -> None:
     assert cell_is_motion_trackable(BRICK_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) is False
 
 
+def test_cell_is_motion_trackable_for_custom_slime_follows_can_fall_property() -> None:
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    registry[SLIME_ELEMENT_ID] = CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        pushable=True,
+        can_fall=False,
+    )
+    assert cell_is_motion_trackable(SLIME_ELEMENT_ID, registry) is False
+
+    registry[SLIME_ELEMENT_ID] = CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        pushable=True,
+        can_fall=True,
+    )
+    assert cell_is_motion_trackable(SLIME_ELEMENT_ID, registry) is True
+
+
 def test_custom_element_for_tile_returns_builtin_mirror() -> None:
     assert custom_element_for_tile(Tile.ROCK) == CUSTOM_ELEMENTS["rock"]
     assert custom_element_for_tile(Tile.DIAMOND) == CUSTOM_ELEMENTS["diamond"]
@@ -3216,6 +3237,45 @@ def test_update_graphics_frame_tracks_horizontal_custom_slime_push_motion_when_e
 
         assert should_quit is False
         assert get_motion(motion_state, (3, 1)) == make_motion(SLIME_ELEMENT_ID, (2, 1), (3, 1), 0)
+    finally:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(original_registry)
+
+
+def test_update_graphics_frame_does_not_track_custom_slime_push_motion_when_not_falling_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    registry[SLIME_ELEMENT_ID] = CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        pushable=True,
+        can_fall=False,
+    )
+
+    original_registry = dict(CUSTOM_ELEMENTS)
+    try:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(registry)
+        state = make_state(
+            "#######",
+            "#Ps   #",
+            "#######",
+        )
+        motion_state = make_motion_state()
+
+        should_quit = update_graphics_frame(
+            state,
+            frame_number=0,
+            events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+            timing_mode=TimingMode.ASYNC,
+            motion_state=motion_state,
+        )
+
+        assert should_quit is False
+        assert get_motion(motion_state, (3, 1)) is None
     finally:
         CUSTOM_ELEMENTS.clear()
         CUSTOM_ELEMENTS.update(original_registry)

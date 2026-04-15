@@ -251,16 +251,21 @@ def cell_for_parsed_cell(cell: ParsedCell) -> ElementCell:
     return cell.custom_element_name
 
 
+def element_cell_for_parsed_cell(cell: ParsedCell) -> ElementCell:
+    return cell_for_parsed_cell(cell)
+
+
 def parsed_cell_for_tile(tile: Tile) -> ParsedCell:
     return ParsedCell(tile=tile)
 
 
 def parsed_cell_element(cell: ParsedCell, registry: dict[str, CustomElement]) -> ElementLike:
-    if cell.tile is not None:
-        return cell.tile
-    custom_element = registry.get(cell.custom_element_name)
+    element_cell = element_cell_for_parsed_cell(cell)
+    if element_cell is None or element_cell in BUILTIN_ELEMENTS:
+        return tile_for_element_cell(element_cell, registry)
+    custom_element = registry.get(element_cell)
     if custom_element is None:
-        raise ValueError(f"Unknown custom element '{cell.custom_element_name}'")
+        raise ValueError(f"Unknown custom element '{element_cell}'")
     return custom_element
 
 
@@ -405,27 +410,27 @@ def symbol_for_element_cell(cell: ElementCell, registry: dict[str, CustomElement
 
 
 def parsed_cell_is_diggable(cell: ParsedCell, registry: dict[str, CustomElement]) -> bool:
-    return is_diggable(parsed_cell_element(cell, registry))
+    return cell_is_diggable(element_cell_for_parsed_cell(cell), registry)
 
 
 def parsed_cell_is_collectible(cell: ParsedCell, registry: dict[str, CustomElement]) -> bool:
-    return is_collectible(parsed_cell_element(cell, registry))
+    return cell_is_collectible(element_cell_for_parsed_cell(cell), registry)
 
 
 def parsed_cell_is_pushable(cell: ParsedCell, registry: dict[str, CustomElement]) -> bool:
-    return is_pushable(parsed_cell_element(cell, registry))
+    return cell_is_pushable(element_cell_for_parsed_cell(cell), registry)
 
 
 def parsed_cell_can_fall(cell: ParsedCell, registry: dict[str, CustomElement]) -> bool:
-    return can_fall_element(parsed_cell_element(cell, registry))
+    return cell_can_fall(element_cell_for_parsed_cell(cell), registry)
 
 
 def parsed_cell_is_empty(cell: ParsedCell) -> bool:
-    return cell.tile == Tile.EMPTY
+    return cell_is_empty(element_cell_for_parsed_cell(cell))
 
 
 def parsed_cell_is_player(cell: ParsedCell) -> bool:
-    return cell.tile == Tile.PLAYER
+    return element_cell_for_parsed_cell(cell) == PLAYER_ELEMENT_ID
 
 
 @dataclass

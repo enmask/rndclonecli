@@ -111,6 +111,7 @@ from rnd_foundation import (
     surrogate_tile_for_custom_element,
     surrogate_tile_for_element_cell,
     parsed_cell_appearance,
+    element_cell_for_parsed_cell,
     parsed_cell_for_cell,
     parsed_cell_for_level_symbol,
     parsed_cell_element,
@@ -746,6 +747,12 @@ def test_cell_for_parsed_cell_round_trips_builtin_and_custom_cells() -> None:
     assert cell_for_parsed_cell(ParsedCell(tile=Tile.EMPTY)) is None
     assert cell_for_parsed_cell(ParsedCell(tile=Tile.ROCK)) == ROCK_ELEMENT_ID
     assert cell_for_parsed_cell(ParsedCell(custom_element_name=SLIME_ELEMENT_ID)) == SLIME_ELEMENT_ID
+
+
+def test_element_cell_for_parsed_cell_matches_cell_for_parsed_cell() -> None:
+    assert element_cell_for_parsed_cell(ParsedCell(tile=Tile.EMPTY)) is None
+    assert element_cell_for_parsed_cell(ParsedCell(tile=Tile.ROCK)) == ROCK_ELEMENT_ID
+    assert element_cell_for_parsed_cell(ParsedCell(custom_element_name=SLIME_ELEMENT_ID)) == SLIME_ELEMENT_ID
 
 
 def test_custom_element_for_cell_supports_empty_builtin_and_custom_cells() -> None:

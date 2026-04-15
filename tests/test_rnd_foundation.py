@@ -30,6 +30,7 @@ from rnd_foundation import (
     buffer_action,
     builtin_tile_for_element_id,
     cell_can_fall,
+    cell_can_smash,
     cell_for_parsed_cell,
     cell_for_tile,
     cell_is_collectible,
@@ -40,6 +41,7 @@ from rnd_foundation import (
     cell_is_pushable,
     consume_buffered_action,
     can_fall_element,
+    can_smash_element,
     can_player_take_action,
     clamp_progress,
     complete_motion,
@@ -123,6 +125,7 @@ from rnd_foundation import (
     parsed_cell_is_player,
     parsed_cell_is_pushable,
     parsed_cell_can_fall,
+    parsed_cell_can_smash,
     parsed_cell_for_tile,
     custom_element_symbols,
     tile_for_symbol,
@@ -310,6 +313,7 @@ def test_custom_element_stores_declared_properties() -> None:
         collectible=False,
         pushable=True,
         can_fall=True,
+        can_smash=True,
     )
 
     assert element.name == "custom-rock"
@@ -318,6 +322,7 @@ def test_custom_element_stores_declared_properties() -> None:
     assert element.collectible is False
     assert element.pushable is True
     assert element.can_fall is True
+    assert element.can_smash is True
 
 
 def test_custom_element_defaults_boolean_properties_to_false() -> None:
@@ -330,6 +335,7 @@ def test_custom_element_defaults_boolean_properties_to_false() -> None:
         collectible=False,
         pushable=False,
         can_fall=False,
+        can_smash=False,
     )
 
 
@@ -519,6 +525,7 @@ def test_parsed_cell_property_helpers_support_builtin_cells() -> None:
     assert parsed_cell_is_collectible(ParsedCell(tile=Tile.DIAMOND), registry) is True
     assert parsed_cell_is_pushable(ParsedCell(tile=Tile.ROCK), registry) is True
     assert parsed_cell_can_fall(ParsedCell(tile=Tile.ROCK), registry) is True
+    assert parsed_cell_can_smash(ParsedCell(tile=Tile.ROCK), registry) is True
     assert parsed_cell_is_empty(ParsedCell(tile=Tile.EMPTY)) is True
     assert parsed_cell_is_player(ParsedCell(tile=Tile.PLAYER)) is True
 
@@ -534,6 +541,7 @@ def test_parsed_cell_property_helpers_support_custom_element_cells() -> None:
             collectible=False,
             pushable=True,
             can_fall=False,
+            can_smash=True,
         ),
     )
     slime_cell = ParsedCell(custom_element_name="crumbly")
@@ -542,6 +550,7 @@ def test_parsed_cell_property_helpers_support_custom_element_cells() -> None:
     assert parsed_cell_is_collectible(slime_cell, registry) is False
     assert parsed_cell_is_pushable(slime_cell, registry) is True
     assert parsed_cell_can_fall(slime_cell, registry) is False
+    assert parsed_cell_can_smash(slime_cell, registry) is True
 
 
 def test_custom_element_registry_exposes_builtin_style_examples() -> None:
@@ -552,6 +561,7 @@ def test_custom_element_registry_exposes_builtin_style_examples() -> None:
         collectible=False,
         pushable=False,
         can_fall=False,
+        can_smash=False,
     )
     assert CUSTOM_ELEMENTS["slime"] == CustomElement(
         name="slime",
@@ -560,6 +570,7 @@ def test_custom_element_registry_exposes_builtin_style_examples() -> None:
         collectible=False,
         pushable=False,
         can_fall=False,
+        can_smash=False,
     )
     assert CUSTOM_ELEMENTS["rock"] == CustomElement(
         name="rock",
@@ -568,6 +579,7 @@ def test_custom_element_registry_exposes_builtin_style_examples() -> None:
         collectible=False,
         pushable=True,
         can_fall=True,
+        can_smash=True,
     )
     assert CUSTOM_ELEMENTS["diamond"] == CustomElement(
         name="diamond",
@@ -576,6 +588,7 @@ def test_custom_element_registry_exposes_builtin_style_examples() -> None:
         collectible=True,
         pushable=False,
         can_fall=True,
+        can_smash=True,
     )
 
 
@@ -792,8 +805,10 @@ def test_cell_property_helpers_support_builtin_and_custom_cells() -> None:
     assert cell_is_collectible(DIAMOND_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) is True
     assert cell_is_pushable(ROCK_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) is True
     assert cell_can_fall(ROCK_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) is True
+    assert cell_can_smash(ROCK_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) is True
     assert cell_is_player(PLAYER_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) is True
     assert cell_is_diggable(SLIME_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) is True
+    assert cell_can_smash(SLIME_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) is False
     assert cell_is_empty(None) is True
 
 
@@ -802,6 +817,7 @@ def test_cell_property_helpers_return_false_for_empty_cells() -> None:
     assert cell_is_collectible(None, DEFAULT_CUSTOM_ELEMENTS) is False
     assert cell_is_pushable(None, DEFAULT_CUSTOM_ELEMENTS) is False
     assert cell_can_fall(None, DEFAULT_CUSTOM_ELEMENTS) is False
+    assert cell_can_smash(None, DEFAULT_CUSTOM_ELEMENTS) is False
     assert cell_is_player(None, DEFAULT_CUSTOM_ELEMENTS) is False
 
 
@@ -852,8 +868,11 @@ def test_custom_element_property_helpers_match_builtin_mirrors() -> None:
     assert is_collectible(Tile.DIAMOND) is True
     assert is_pushable(Tile.ROCK) is True
     assert can_fall_element(Tile.ROCK) is True
+    assert can_smash_element(Tile.ROCK) is True
+    assert can_smash_element(Tile.DIAMOND) is True
     assert is_diggable(Tile.WALL) is False
     assert is_collectible(Tile.EMPTY) is False
+    assert can_smash_element(Tile.SAND) is False
 
 
 def test_custom_element_property_helpers_support_custom_elements() -> None:
@@ -864,23 +883,25 @@ def test_custom_element_property_helpers_support_custom_elements() -> None:
         collectible=True,
         pushable=False,
         can_fall=True,
+        can_smash=True,
     )
 
     assert is_diggable(element) is True
     assert is_collectible(element) is True
     assert is_pushable(element) is False
     assert can_fall_element(element) is True
+    assert can_smash_element(element) is True
 
 
 @pytest.mark.parametrize(
-    ("tile", "diggable", "collectible", "pushable", "can_fall"),
+    ("tile", "diggable", "collectible", "pushable", "can_fall", "can_smash"),
     [
-        (Tile.EMPTY, False, False, False, False),
-        (Tile.WALL, False, False, False, False),
-        (Tile.SAND, True, False, False, False),
-        (Tile.ROCK, False, False, True, True),
-        (Tile.DIAMOND, False, True, False, True),
-        (Tile.PLAYER, False, False, False, False),
+        (Tile.EMPTY, False, False, False, False, False),
+        (Tile.WALL, False, False, False, False, False),
+        (Tile.SAND, True, False, False, False, False),
+        (Tile.ROCK, False, False, True, True, True),
+        (Tile.DIAMOND, False, True, False, True, True),
+        (Tile.PLAYER, False, False, False, False, False),
     ],
 )
 def test_custom_element_helpers_match_current_builtin_tile_semantics(
@@ -889,11 +910,13 @@ def test_custom_element_helpers_match_current_builtin_tile_semantics(
     collectible: bool,
     pushable: bool,
     can_fall: bool,
+    can_smash: bool,
 ) -> None:
     assert is_diggable(tile) is diggable
     assert is_collectible(tile) is collectible
     assert is_pushable(tile) is pushable
     assert can_fall_element(tile) is can_fall
+    assert can_smash_element(tile) is can_smash
 
 
 def test_dual_logic_path_keeps_sand_diggable_for_player_movement() -> None:
@@ -3891,6 +3914,37 @@ def test_gravity_can_kill_player_if_rock_was_already_falling() -> None:
     assert state.alive is False
     assert state.won is False
     assert state.get(2, 3) == Tile.ROCK
+
+
+def test_can_smash_property_is_scaffold_only_and_does_not_change_current_crushing_behavior() -> None:
+    original_registry = dict(CUSTOM_ELEMENTS)
+    try:
+        CUSTOM_ELEMENTS[SLIME_ELEMENT_ID] = CustomElement(
+            name=SLIME_ELEMENT_ID,
+            symbol="s",
+            diggable=False,
+            pushable=True,
+            can_fall=True,
+            can_smash=False,
+        )
+        state = make_state(
+            "#####",
+            "# s #",
+            "#   #",
+            "# P #",
+            "#####",
+        )
+
+        state.apply_gravity()
+        assert state.alive is True
+
+        state.apply_gravity()
+
+        assert state.alive is False
+        assert state.get_cell(2, 3) == SLIME_ELEMENT_ID
+    finally:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(original_registry)
 
 
 def test_gravity_ignores_updates_after_game_is_over() -> None:

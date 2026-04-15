@@ -86,6 +86,7 @@ class CustomElement:
     collectible: bool = False
     pushable: bool = False
     can_fall: bool = False
+    can_smash: bool = False
 
 
 ElementLike = Tile | CustomElement
@@ -105,8 +106,20 @@ DEFAULT_CUSTOM_ELEMENTS: dict[str, CustomElement] = {
     SAND_ELEMENT_ID: CustomElement(name=SAND_ELEMENT_ID, symbol=".", diggable=True),
     SLIME_ELEMENT_ID: CustomElement(name=SLIME_ELEMENT_ID, symbol="s", diggable=True),
     BRICK_ELEMENT_ID: CustomElement(name=BRICK_ELEMENT_ID, symbol="B"),
-    ROCK_ELEMENT_ID: CustomElement(name=ROCK_ELEMENT_ID, symbol="O", pushable=True, can_fall=True),
-    DIAMOND_ELEMENT_ID: CustomElement(name=DIAMOND_ELEMENT_ID, symbol="*", collectible=True, can_fall=True),
+    ROCK_ELEMENT_ID: CustomElement(
+        name=ROCK_ELEMENT_ID,
+        symbol="O",
+        pushable=True,
+        can_fall=True,
+        can_smash=True,
+    ),
+    DIAMOND_ELEMENT_ID: CustomElement(
+        name=DIAMOND_ELEMENT_ID,
+        symbol="*",
+        collectible=True,
+        can_fall=True,
+        can_smash=True,
+    ),
     WALL_ELEMENT_ID: CustomElement(name=WALL_ELEMENT_ID, symbol="#"),
     PLAYER_ELEMENT_ID: CustomElement(name=PLAYER_ELEMENT_ID, symbol="P"),
 }
@@ -376,6 +389,10 @@ def can_fall_element(element: ElementLike) -> bool:
     return custom_element_for(element).can_fall
 
 
+def can_smash_element(element: ElementLike) -> bool:
+    return custom_element_for(element).can_smash
+
+
 def cell_is_diggable(cell: ElementCell, registry: dict[str, CustomElement]) -> bool:
     element = custom_element_for_cell(cell, registry)
     return element.diggable if element is not None else False
@@ -394,6 +411,11 @@ def cell_is_pushable(cell: ElementCell, registry: dict[str, CustomElement]) -> b
 def cell_can_fall(cell: ElementCell, registry: dict[str, CustomElement]) -> bool:
     element = custom_element_for_cell(cell, registry)
     return element.can_fall if element is not None else False
+
+
+def cell_can_smash(cell: ElementCell, registry: dict[str, CustomElement]) -> bool:
+    element = custom_element_for_cell(cell, registry)
+    return element.can_smash if element is not None else False
 
 
 def cell_is_player(cell: ElementCell, registry: dict[str, CustomElement]) -> bool:
@@ -426,6 +448,10 @@ def parsed_cell_is_pushable(cell: ParsedCell, registry: dict[str, CustomElement]
 
 def parsed_cell_can_fall(cell: ParsedCell, registry: dict[str, CustomElement]) -> bool:
     return cell_can_fall(element_cell_for_parsed_cell(cell), registry)
+
+
+def parsed_cell_can_smash(cell: ParsedCell, registry: dict[str, CustomElement]) -> bool:
+    return cell_can_smash(element_cell_for_parsed_cell(cell), registry)
 
 
 def parsed_cell_is_empty(cell: ParsedCell) -> bool:

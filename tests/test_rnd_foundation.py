@@ -2279,6 +2279,48 @@ def test_draw_board_renders_true_custom_slime_cell_from_game_state() -> None:
     assert (screen, (30, 30, 30), (16, 8, 8, 8), 1) in calls
 
 
+def test_draw_board_renders_moving_custom_slime_with_custom_appearance() -> None:
+    state = make_state(
+        "#####",
+        "#P s#",
+        "#####",
+    )
+    motion_state = make_motion_state()
+    set_motion(motion_state, make_motion(SLIME_ELEMENT_ID, (2, 1), (3, 1), 10))
+    calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+
+    class FakeDraw:
+        @staticmethod
+        def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            calls.append((screen, color, rect, width))
+
+    class FakePygame:
+        draw = FakeDraw()
+
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    class FakeScreen:
+        def blit(self, surface: object, rect: object) -> None:
+            raise AssertionError("unexpected sprite blit")
+
+    screen = FakeScreen()
+
+    draw_board(
+        FakePygame,
+        screen,
+        state,
+        tile_size=24,
+        motion_state=motion_state,
+        current_frame=12,
+        motion_duration_frames=4,
+    )
+
+    assert (screen, (220, 90, 90), (60, 24, 24, 24), 0) in calls
+    assert (screen, (30, 30, 30), (60, 24, 24, 24), 1) in calls
+
+
 def test_draw_board_renders_true_custom_brick_cell_from_game_state() -> None:
     state = make_state(
         "#####",

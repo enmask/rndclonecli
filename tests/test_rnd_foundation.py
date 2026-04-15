@@ -232,6 +232,30 @@ def test_game_state_cell_accessors_bridge_tile_backed_grid() -> None:
     assert state.get(3, 1) == Tile.SAND
 
 
+def test_game_state_tile_bridge_reads_true_custom_cells_as_builtin_tiles() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+
+    assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
+    assert state.get(2, 1) == Tile.SAND
+
+
+def test_game_state_tile_bridge_set_preserves_tile_compatibility() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    state.set(2, 1, Tile.DIAMOND)
+
+    assert state.get_cell(2, 1) == DIAMOND_ELEMENT_ID
+    assert state.get(2, 1) == Tile.DIAMOND
+
+
 def test_make_motion_stores_element_cell_identity() -> None:
     player_motion = make_motion(Tile.PLAYER, (1, 2), (2, 2), 7)
     rock_motion = make_motion(ROCK_ELEMENT_ID, (2, 1), (2, 2), 8)
@@ -412,6 +436,17 @@ def test_color_for_element_id_supports_builtin_and_custom_ids() -> None:
 def test_element_appearance_supports_builtin_tiles_and_custom_elements() -> None:
     assert element_appearance(Tile.SAND, 24) == tile_appearance(Tile.SAND, 24)
     assert element_appearance(CustomElement(name="custom-gem", symbol="*"), 24) == (None, tile_color(Tile.DIAMOND))
+
+
+def test_tile_bridge_keeps_builtin_and_custom_appearance_paths_consistent() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+
+    assert tile_appearance(state.get(2, 1), 24) == tile_appearance(Tile.SAND, 24)
+    assert element_cell_appearance(state.get_cell(2, 1), DEFAULT_CUSTOM_ELEMENTS, 24) == (None, (220, 90, 90))
 
 
 def test_element_cell_color_supports_empty_builtin_and_custom_cells() -> None:

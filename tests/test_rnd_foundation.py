@@ -35,6 +35,7 @@ from rnd_foundation import (
     cell_is_collectible,
     cell_is_diggable,
     cell_is_empty,
+    cell_is_motion_trackable,
     cell_is_player,
     cell_is_pushable,
     consume_buffered_action,
@@ -804,6 +805,14 @@ def test_cell_property_helpers_return_false_for_empty_cells() -> None:
     assert cell_is_player(None, DEFAULT_CUSTOM_ELEMENTS) is False
 
 
+def test_cell_is_motion_trackable_matches_current_falling_policy() -> None:
+    assert cell_is_motion_trackable(None, DEFAULT_CUSTOM_ELEMENTS) is False
+    assert cell_is_motion_trackable(ROCK_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) is True
+    assert cell_is_motion_trackable(DIAMOND_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) is True
+    assert cell_is_motion_trackable(SLIME_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) is False
+    assert cell_is_motion_trackable(BRICK_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) is False
+
+
 def test_custom_element_for_tile_returns_builtin_mirror() -> None:
     assert custom_element_for_tile(Tile.ROCK) == CUSTOM_ELEMENTS["rock"]
     assert custom_element_for_tile(Tile.DIAMOND) == CUSTOM_ELEMENTS["diamond"]
@@ -1490,6 +1499,35 @@ def test_moving_object_cells_tracks_rocks_and_diamonds_only() -> None:
     }
 
 
+def test_moving_object_cells_includes_custom_falling_cells_when_eligible() -> None:
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    registry[SLIME_ELEMENT_ID] = CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        pushable=True,
+        can_fall=True,
+    )
+
+    original_registry = dict(CUSTOM_ELEMENTS)
+    try:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(registry)
+        state = make_state(
+            "#####",
+            "#Ps #",
+            "# s #",
+            "#####",
+        )
+
+        assert moving_object_cells(state) == {
+            SLIME_ELEMENT_ID: {(2, 1), (2, 2)},
+        }
+    finally:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(original_registry)
+
+
 def test_find_vertical_falling_motions_detects_falling_rock() -> None:
     state = make_state(
         "#####",
@@ -1656,10 +1694,10 @@ def test_track_falling_motions_stores_multiple_detected_falling_motions() -> Non
     state.apply_gravity()
     motions = track_falling_motions(motion_state, before_cells, state, 12)
 
-    assert motions == [
+    assert set(motions) == {
         make_motion(Tile.ROCK, (2, 1), (2, 2), 12),
         make_motion(Tile.DIAMOND, (4, 1), (4, 2), 12),
-    ]
+    }
     assert active_motions(motion_state) == motions
 
 

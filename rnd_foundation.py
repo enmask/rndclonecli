@@ -101,9 +101,6 @@ DIAMOND_ELEMENT_ID = "diamond"
 PLAYER_ELEMENT_ID = "player"
 
 
-MOVING_OBJECT_TILES = (ROCK_ELEMENT_ID, DIAMOND_ELEMENT_ID)
-
-
 DEFAULT_CUSTOM_ELEMENTS: dict[str, CustomElement] = {
     SAND_ELEMENT_ID: CustomElement(name=SAND_ELEMENT_ID, symbol=".", diggable=True),
     SLIME_ELEMENT_ID: CustomElement(name=SLIME_ELEMENT_ID, symbol="s", diggable=True),
@@ -402,6 +399,10 @@ def cell_can_fall(cell: ElementCell, registry: dict[str, CustomElement]) -> bool
 def cell_is_player(cell: ElementCell, registry: dict[str, CustomElement]) -> bool:
     element = custom_element_for_cell(cell, registry)
     return element is not None and element.name == PLAYER_ELEMENT_ID
+
+
+def cell_is_motion_trackable(cell: ElementCell, registry: dict[str, CustomElement]) -> bool:
+    return cell_can_fall(cell, registry)
 
 
 def symbol_for_element_cell(cell: ElementCell, registry: dict[str, CustomElement]) -> str:
@@ -1195,12 +1196,12 @@ def track_player_motion(
 
 
 def moving_object_cells(state: GameState) -> dict[ElementCell, set[Cell]]:
-    cells: dict[ElementCell, set[Cell]] = {tile: set() for tile in MOVING_OBJECT_TILES}
+    cells: dict[ElementCell, set[Cell]] = {}
     for y in range(state.height):
         for x in range(state.width):
             tile = state.get_cell(x, y)
-            if tile in MOVING_OBJECT_TILES:
-                cells[tile].add((x, y))
+            if cell_is_motion_trackable(tile, CUSTOM_ELEMENTS):
+                cells.setdefault(tile, set()).add((x, y))
     return cells
 
 
@@ -1212,7 +1213,7 @@ def find_moving_object_motions(
     motions: list[Motion] = []
     after_cells = moving_object_cells(state)
 
-    for tile in MOVING_OBJECT_TILES:
+    for tile in sorted(set(before_cells) | set(after_cells), key=lambda value: "" if value is None else value):
         moved_from = before_cells.get(tile, set()) - after_cells.get(tile, set())
         for start_cell in sorted(moved_from):
             candidate_destinations = (
@@ -1544,7 +1545,7 @@ def update_graphics_frame(
             state.motion_locked_positions = {
                 motion_destination_cell(motion)
                 for motion in active_motions(motion_state)
-                if motion_cell(motion) in MOVING_OBJECT_TILES
+                if cell_is_motion_trackable(motion_cell(motion), CUSTOM_ELEMENTS)
             }
             if has_active_player_motion(motion_state):
                 buffer_action(state, frame_action)

@@ -41,6 +41,8 @@ from rnd_foundation import (
     can_player_take_action,
     clamp_progress,
     complete_motion,
+    compatibility_tile_for_element_cell,
+    compatibility_tile_for_level_symbol,
     color_for_element_id,
     custom_element_for,
     custom_element_for_cell,
@@ -107,6 +109,7 @@ from rnd_foundation import (
     step_game,
     step_realtime_frame,
     surrogate_tile_for_custom_element,
+    surrogate_tile_for_element_cell,
     parsed_cell_appearance,
     parsed_cell_for_cell,
     parsed_cell_for_level_symbol,
@@ -680,6 +683,18 @@ def test_tile_for_element_cell_supports_builtin_and_custom_cells() -> None:
     assert tile_for_element_cell(SLIME_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) == Tile.SAND
 
 
+def test_surrogate_tile_for_element_cell_exposes_isolated_fallback_behavior() -> None:
+    assert surrogate_tile_for_element_cell(None, DEFAULT_CUSTOM_ELEMENTS) == Tile.EMPTY
+    assert surrogate_tile_for_element_cell(ROCK_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) == Tile.ROCK
+    assert surrogate_tile_for_element_cell(SLIME_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) == Tile.SAND
+
+
+def test_compatibility_tile_for_element_cell_matches_existing_bridge() -> None:
+    assert compatibility_tile_for_element_cell(None, DEFAULT_CUSTOM_ELEMENTS) == Tile.EMPTY
+    assert compatibility_tile_for_element_cell(ROCK_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) == Tile.ROCK
+    assert compatibility_tile_for_element_cell(SLIME_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) == Tile.SAND
+
+
 def test_tile_grid_for_element_cells_converts_builtin_and_custom_cells() -> None:
     assert tile_grid_for_element_cells(
         [
@@ -701,6 +716,19 @@ def test_tile_for_element_cell_rejects_unknown_or_unmapped_custom_cells() -> Non
     register_custom_element(registry, CustomElement(name="mystery", symbol="m"))
     with pytest.raises(ValueError, match="Custom element 'mystery' is not yet mapped"):
         tile_for_element_cell("mystery", registry)
+
+
+def test_surrogate_tile_for_element_cell_rejects_unknown_custom_cell() -> None:
+    with pytest.raises(ValueError, match="Unknown custom element 'gel'"):
+        surrogate_tile_for_element_cell("gel", DEFAULT_CUSTOM_ELEMENTS)
+
+
+def test_compatibility_tile_for_element_cell_rejects_unmapped_custom_cell() -> None:
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    register_custom_element(registry, CustomElement(name="mystery", symbol="m"))
+
+    with pytest.raises(ValueError, match="Custom element 'mystery' is not yet mapped"):
+        compatibility_tile_for_element_cell("mystery", registry)
 
 
 def test_cell_is_empty_matches_none_based_unified_cell_model() -> None:
@@ -916,6 +944,15 @@ def test_tile_for_level_symbol_returns_builtin_tiles_from_mapping_layer() -> Non
     assert tile_for_level_symbol("O") == Tile.ROCK
     assert tile_for_level_symbol("*") == Tile.DIAMOND
     assert tile_for_level_symbol("P") == Tile.PLAYER
+
+
+def test_compatibility_tile_for_level_symbol_matches_existing_bridge() -> None:
+    assert compatibility_tile_for_level_symbol("#", DEFAULT_CUSTOM_ELEMENTS) == Tile.WALL
+    assert compatibility_tile_for_level_symbol(".", DEFAULT_CUSTOM_ELEMENTS) == Tile.SAND
+    assert compatibility_tile_for_level_symbol("s", DEFAULT_CUSTOM_ELEMENTS) == Tile.SAND
+    assert compatibility_tile_for_level_symbol("O", DEFAULT_CUSTOM_ELEMENTS) == Tile.ROCK
+    assert compatibility_tile_for_level_symbol("*", DEFAULT_CUSTOM_ELEMENTS) == Tile.DIAMOND
+    assert compatibility_tile_for_level_symbol("P", DEFAULT_CUSTOM_ELEMENTS) == Tile.PLAYER
 
 
 def test_surrogate_tile_for_custom_element_maps_supported_builtin_like_shapes() -> None:

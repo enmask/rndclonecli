@@ -202,6 +202,10 @@ def cell_is_empty(cell: ElementCell) -> bool:
 
 
 def tile_for_element_cell(cell: ElementCell, registry: dict[str, CustomElement]) -> Tile:
+    return compatibility_tile_for_element_cell(cell, registry)
+
+
+def surrogate_tile_for_element_cell(cell: ElementCell, registry: dict[str, CustomElement]) -> Tile | None:
     if cell is None:
         return Tile.EMPTY
     if cell in BUILTIN_ELEMENTS:
@@ -210,11 +214,27 @@ def tile_for_element_cell(cell: ElementCell, registry: dict[str, CustomElement])
     custom_element = registry.get(cell)
     if custom_element is None:
         raise ValueError(f"Unknown custom element '{cell}'")
+    return surrogate_tile_for_custom_element(custom_element)
 
-    surrogate_tile = surrogate_tile_for_custom_element(custom_element)
+
+def compatibility_tile_for_element_cell(cell: ElementCell, registry: dict[str, CustomElement]) -> Tile:
+    surrogate_tile = surrogate_tile_for_element_cell(cell, registry)
     if surrogate_tile is not None:
         return surrogate_tile
     raise ValueError(f"Custom element '{cell}' is not yet mapped to a built-in tile")
+
+
+def compatibility_tile_for_level_symbol(symbol: str, registry: dict[str, CustomElement]) -> Tile:
+    tile = tile_for_symbol(symbol)
+    if tile is not None:
+        return tile
+    element = custom_element_symbols(registry).get(symbol)
+    if element is not None:
+        surrogate_tile = surrogate_tile_for_custom_element(element)
+        if surrogate_tile is not None:
+            return surrogate_tile
+        raise ValueError(f"Custom element symbol '{symbol}' is not yet mapped to a built-in tile")
+    raise ValueError(f"Unsupported tile '{symbol}'")
 
 
 def parsed_cell_for_cell(cell: ElementCell) -> ParsedCell:
@@ -263,16 +283,7 @@ def surrogate_tile_for_custom_element(element: CustomElement) -> Tile | None:
 
 
 def tile_for_level_symbol(symbol: str) -> Tile:
-    tile = tile_for_symbol(symbol)
-    if tile is not None:
-        return tile
-    element = custom_element_for_symbol(symbol)
-    if element is not None:
-        surrogate_tile = surrogate_tile_for_custom_element(element)
-        if surrogate_tile is not None:
-            return surrogate_tile
-        raise ValueError(f"Custom element symbol '{symbol}' is not yet mapped to a built-in tile")
-    raise ValueError(f"Unsupported tile '{symbol}'")
+    return compatibility_tile_for_level_symbol(symbol, CUSTOM_ELEMENTS)
 
 
 def parsed_cell_for_level_symbol(

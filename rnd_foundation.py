@@ -931,9 +931,25 @@ def tile_appearance(tile: Tile, tile_size: int) -> Tuple[object | None, Tuple[in
     return (tile_surface(tile, tile_size), tile_color(tile))
 
 
+def color_for_element_id(element_id: str | None) -> Tuple[int, int, int]:
+    colors = {
+        None: tile_color(Tile.EMPTY),
+        EMPTY_ELEMENT_ID: tile_color(Tile.EMPTY),
+        WALL_ELEMENT_ID: tile_color(Tile.WALL),
+        SAND_ELEMENT_ID: tile_color(Tile.SAND),
+        SLIME_ELEMENT_ID: (220, 90, 90),
+        ROCK_ELEMENT_ID: tile_color(Tile.ROCK),
+        DIAMOND_ELEMENT_ID: tile_color(Tile.DIAMOND),
+        PLAYER_ELEMENT_ID: tile_color(Tile.PLAYER),
+    }
+    return colors.get(element_id, (220, 90, 90))
+
+
 def element_color(element: ElementLike) -> Tuple[int, int, int]:
     if isinstance(element, Tile):
         return tile_color(element)
+    if element.name in CUSTOM_ELEMENTS:
+        return color_for_element_id(element.name)
 
     if element.symbol == ".":
         return tile_color(Tile.SAND)
@@ -957,10 +973,8 @@ def element_appearance(element: ElementLike, tile_size: int) -> Tuple[object | N
 
 
 def element_cell_color(cell: ElementCell, registry: dict[str, CustomElement]) -> Tuple[int, int, int]:
-    element = custom_element_for_cell(cell, registry)
-    if element is None:
-        return tile_color(Tile.EMPTY)
-    return element_color(element)
+    _ = registry
+    return color_for_element_id(cell)
 
 
 def element_cell_appearance(
@@ -968,8 +982,10 @@ def element_cell_appearance(
     registry: dict[str, CustomElement],
     tile_size: int,
 ) -> Tuple[object | None, Tuple[int, int, int]]:
-    tile = tile_for_element_cell(cell, registry)
-    return element_appearance(tile, tile_size)
+    if cell in BUILTIN_ELEMENT_ID_TILES:
+        tile = builtin_tile_for_element_id(cell)
+        return tile_appearance(tile, tile_size)
+    return (None, element_cell_color(cell, registry))
 
 
 def parsed_cell_appearance(

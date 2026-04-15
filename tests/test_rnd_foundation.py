@@ -1560,6 +1560,38 @@ def test_find_vertical_falling_motions_detects_falling_diamond() -> None:
     ]
 
 
+def test_find_vertical_falling_motions_detects_falling_custom_slime_when_enabled() -> None:
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    registry[SLIME_ELEMENT_ID] = CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        pushable=True,
+        can_fall=True,
+    )
+
+    original_registry = dict(CUSTOM_ELEMENTS)
+    try:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(registry)
+        state = make_state(
+            "#####",
+            "# s #",
+            "#P  #",
+            "#####",
+        )
+        before_cells = moving_object_cells(state)
+
+        state.apply_gravity()
+
+        assert find_vertical_falling_motions(before_cells, state, 9) == [
+            make_motion(SLIME_ELEMENT_ID, (2, 1), (2, 2), 9)
+        ]
+    finally:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(original_registry)
+
+
 def test_find_vertical_falling_motions_ignores_horizontal_rock_push() -> None:
     state = make_state(
         "######",
@@ -1699,6 +1731,39 @@ def test_track_falling_motions_stores_multiple_detected_falling_motions() -> Non
         make_motion(Tile.DIAMOND, (4, 1), (4, 2), 12),
     }
     assert active_motions(motion_state) == motions
+
+
+def test_track_falling_motions_stores_detected_custom_slime_fall_when_enabled() -> None:
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    registry[SLIME_ELEMENT_ID] = CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        pushable=True,
+        can_fall=True,
+    )
+
+    original_registry = dict(CUSTOM_ELEMENTS)
+    try:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(registry)
+        state = make_state(
+            "#####",
+            "# s #",
+            "#P  #",
+            "#####",
+        )
+        before_cells = moving_object_cells(state)
+        motion_state = make_motion_state()
+
+        state.apply_gravity()
+        motions = track_falling_motions(motion_state, before_cells, state, 14)
+
+        assert motions == [make_motion(SLIME_ELEMENT_ID, (2, 1), (2, 2), 14)]
+        assert active_motions(motion_state) == motions
+    finally:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(original_registry)
 
 
 def test_has_active_player_motion_detects_player_motion_only() -> None:

@@ -1267,7 +1267,6 @@ def draw_board(
     moving_tiles: list[tuple[ElementCell, object]] = []
     for y in range(state.height):
         for x in range(state.width):
-            tile = state.get(x, y)
             cell = state.get_cell(x, y)
             rect = tile_rect(pygame, x, y, tile_size)
             if motion_state is not None:
@@ -1288,7 +1287,7 @@ def draw_board(
                         )
                     )
                     continue
-            surface, fallback_color = tile_appearance(tile, tile_size)
+            surface, fallback_color = element_cell_appearance(cell, CUSTOM_ELEMENTS, tile_size)
             if surface is not None:
                 screen.blit(surface, rect)
             else:

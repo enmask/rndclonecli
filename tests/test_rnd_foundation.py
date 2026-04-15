@@ -1924,6 +1924,39 @@ def test_draw_board_renders_each_tile_with_fill_and_outline() -> None:
     assert calls[9] == (screen, (30, 30, 30), (8, 8, 8, 8), 1)
 
 
+def test_draw_board_renders_true_custom_slime_cell_from_game_state() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+
+    class FakeDraw:
+        @staticmethod
+        def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            calls.append((screen, color, rect, width))
+
+    class FakePygame:
+        draw = FakeDraw()
+
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    class FakeScreen:
+        def blit(self, surface: object, rect: object) -> None:
+            raise AssertionError("unexpected sprite blit")
+
+    screen = FakeScreen()
+
+    draw_board(FakePygame, screen, state, tile_size=8)
+
+    assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
+    assert (screen, tile_color(Tile.SAND), (16, 8, 8, 8), 0) in calls
+    assert (screen, (30, 30, 30), (16, 8, 8, 8), 1) in calls
+
+
 def test_draw_board_uses_tile_size_for_rect_geometry() -> None:
     state = make_state(
         "##",

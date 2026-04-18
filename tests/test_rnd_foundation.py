@@ -2583,6 +2583,51 @@ def test_draw_board_renders_origin_cell_from_fall_state_when_board_cell_is_empty
     assert any(color == (30, 30, 30) and rect == (16, 8, 8, 8) and width == 1 for _, color, rect, width in calls)
 
 
+def test_draw_board_does_not_double_draw_origin_for_active_fall_motion() -> None:
+    state = make_state(
+        "#####",
+        "#   #",
+        "# O #",
+        "#P  #",
+        "#####",
+    )
+    motion_state = make_motion_state()
+    set_fall_in_progress(state.fall_state, make_fall_in_progress(ROCK_ELEMENT_ID, (2, 1), (2, 2)))
+    set_motion(motion_state, make_motion(ROCK_ELEMENT_ID, (2, 1), (2, 2), 10))
+    calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+
+    class FakeDraw:
+        @staticmethod
+        def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            calls.append((screen, color, rect, width))
+
+    class FakePygame:
+        draw = FakeDraw()
+
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    class FakeScreen:
+        def blit(self, surface: object, rect: object) -> None:
+            raise AssertionError("unexpected sprite blit")
+
+    draw_board(
+        FakePygame,
+        FakeScreen(),
+        state,
+        tile_size=24,
+        motion_state=motion_state,
+        current_frame=12,
+        motion_duration_frames=8,
+    )
+
+    assert not any(color == tile_color(Tile.ROCK) and rect == (48, 24, 24, 24) and width == 0 for _, color, rect, width in calls)
+    assert not any(color == (30, 30, 30) and rect == (48, 24, 24, 24) and width == 1 for _, color, rect, width in calls)
+    assert any(color == tile_color(Tile.ROCK) and rect == (48, 30, 24, 24) and width == 0 for _, color, rect, width in calls)
+    assert any(color == (30, 30, 30) and rect == (48, 30, 24, 24) and width == 1 for _, color, rect, width in calls)
+
+
 def test_draw_board_uses_tile_size_for_rect_geometry() -> None:
     state = make_state(
         "##",

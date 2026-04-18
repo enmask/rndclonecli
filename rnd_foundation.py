@@ -1451,10 +1451,21 @@ def draw_board(
 ) -> None:
     moving_tiles: list[tuple[ElementCell, object]] = []
     blocked_destinations = state.blocked_fall_destinations()
+    active_falls_by_destination = {
+        fall_destination_cell(fall): fall
+        for fall in active_falls(state.fall_state)
+    }
     origin_fall_cells = {
         fall_start_cell(fall): fall_cell(fall)
         for fall in active_falls(state.fall_state)
     }
+    moving_fall_origins: set[Cell] = set()
+    if motion_state is not None:
+        moving_fall_origins = {
+            fall_start_cell(fall)
+            for destination, fall in active_falls_by_destination.items()
+            if get_motion(motion_state, destination) is not None
+        }
     for y in range(state.height):
         for x in range(state.width):
             rect = tile_rect(pygame, x, y, tile_size)
@@ -1476,6 +1487,8 @@ def draw_board(
                         )
                     )
                     continue
+            if (x, y) in moving_fall_origins:
+                continue
             if (x, y) in blocked_destinations:
                 continue
             cell = origin_fall_cells.get((x, y), state.get_cell(x, y))

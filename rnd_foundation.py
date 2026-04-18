@@ -1174,6 +1174,19 @@ def blocked_fall_destinations(fall_state: FallState) -> set[Cell]:
     return set(fall_state)
 
 
+def complete_fall(state: "GameState", cell: Cell) -> FallInProgress | None:
+    fall = remove_fall_in_progress(state.fall_state, cell)
+    if fall is None:
+        return None
+
+    start_x, start_y = fall_start_cell(fall)
+    dest_x, dest_y = fall_destination_cell(fall)
+    state.set_cell(start_x, start_y, None)
+    state.set_cell(dest_x, dest_y, fall_cell(fall))
+    state.falling_positions.add((dest_x, dest_y))
+    return fall
+
+
 def set_motion(motion_state: MotionState, motion: Motion) -> None:
     motion_state[motion_destination_cell(motion)] = motion
 

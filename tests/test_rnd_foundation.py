@@ -45,6 +45,7 @@ from rnd_foundation import (
     can_smash_element,
     can_player_take_action,
     clamp_progress,
+    complete_fall,
     complete_motion,
     compatibility_tile_for_element_cell,
     compatibility_tile_for_level_symbol,
@@ -1583,6 +1584,42 @@ def test_game_state_reports_blocked_fall_destinations_from_fall_state() -> None:
     assert state.blocked_fall_destinations() == {(2, 2)}
     assert state.is_blocked_fall_destination(2, 2) is True
     assert state.is_blocked_fall_destination(1, 1) is False
+
+
+def test_complete_fall_commits_destination_and_clears_blocked_state() -> None:
+    state = make_state(
+        "#####",
+        "#PO #",
+        "#   #",
+        "#####",
+    )
+    fall = make_fall_in_progress(ROCK_ELEMENT_ID, (2, 1), (2, 2))
+    set_fall_in_progress(state.fall_state, fall)
+
+    completed = complete_fall(state, (2, 2))
+
+    assert completed == fall
+    assert state.get_cell(2, 1) is None
+    assert state.get_cell(2, 2) == ROCK_ELEMENT_ID
+    assert state.blocked_fall_destinations() == set()
+    assert (2, 2) in state.falling_positions
+
+
+def test_complete_fall_returns_none_when_destination_is_not_pending() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    completed = complete_fall(state, (2, 2))
+
+    assert completed is None
+    assert state.render_lines() == [
+        "#####",
+        "#P  #",
+        "#####",
+    ]
 
 
 def test_player_cannot_move_into_blocked_fall_destination_even_when_cell_is_empty() -> None:

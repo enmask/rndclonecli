@@ -2519,6 +2519,70 @@ def test_draw_board_renders_true_custom_brick_cell_from_game_state() -> None:
     assert (screen, (30, 30, 30), (16, 8, 8, 8), 1) in calls
 
 
+def test_draw_board_skips_static_draw_at_blocked_fall_destination() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#   #",
+        "#####",
+    )
+    set_fall_in_progress(state.fall_state, make_fall_in_progress(ROCK_ELEMENT_ID, (2, 1), (2, 2)))
+    calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+
+    class FakeDraw:
+        @staticmethod
+        def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            calls.append((screen, color, rect, width))
+
+    class FakePygame:
+        draw = FakeDraw()
+
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    class FakeScreen:
+        def blit(self, surface: object, rect: object) -> None:
+            raise AssertionError("unexpected sprite blit")
+
+    draw_board(FakePygame, FakeScreen(), state, tile_size=8)
+
+    assert not any(rect == (16, 16, 8, 8) for _, _, rect, _ in calls)
+
+
+def test_draw_board_renders_origin_cell_from_fall_state_when_board_cell_is_empty() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#   #",
+        "#####",
+    )
+    state.set_cell(2, 1, None)
+    set_fall_in_progress(state.fall_state, make_fall_in_progress(ROCK_ELEMENT_ID, (2, 1), (2, 2)))
+    calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+
+    class FakeDraw:
+        @staticmethod
+        def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            calls.append((screen, color, rect, width))
+
+    class FakePygame:
+        draw = FakeDraw()
+
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    class FakeScreen:
+        def blit(self, surface: object, rect: object) -> None:
+            raise AssertionError("unexpected sprite blit")
+
+    draw_board(FakePygame, FakeScreen(), state, tile_size=8)
+
+    assert any(color == tile_color(Tile.ROCK) and rect == (16, 8, 8, 8) and width == 0 for _, color, rect, width in calls)
+    assert any(color == (30, 30, 30) and rect == (16, 8, 8, 8) and width == 1 for _, color, rect, width in calls)
+
+
 def test_draw_board_uses_tile_size_for_rect_geometry() -> None:
     state = make_state(
         "##",

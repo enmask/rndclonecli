@@ -1435,16 +1435,20 @@ def draw_board(
     sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
 ) -> None:
     moving_tiles: list[tuple[ElementCell, object]] = []
+    blocked_destinations = state.blocked_fall_destinations()
+    origin_fall_cells = {
+        fall_start_cell(fall): fall_cell(fall)
+        for fall in active_falls(state.fall_state)
+    }
     for y in range(state.height):
         for x in range(state.width):
-            cell = state.get_cell(x, y)
             rect = tile_rect(pygame, x, y, tile_size)
             if motion_state is not None:
                 motion = get_motion(motion_state, (x, y))
-                if motion is not None and motion_cell(motion) == cell:
+                if motion is not None:
                     moving_tiles.append(
                         (
-                            cell,
+                            motion_cell(motion),
                             motion_rect(
                                 pygame,
                                 motion,
@@ -1457,6 +1461,9 @@ def draw_board(
                         )
                     )
                     continue
+            if (x, y) in blocked_destinations:
+                continue
+            cell = origin_fall_cells.get((x, y), state.get_cell(x, y))
             surface, fallback_color = element_cell_appearance(cell, CUSTOM_ELEMENTS, tile_size)
             if surface is not None:
                 screen.blit(surface, rect)

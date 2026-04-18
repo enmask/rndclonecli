@@ -4081,6 +4081,21 @@ def test_gravity_does_not_drop_rock_into_sand() -> None:
     assert state.alive is True
 
 
+def test_gravity_records_started_fall_in_fall_state() -> None:
+    state = make_state(
+        "#####",
+        "# O #",
+        "#   #",
+        "# P #",
+        "#####",
+    )
+
+    state.apply_gravity()
+
+    assert get_fall_in_progress(state.fall_state, (2, 2)) == make_fall_in_progress(ROCK_ELEMENT_ID, (2, 1), (2, 2))
+    assert active_falls(state.fall_state) == [make_fall_in_progress(ROCK_ELEMENT_ID, (2, 1), (2, 2))]
+
+
 def test_player_can_stand_under_resting_rock() -> None:
     state = make_state(
         "#####",
@@ -4114,6 +4129,7 @@ def test_gravity_only_starts_bottom_rock_in_vertical_stack() -> None:
     assert state.get(2, 3) == Tile.ROCK
     assert state.get(2, 4) == Tile.EMPTY
     assert state.get(2, 5) == Tile.ROCK
+    assert active_falls(state.fall_state) == [make_fall_in_progress(ROCK_ELEMENT_ID, (2, 4), (2, 5))]
 
 
 def test_gravity_propagates_vertical_stack_falling_upward_over_successive_updates() -> None:

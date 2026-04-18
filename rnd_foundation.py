@@ -600,6 +600,7 @@ class GameState:
         if not self.alive or self.won:
             return
 
+        self.fall_state.clear()
         just_pushed_positions = set(self.just_pushed_positions)
         original_grid = [row.copy() for row in self.grid]
         new_falling_positions: Set[Tuple[int, int]] = set()
@@ -617,12 +618,20 @@ class GameState:
                 below = original_grid[y + 1][x]
 
                 if cell_is_empty(below):
+                    set_fall_in_progress(
+                        self.fall_state,
+                        make_fall_in_progress(cell, (x, y), (x, y + 1)),
+                    )
                     self.set_cell(x, y + 1, cell)
                     self.set_cell(x, y, None)
                     new_falling_positions.add((x, y + 1))
                     continue
 
                 if cell_is_player(below, CUSTOM_ELEMENTS) and was_falling:
+                    set_fall_in_progress(
+                        self.fall_state,
+                        make_fall_in_progress(cell, (x, y), (x, y + 1)),
+                    )
                     self.set_cell(x, y + 1, cell)
                     self.set_cell(x, y, None)
                     new_falling_positions.add((x, y + 1))

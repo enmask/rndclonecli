@@ -1585,6 +1585,55 @@ def test_game_state_reports_blocked_fall_destinations_from_fall_state() -> None:
     assert state.is_blocked_fall_destination(1, 1) is False
 
 
+def test_player_cannot_move_into_blocked_fall_destination_even_when_cell_is_empty() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#   #",
+        "#####",
+    )
+    set_fall_in_progress(state.fall_state, make_fall_in_progress(ROCK_ELEMENT_ID, (2, 0), (2, 1)))
+
+    assert can_player_take_action(state, "d") is False
+
+    state.try_move_player(1, 0)
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.get_cell(2, 1) is None
+
+
+def test_player_cannot_push_rock_into_blocked_fall_destination() -> None:
+    state = make_state(
+        "######",
+        "#PO  #",
+        "######",
+    )
+    set_fall_in_progress(state.fall_state, make_fall_in_progress(DIAMOND_ELEMENT_ID, (3, 0), (3, 1)))
+
+    assert can_player_take_action(state, "d") is False
+
+    state.try_move_player(1, 0)
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.get(2, 1) == Tile.ROCK
+    assert state.get(3, 1) == Tile.EMPTY
+
+
+def test_player_cannot_snap_push_rock_into_blocked_fall_destination() -> None:
+    state = make_state(
+        "######",
+        "#PO  #",
+        "######",
+    )
+    set_fall_in_progress(state.fall_state, make_fall_in_progress(DIAMOND_ELEMENT_ID, (3, 0), (3, 1)))
+
+    state.try_snap(1, 0)
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.get(2, 1) == Tile.ROCK
+    assert state.get(3, 1) == Tile.EMPTY
+
+
 def test_moving_object_cells_tracks_rocks_and_diamonds_only() -> None:
     state = make_state(
         "#####",
@@ -4094,6 +4143,23 @@ def test_gravity_records_started_fall_in_fall_state() -> None:
 
     assert get_fall_in_progress(state.fall_state, (2, 2)) == make_fall_in_progress(ROCK_ELEMENT_ID, (2, 1), (2, 2))
     assert active_falls(state.fall_state) == [make_fall_in_progress(ROCK_ELEMENT_ID, (2, 1), (2, 2))]
+
+
+def test_gravity_does_not_start_fall_into_blocked_destination() -> None:
+    state = make_state(
+        "#####",
+        "# O #",
+        "#   #",
+        "# P #",
+        "#####",
+    )
+    set_fall_in_progress(state.fall_state, make_fall_in_progress(DIAMOND_ELEMENT_ID, (2, 0), (2, 2)))
+
+    state.apply_gravity()
+
+    assert state.get(2, 1) == Tile.ROCK
+    assert state.get(2, 2) == Tile.EMPTY
+    assert active_falls(state.fall_state) == []
 
 
 def test_player_can_stand_under_resting_rock() -> None:

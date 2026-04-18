@@ -538,6 +538,9 @@ class GameState:
 
         target = self.get_cell(tx, ty)
 
+        if self.is_blocked_fall_destination(tx, ty):
+            return
+
         if cell_is_empty(target) or cell_is_diggable(target, CUSTOM_ELEMENTS) or cell_is_collectible(target, CUSTOM_ELEMENTS):
             if cell_is_collectible(target, CUSTOM_ELEMENTS):
                 self.diamonds_collected += 1
@@ -552,7 +555,11 @@ class GameState:
             if (tx, ty) in self.recently_pushed_positions:
                 return
             push_x, push_y = tx + dx, ty
-            if self.in_bounds(push_x, push_y) and cell_is_empty(self.get_cell(push_x, push_y)):
+            if (
+                self.in_bounds(push_x, push_y)
+                and not self.is_blocked_fall_destination(push_x, push_y)
+                and cell_is_empty(self.get_cell(push_x, push_y))
+            ):
                 self.set_cell(push_x, push_y, target)
                 self.just_pushed_positions = {(push_x, push_y)}
                 self.recently_pushed_positions = {(push_x, push_y)}
@@ -585,7 +592,11 @@ class GameState:
             if (tx, ty) in self.recently_pushed_positions:
                 return
             push_x, push_y = tx + dx, ty
-            if self.in_bounds(push_x, push_y) and cell_is_empty(self.get_cell(push_x, push_y)):
+            if (
+                self.in_bounds(push_x, push_y)
+                and not self.is_blocked_fall_destination(push_x, push_y)
+                and cell_is_empty(self.get_cell(push_x, push_y))
+            ):
                 self.set_cell(push_x, push_y, target)
                 self.set_cell(tx, ty, None)
                 self.just_pushed_positions = {(push_x, push_y)}
@@ -600,6 +611,7 @@ class GameState:
         if not self.alive or self.won:
             return
 
+        blocked_destinations = self.blocked_fall_destinations()
         self.fall_state.clear()
         just_pushed_positions = set(self.just_pushed_positions)
         original_grid = [row.copy() for row in self.grid]
@@ -617,7 +629,7 @@ class GameState:
                 was_falling = (x, y) in self.falling_positions
                 below = original_grid[y + 1][x]
 
-                if cell_is_empty(below):
+                if cell_is_empty(below) and (x, y + 1) not in blocked_destinations:
                     set_fall_in_progress(
                         self.fall_state,
                         make_fall_in_progress(cell, (x, y), (x, y + 1)),
@@ -794,6 +806,8 @@ def can_player_take_action(state: GameState, action: str | None) -> bool:
         return False
 
     target = state.get_cell(tx, ty)
+    if state.is_blocked_fall_destination(tx, ty):
+        return False
     if cell_is_empty(target) or cell_is_diggable(target, CUSTOM_ELEMENTS) or cell_is_collectible(target, CUSTOM_ELEMENTS):
         return True
 
@@ -803,7 +817,11 @@ def can_player_take_action(state: GameState, action: str | None) -> bool:
         if (tx, ty) in state.recently_pushed_positions:
             return False
         push_x, push_y = tx + dx, ty
-        return state.in_bounds(push_x, push_y) and cell_is_empty(state.get_cell(push_x, push_y))
+        return (
+            state.in_bounds(push_x, push_y)
+            and not state.is_blocked_fall_destination(push_x, push_y)
+            and cell_is_empty(state.get_cell(push_x, push_y))
+        )
 
     return False
 

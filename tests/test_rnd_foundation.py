@@ -4319,6 +4319,69 @@ def test_gravity_propagates_vertical_stack_falling_upward_over_successive_update
     assert state.get(2, 5) == Tile.ROCK
 
 
+def test_gravity_tall_vertical_stack_propagates_upward_one_level_per_update() -> None:
+    state = make_state(
+        "#######",
+        "#P    #",
+        "# O   #",
+        "# O   #",
+        "# O   #",
+        "#     #",
+        "#     #",
+        "#     #",
+        "#######",
+    )
+
+    state.apply_gravity()
+    assert state.get(2, 2) == Tile.ROCK
+    assert state.get(2, 3) == Tile.ROCK
+    assert state.get(2, 4) == Tile.EMPTY
+    assert state.get(2, 5) == Tile.ROCK
+    assert state.get(2, 6) == Tile.EMPTY
+    assert state.get(2, 7) == Tile.EMPTY
+
+    state.apply_gravity()
+    assert state.get(2, 2) == Tile.ROCK
+    assert state.get(2, 3) == Tile.EMPTY
+    assert state.get(2, 4) == Tile.ROCK
+    assert state.get(2, 5) == Tile.EMPTY
+    assert state.get(2, 6) == Tile.ROCK
+    assert state.get(2, 7) == Tile.EMPTY
+
+    state.apply_gravity()
+    assert state.get(2, 2) == Tile.EMPTY
+    assert state.get(2, 3) == Tile.ROCK
+    assert state.get(2, 4) == Tile.EMPTY
+    assert state.get(2, 5) == Tile.ROCK
+    assert state.get(2, 6) == Tile.EMPTY
+    assert state.get(2, 7) == Tile.ROCK
+
+
+def test_gravity_stretches_tall_vertical_stack_into_alternating_pattern_over_time() -> None:
+    state = make_state(
+        "#######",
+        "#P    #",
+        "# O   #",
+        "# O   #",
+        "# O   #",
+        "#     #",
+        "#     #",
+        "#     #",
+        "#######",
+    )
+
+    state.apply_gravity()
+    state.apply_gravity()
+    state.apply_gravity()
+
+    assert state.get(2, 2) == Tile.EMPTY
+    assert state.get(2, 3) == Tile.ROCK
+    assert state.get(2, 4) == Tile.EMPTY
+    assert state.get(2, 5) == Tile.ROCK
+    assert state.get(2, 6) == Tile.EMPTY
+    assert state.get(2, 7) == Tile.ROCK
+
+
 def test_gravity_can_kill_player_if_rock_was_already_falling() -> None:
     state = make_state(
         "#####",

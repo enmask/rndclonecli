@@ -71,6 +71,8 @@ ElementCell = str | None
 Cell = Tuple[int, int]
 Motion = tuple[ElementCell, Cell, Cell, int]
 MotionState = dict[Cell, Motion]
+FallInProgress = tuple[ElementCell, Cell, Cell]
+FallState = dict[Cell, FallInProgress]
 EngineConfig = tuple[TimingMode, int]
 HoldState = dict[str, object]
 
@@ -475,6 +477,7 @@ class GameState:
     just_pushed_positions: Set[Tuple[int, int]] = field(default_factory=set)
     recently_pushed_positions: Set[Tuple[int, int]] = field(default_factory=set)
     motion_locked_positions: Set[Tuple[int, int]] = field(default_factory=set)
+    fall_state: FallState = field(default_factory=dict)
     pending_action: str | None = None
 
     @property
@@ -505,6 +508,12 @@ class GameState:
 
     def set_cell(self, x: int, y: int, cell: ElementCell) -> None:
         self.grid[y][x] = cell
+
+    def blocked_fall_destinations(self) -> Set[Tuple[int, int]]:
+        return blocked_fall_destinations(self.fall_state)
+
+    def is_blocked_fall_destination(self, x: int, y: int) -> bool:
+        return (x, y) in self.blocked_fall_destinations()
 
     def render_lines(self) -> List[str]:
         return [
@@ -1093,6 +1102,49 @@ def motion_start_frame(motion: Motion) -> int:
 
 def make_motion_state() -> MotionState:
     return {}
+
+
+def make_fall_in_progress(cell: ElementCell | Tile, start_cell: Cell, destination_cell: Cell) -> FallInProgress:
+    if start_cell == destination_cell:
+        raise ValueError("fall must move between different cells")
+    fall_cell = cell_for_tile(cell) if isinstance(cell, Tile) else cell
+    return (fall_cell, start_cell, destination_cell)
+
+
+def fall_cell(fall: FallInProgress) -> ElementCell:
+    return fall[0]
+
+
+def fall_start_cell(fall: FallInProgress) -> Cell:
+    return fall[1]
+
+
+def fall_destination_cell(fall: FallInProgress) -> Cell:
+    return fall[2]
+
+
+def make_fall_state() -> FallState:
+    return {}
+
+
+def set_fall_in_progress(fall_state: FallState, fall: FallInProgress) -> None:
+    fall_state[fall_destination_cell(fall)] = fall
+
+
+def get_fall_in_progress(fall_state: FallState, cell: Cell) -> FallInProgress | None:
+    return fall_state.get(cell)
+
+
+def remove_fall_in_progress(fall_state: FallState, cell: Cell) -> FallInProgress | None:
+    return fall_state.pop(cell, None)
+
+
+def active_falls(fall_state: FallState) -> list[FallInProgress]:
+    return list(fall_state.values())
+
+
+def blocked_fall_destinations(fall_state: FallState) -> set[Cell]:
+    return set(fall_state)
 
 
 def set_motion(motion_state: MotionState, motion: Motion) -> None:

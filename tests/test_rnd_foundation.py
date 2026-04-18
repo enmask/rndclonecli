@@ -22,6 +22,7 @@ from rnd_foundation import (
     TimingMode,
     Tile,
     WALL_ELEMENT_ID,
+    active_falls,
     active_motions,
     action_from_pygame_frame_events,
     action_from_pygame_key,
@@ -52,6 +53,9 @@ from rnd_foundation import (
     custom_element_for_cell,
     custom_element_for_symbol,
     custom_element_for_tile,
+    fall_cell,
+    fall_destination_cell,
+    fall_start_cell,
     element_cell_appearance,
     element_cell_color,
     element_appearance,
@@ -68,6 +72,7 @@ from rnd_foundation import (
     find_moving_object_motions,
     find_vertical_falling_motions,
     get_motion,
+    get_fall_in_progress,
     held_actions_from_pygame_pressed_keys,
     has_active_player_motion,
     hud_background_color,
@@ -81,6 +86,8 @@ from rnd_foundation import (
     make_hold_state,
     make_motion_state,
     main,
+    make_fall_in_progress,
+    make_fall_state,
     motion_destination_cell,
     motion_cell,
     motion_is_complete,
@@ -101,14 +108,17 @@ from rnd_foundation import (
     background_color,
     board_background_color,
     board_size_px,
+    blocked_fall_destinations,
     clear_tile_surface_cache,
     remove_motion,
+    remove_fall_in_progress,
     render_frame,
     repeated_held_action,
     run_interactive_realtime_graphics,
     run_interactive_realtime_terminal,
     screen_size_px,
     set_motion,
+    set_fall_in_progress,
     start_motion,
     step_game,
     step_realtime_frame,
@@ -1527,6 +1537,52 @@ def test_motion_state_removes_motion_by_destination_cell() -> None:
     assert removed == motion
     assert get_motion(motion_state, (2, 2)) is None
     assert active_motions(motion_state) == []
+
+
+def test_make_fall_in_progress_rejects_zero_distance() -> None:
+    with pytest.raises(ValueError, match="different cells"):
+        make_fall_in_progress(Tile.ROCK, (2, 2), (2, 2))
+
+
+def test_fall_state_stores_and_reads_fall_by_destination_cell() -> None:
+    fall_state = make_fall_state()
+    fall = make_fall_in_progress(Tile.ROCK, (2, 3), (2, 4))
+
+    set_fall_in_progress(fall_state, fall)
+
+    assert get_fall_in_progress(fall_state, (2, 4)) == fall
+    assert fall_cell(fall) == ROCK_ELEMENT_ID
+    assert fall_start_cell(fall) == (2, 3)
+    assert fall_destination_cell(fall) == (2, 4)
+    assert active_falls(fall_state) == [fall]
+    assert blocked_fall_destinations(fall_state) == {(2, 4)}
+
+
+def test_fall_state_removes_fall_by_destination_cell() -> None:
+    fall_state = make_fall_state()
+    fall = make_fall_in_progress(DIAMOND_ELEMENT_ID, (3, 2), (3, 3))
+    set_fall_in_progress(fall_state, fall)
+
+    removed = remove_fall_in_progress(fall_state, (3, 3))
+
+    assert removed == fall
+    assert get_fall_in_progress(fall_state, (3, 3)) is None
+    assert active_falls(fall_state) == []
+    assert blocked_fall_destinations(fall_state) == set()
+
+
+def test_game_state_reports_blocked_fall_destinations_from_fall_state() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    fall = make_fall_in_progress(ROCK_ELEMENT_ID, (2, 1), (2, 2))
+    set_fall_in_progress(state.fall_state, fall)
+
+    assert state.blocked_fall_destinations() == {(2, 2)}
+    assert state.is_blocked_fall_destination(2, 2) is True
+    assert state.is_blocked_fall_destination(1, 1) is False
 
 
 def test_moving_object_cells_tracks_rocks_and_diamonds_only() -> None:

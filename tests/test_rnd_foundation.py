@@ -4041,6 +4041,45 @@ def test_player_can_stand_under_resting_rock() -> None:
     assert state.get(2, 2) == Tile.PLAYER
 
 
+def test_gravity_only_starts_bottom_rock_in_vertical_stack() -> None:
+    state = make_state(
+        "#######",
+        "#P    #",
+        "# O   #",
+        "# O   #",
+        "# O   #",
+        "#     #",
+        "#######",
+    )
+
+    state.apply_gravity()
+
+    assert state.get(2, 2) == Tile.ROCK
+    assert state.get(2, 3) == Tile.ROCK
+    assert state.get(2, 4) == Tile.EMPTY
+    assert state.get(2, 5) == Tile.ROCK
+
+
+def test_gravity_propagates_vertical_stack_falling_upward_over_successive_updates() -> None:
+    state = make_state(
+        "#######",
+        "#P    #",
+        "# O   #",
+        "# O   #",
+        "# O   #",
+        "#     #",
+        "#######",
+    )
+
+    state.apply_gravity()
+    state.apply_gravity()
+
+    assert state.get(2, 2) == Tile.ROCK
+    assert state.get(2, 3) == Tile.EMPTY
+    assert state.get(2, 4) == Tile.ROCK
+    assert state.get(2, 5) == Tile.ROCK
+
+
 def test_gravity_can_kill_player_if_rock_was_already_falling() -> None:
     state = make_state(
         "#####",

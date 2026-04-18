@@ -592,10 +592,11 @@ class GameState:
             return
 
         just_pushed_positions = set(self.just_pushed_positions)
+        original_grid = [row.copy() for row in self.grid]
         new_falling_positions: Set[Tuple[int, int]] = set()
         for y in range(self.height - 2, -1, -1):
             for x in range(self.width):
-                cell = self.get_cell(x, y)
+                cell = original_grid[y][x]
                 if not cell_can_fall(cell, CUSTOM_ELEMENTS):
                     continue
                 if (x, y) in just_pushed_positions:
@@ -604,7 +605,7 @@ class GameState:
                     continue
 
                 was_falling = (x, y) in self.falling_positions
-                below = self.get_cell(x, y + 1)
+                below = original_grid[y + 1][x]
 
                 if cell_is_empty(below):
                     self.set_cell(x, y + 1, cell)

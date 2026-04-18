@@ -3422,7 +3422,9 @@ def test_update_graphics_frame_tracks_falling_rock_motion_from_gravity(
     )
 
     assert should_quit is False
-    assert state.get(2, 2) == Tile.ROCK
+    assert state.get(2, 1) == Tile.ROCK
+    assert state.get(2, 2) == Tile.EMPTY
+    assert state.is_blocked_fall_destination(2, 2) is True
     assert get_motion(motion_state, (2, 2)) == make_motion(Tile.ROCK, (2, 1), (2, 2), 0)
 
 
@@ -3447,6 +3449,10 @@ def test_update_graphics_frame_tracks_multiple_falling_motions_from_gravity(
     )
 
     assert should_quit is False
+    assert state.get(2, 1) == Tile.ROCK
+    assert state.get(2, 2) == Tile.EMPTY
+    assert state.get(4, 1) == Tile.DIAMOND
+    assert state.get(4, 2) == Tile.EMPTY
     assert get_motion(motion_state, (2, 2)) == make_motion(Tile.ROCK, (2, 1), (2, 2), 0)
     assert get_motion(motion_state, (4, 2)) == make_motion(Tile.DIAMOND, (4, 1), (4, 2), 0)
 
@@ -3693,7 +3699,9 @@ def test_custom_slime_fall_moves_logically_and_renders_with_custom_motion_appear
         )
 
         assert should_quit is False
-        assert state.get_cell(2, 2) == SLIME_ELEMENT_ID
+        assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
+        assert state.get_cell(2, 2) is None
+        assert state.is_blocked_fall_destination(2, 2) is True
         assert get_motion(motion_state, (2, 2)) == make_motion(SLIME_ELEMENT_ID, (2, 1), (2, 2), 0)
 
         calls: list[tuple[object, tuple[int, int, int], object, int]] = []
@@ -3825,8 +3833,9 @@ def test_update_graphics_frame_starts_fall_on_frame_after_edge_push(
         motion_state=motion_state,
     )
 
-    assert state.get(3, 1) == Tile.EMPTY
-    assert state.get(3, 2) == Tile.ROCK
+    assert state.get(3, 1) == Tile.ROCK
+    assert state.get(3, 2) == Tile.EMPTY
+    assert state.is_blocked_fall_destination(3, 2) is True
     assert get_motion(motion_state, (3, 2)) == make_motion(Tile.ROCK, (3, 1), (3, 2), 8)
 
 
@@ -3857,10 +3866,45 @@ def test_update_graphics_frame_keeps_falling_rock_in_place_while_fall_motion_is_
         motion_state=motion_state,
     )
 
-    assert state.get(2, 2) == Tile.ROCK
-    assert state.get(2, 1) == Tile.EMPTY
+    assert state.get(2, 1) == Tile.ROCK
+    assert state.get(2, 2) == Tile.EMPTY
     assert state.get(2, 3) == Tile.WALL
+    assert state.is_blocked_fall_destination(2, 2) is True
     assert get_motion(motion_state, (2, 2)) == make_motion(Tile.ROCK, (2, 1), (2, 2), 0)
+
+
+def test_update_graphics_frame_completes_fall_when_motion_finishes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "#####",
+        "#P  #",
+        "# O #",
+        "#   #",
+        "#####",
+    )
+    motion_state = make_motion_state()
+
+    update_graphics_frame(
+        state,
+        frame_number=0,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+    update_graphics_frame(
+        state,
+        frame_number=8,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+
+    assert state.get(2, 2) == Tile.EMPTY
+    assert state.get(2, 3) == Tile.ROCK
+    assert state.is_blocked_fall_destination(2, 3) is False
+    assert get_motion(motion_state, (2, 3)) is None
 
 
 def test_update_graphics_frame_keeps_snap_pushed_rock_on_edge_for_horizontal_glide(

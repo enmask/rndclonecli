@@ -607,12 +607,13 @@ class GameState:
         self.player_x, self.player_y = x, y
         self.set_cell(self.player_x, self.player_y, PLAYER_ELEMENT_ID)
 
-    def apply_gravity(self) -> None:
+    def apply_gravity(self, defer_falls: bool = False) -> None:
         if not self.alive or self.won:
             return
 
         blocked_destinations = self.blocked_fall_destinations()
-        self.fall_state.clear()
+        if not defer_falls:
+            self.fall_state.clear()
         just_pushed_positions = set(self.just_pushed_positions)
         original_grid = [row.copy() for row in self.grid]
         new_falling_positions: Set[Tuple[int, int]] = set()
@@ -634,9 +635,10 @@ class GameState:
                         self.fall_state,
                         make_fall_in_progress(cell, (x, y), (x, y + 1)),
                     )
-                    self.set_cell(x, y + 1, cell)
-                    self.set_cell(x, y, None)
-                    new_falling_positions.add((x, y + 1))
+                    if not defer_falls:
+                        self.set_cell(x, y + 1, cell)
+                        self.set_cell(x, y, None)
+                        new_falling_positions.add((x, y + 1))
                     continue
 
                 if cell_is_player(below, CUSTOM_ELEMENTS) and was_falling:
@@ -644,10 +646,13 @@ class GameState:
                         self.fall_state,
                         make_fall_in_progress(cell, (x, y), (x, y + 1)),
                     )
-                    self.set_cell(x, y + 1, cell)
-                    self.set_cell(x, y, None)
-                    new_falling_positions.add((x, y + 1))
-                    self.falling_positions = new_falling_positions
+                    if not defer_falls:
+                        self.set_cell(x, y + 1, cell)
+                        self.set_cell(x, y, None)
+                        new_falling_positions.add((x, y + 1))
+                        self.falling_positions = new_falling_positions
+                    else:
+                        self.falling_positions = set()
                     self.alive = False
                     return
 
@@ -747,14 +752,14 @@ def engine_hold_repeat_frames(engine_mode: EngineMode) -> tuple[int, int]:
     raise ValueError(f"Unsupported engine mode: {engine_mode}")
 
 
-def step_game(state: GameState, action: str | None) -> None:
+def step_game(state: GameState, action: str | None, defer_falls: bool = False) -> None:
     if action in DIRECTIONS and state.alive and not state.won:
         dx, dy = DIRECTIONS[action]
         state.try_move_player(dx, dy)
     elif action in SNAP_ACTIONS and state.alive and not state.won:
         dx, dy = SNAP_ACTIONS[action]
         state.try_snap(dx, dy)
-    state.apply_gravity()
+    state.apply_gravity(defer_falls=defer_falls)
 
 
 def buffer_action(state: GameState, action: str | None) -> None:
@@ -774,24 +779,25 @@ def step_realtime_frame(
     action: str | None,
     timing_mode: TimingMode = RND_BASELINE_TIMING_MODE,
     sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
+    defer_falls: bool = False,
 ) -> None:
     if timing_mode == TimingMode.ASYNC:
         buffer_action(state, action)
         if not is_update_frame(frame_number, timing_mode, sync_interval):
             return
-        step_game(state, consume_buffered_action(state))
+        step_game(state, consume_buffered_action(state), defer_falls=defer_falls)
         return
 
     if timing_mode == TimingMode.SYNC:
         buffer_action(state, action)
         if not is_update_frame(frame_number, timing_mode, sync_interval):
             return
-        step_game(state, consume_buffered_action(state))
+        step_game(state, consume_buffered_action(state), defer_falls=defer_falls)
         return
 
     if not is_update_frame(frame_number, timing_mode, sync_interval):
         return
-    step_game(state, action)
+    step_game(state, action, defer_falls=defer_falls)
 
 
 def can_player_take_action(state: GameState, action: str | None) -> bool:
@@ -1356,6 +1362,12 @@ def find_vertical_falling_motions(
     state: GameState,
     frame_number: int,
 ) -> list[Motion]:
+    falls = active_falls(state.fall_state)
+    if falls:
+        return [
+            make_motion(fall_cell(fall), fall_start_cell(fall), fall_destination_cell(fall), frame_number)
+            for fall in falls
+        ]
     return [
         motion
         for motion in find_moving_object_motions(before_cells, state, frame_number)
@@ -1382,9 +1394,12 @@ def track_falling_motions(
     frame_number: int,
 ) -> list[Motion]:
     motions = find_vertical_falling_motions(before_cells, state, frame_number)
+    new_motions: list[Motion] = []
     for motion in motions:
-        set_motion(motion_state, motion)
-    return motions
+        if get_motion(motion_state, motion_destination_cell(motion)) is None:
+            set_motion(motion_state, motion)
+            new_motions.append(motion)
+    return new_motions
 
 
 def motion_position_px(
@@ -1661,13 +1676,16 @@ def update_graphics_frame(
             else:
                 frame_action = held_actions[0] if held_actions else None
         if motion_state is not None:
-            update_motion_state(
+            completed_motions = update_motion_state(
                 motion_state,
                 frame_number,
                 motion_duration_frames,
                 timing_mode,
                 sync_interval,
             )
+            for motion in completed_motions:
+                if get_fall_in_progress(state.fall_state, motion_destination_cell(motion)) is not None:
+                    complete_fall(state, motion_destination_cell(motion))
             state.motion_locked_positions = {
                 motion_destination_cell(motion)
                 for motion in active_motions(motion_state)
@@ -1681,9 +1699,18 @@ def update_graphics_frame(
 
         start_cell = player_cell(state)
         before_cells = moving_object_cells(state) if motion_state is not None else None
-        step_realtime_frame(state, frame_number, frame_action, timing_mode, sync_interval)
+        step_realtime_frame(
+            state,
+            frame_number,
+            frame_action,
+            timing_mode,
+            sync_interval,
+            defer_falls=motion_state is not None,
+        )
         if motion_state is not None:
             track_player_motion(motion_state, start_cell, state, frame_number)
+            if before_cells is not None:
+                track_falling_motions(motion_state, before_cells, state, frame_number)
             if before_cells is not None:
                 track_moving_object_motions(motion_state, before_cells, state, frame_number)
     return should_quit

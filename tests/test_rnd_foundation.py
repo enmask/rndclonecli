@@ -3786,6 +3786,127 @@ def test_custom_slime_fall_moves_logically_and_renders_with_custom_motion_appear
         CUSTOM_ELEMENTS.update(original_registry)
 
 
+def test_update_graphics_frame_starts_only_bottom_custom_slime_in_vertical_stack_when_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    registry[SLIME_ELEMENT_ID] = CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        pushable=True,
+        can_fall=True,
+    )
+
+    original_registry = dict(CUSTOM_ELEMENTS)
+    try:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(registry)
+        state = make_state(
+            "#######",
+            "#P    #",
+            "# s   #",
+            "# s   #",
+            "# s   #",
+            "#     #",
+            "#######",
+        )
+        motion_state = make_motion_state()
+
+        should_quit = update_graphics_frame(
+            state,
+            frame_number=0,
+            events=[],
+            timing_mode=TimingMode.ASYNC,
+            motion_state=motion_state,
+        )
+
+        assert should_quit is False
+        assert state.get_cell(2, 2) == SLIME_ELEMENT_ID
+        assert state.get_cell(2, 3) == SLIME_ELEMENT_ID
+        assert state.get_cell(2, 4) == SLIME_ELEMENT_ID
+        assert state.get_cell(2, 5) is None
+        assert active_falls(state.fall_state) == [
+            make_fall_in_progress(SLIME_ELEMENT_ID, (2, 4), (2, 5))
+        ]
+        assert get_motion(motion_state, (2, 5)) == make_motion(SLIME_ELEMENT_ID, (2, 4), (2, 5), 0)
+        assert get_motion(motion_state, (2, 4)) is None
+        assert get_motion(motion_state, (2, 3)) is None
+    finally:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(original_registry)
+
+
+def test_update_graphics_frame_propagates_custom_slime_stack_upward_after_fall_completion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    registry[SLIME_ELEMENT_ID] = CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        pushable=True,
+        can_fall=True,
+    )
+
+    original_registry = dict(CUSTOM_ELEMENTS)
+    try:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(registry)
+        state = make_state(
+            "#######",
+            "#P    #",
+            "# s   #",
+            "# s   #",
+            "# s   #",
+            "#     #",
+            "#     #",
+            "#######",
+        )
+        motion_state = make_motion_state()
+
+        update_graphics_frame(
+            state,
+            frame_number=0,
+            events=[],
+            timing_mode=TimingMode.ASYNC,
+            motion_state=motion_state,
+        )
+        update_graphics_frame(
+            state,
+            frame_number=8,
+            events=[],
+            timing_mode=TimingMode.ASYNC,
+            motion_state=motion_state,
+        )
+        update_graphics_frame(
+            state,
+            frame_number=16,
+            events=[],
+            timing_mode=TimingMode.ASYNC,
+            motion_state=motion_state,
+        )
+
+        assert state.get_cell(2, 2) == SLIME_ELEMENT_ID
+        assert state.get_cell(2, 3) is None
+        assert state.get_cell(2, 4) == SLIME_ELEMENT_ID
+        assert state.get_cell(2, 5) is None
+        assert state.get_cell(2, 6) == SLIME_ELEMENT_ID
+        assert active_falls(state.fall_state) == [
+            make_fall_in_progress(SLIME_ELEMENT_ID, (2, 4), (2, 5)),
+            make_fall_in_progress(SLIME_ELEMENT_ID, (2, 2), (2, 3)),
+        ]
+        assert get_motion(motion_state, (2, 3)) == make_motion(SLIME_ELEMENT_ID, (2, 2), (2, 3), 16)
+        assert get_motion(motion_state, (2, 5)) == make_motion(SLIME_ELEMENT_ID, (2, 4), (2, 5), 16)
+        assert get_motion(motion_state, (2, 4)) is None
+        assert get_motion(motion_state, (2, 6)) is None
+    finally:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(original_registry)
+
+
 def test_update_graphics_frame_does_not_track_custom_slime_push_motion_when_not_falling_enabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

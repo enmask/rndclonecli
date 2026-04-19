@@ -1660,6 +1660,23 @@ def test_player_cannot_move_into_blocked_fall_destination_even_when_cell_is_empt
     assert state.get_cell(2, 1) is None
 
 
+def test_player_cannot_interact_with_fall_origin_cell_while_fall_is_in_progress() -> None:
+    state = make_state(
+        "######",
+        "#PO  #",
+        "######",
+    )
+    set_fall_in_progress(state.fall_state, make_fall_in_progress(ROCK_ELEMENT_ID, (2, 1), (2, 2)))
+
+    assert can_player_take_action(state, "d") is False
+
+    state.try_move_player(1, 0)
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.get(2, 1) == Tile.ROCK
+    assert state.get(3, 1) == Tile.EMPTY
+
+
 def test_player_cannot_push_rock_into_blocked_fall_destination() -> None:
     state = make_state(
         "######",
@@ -1671,6 +1688,21 @@ def test_player_cannot_push_rock_into_blocked_fall_destination() -> None:
     assert can_player_take_action(state, "d") is False
 
     state.try_move_player(1, 0)
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.get(2, 1) == Tile.ROCK
+    assert state.get(3, 1) == Tile.EMPTY
+
+
+def test_player_cannot_snap_push_fall_origin_cell_while_fall_is_in_progress() -> None:
+    state = make_state(
+        "######",
+        "#PO  #",
+        "######",
+    )
+    set_fall_in_progress(state.fall_state, make_fall_in_progress(ROCK_ELEMENT_ID, (2, 1), (2, 2)))
+
+    state.try_snap(1, 0)
 
     assert (state.player_x, state.player_y) == (1, 1)
     assert state.get(2, 1) == Tile.ROCK

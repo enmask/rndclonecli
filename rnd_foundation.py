@@ -515,6 +515,12 @@ class GameState:
     def is_blocked_fall_destination(self, x: int, y: int) -> bool:
         return (x, y) in self.blocked_fall_destinations()
 
+    def fall_origin_cells(self) -> Set[Tuple[int, int]]:
+        return {fall_start_cell(fall) for fall in active_falls(self.fall_state)}
+
+    def is_fall_origin_cell(self, x: int, y: int) -> bool:
+        return (x, y) in self.fall_origin_cells()
+
     def render_lines(self) -> List[str]:
         return [
             "".join(symbol_for_element_cell(self.get_cell(x, y), CUSTOM_ELEMENTS) for x in range(self.width))
@@ -539,6 +545,8 @@ class GameState:
         target = self.get_cell(tx, ty)
 
         if self.is_blocked_fall_destination(tx, ty):
+            return
+        if self.is_fall_origin_cell(tx, ty):
             return
 
         if cell_is_empty(target) or cell_is_diggable(target, CUSTOM_ELEMENTS) or cell_is_collectible(target, CUSTOM_ELEMENTS):
@@ -574,6 +582,8 @@ class GameState:
             return
 
         target = self.get_cell(tx, ty)
+        if self.is_fall_origin_cell(tx, ty):
+            return
 
         if cell_is_diggable(target, CUSTOM_ELEMENTS):
             self.set_cell(tx, ty, None)
@@ -815,6 +825,8 @@ def can_player_take_action(state: GameState, action: str | None) -> bool:
 
     target = state.get_cell(tx, ty)
     if state.is_blocked_fall_destination(tx, ty):
+        return False
+    if state.is_fall_origin_cell(tx, ty):
         return False
     if cell_is_empty(target) or cell_is_diggable(target, CUSTOM_ELEMENTS) or cell_is_collectible(target, CUSTOM_ELEMENTS):
         return True

@@ -4320,6 +4320,131 @@ def test_update_graphics_frame_completes_fall_when_motion_finishes(
     assert get_motion(motion_state, (2, 3)) is None
 
 
+def test_core_and_graphics_paths_match_for_deferred_fall_start(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    core_state = make_state(
+        "#####",
+        "# O #",
+        "#P  #",
+        "#####",
+    )
+    graphics_state = make_state(
+        "#####",
+        "# O #",
+        "#P  #",
+        "#####",
+    )
+    motion_state = make_motion_state()
+
+    step_game(core_state, None)
+    should_quit = update_graphics_frame(
+        graphics_state,
+        frame_number=0,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+
+    assert should_quit is False
+    assert graphics_state.grid == core_state.grid
+    assert active_falls(graphics_state.fall_state) == active_falls(core_state.fall_state)
+    assert graphics_state.render_lines() == core_state.render_lines()
+    assert get_motion(motion_state, (2, 2)) == make_motion(Tile.ROCK, (2, 1), (2, 2), 0)
+
+
+def test_core_and_graphics_paths_match_for_deferred_fall_completion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    core_state = make_state(
+        "######",
+        "# O P#",
+        "#    #",
+        "######",
+    )
+    graphics_state = make_state(
+        "######",
+        "# O P#",
+        "#    #",
+        "######",
+    )
+    motion_state = make_motion_state()
+
+    step_game(core_state, None)
+    step_game(core_state, None)
+    update_graphics_frame(
+        graphics_state,
+        frame_number=0,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+    update_graphics_frame(
+        graphics_state,
+        frame_number=8,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        motion_state=motion_state,
+    )
+
+    assert graphics_state.grid == core_state.grid
+    assert active_falls(graphics_state.fall_state) == active_falls(core_state.fall_state)
+    assert graphics_state.render_lines() == core_state.render_lines()
+    assert get_motion(motion_state, (2, 2)) is None
+
+
+def test_core_and_graphics_paths_match_for_custom_slime_deferred_fall_start(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    registry[SLIME_ELEMENT_ID] = CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        pushable=True,
+        can_fall=True,
+    )
+
+    original_registry = dict(CUSTOM_ELEMENTS)
+    try:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(registry)
+        core_state = make_state(
+            "#####",
+            "# s #",
+            "#P  #",
+            "#####",
+        )
+        graphics_state = make_state(
+            "#####",
+            "# s #",
+            "#P  #",
+            "#####",
+        )
+        motion_state = make_motion_state()
+
+        step_game(core_state, None)
+        should_quit = update_graphics_frame(
+            graphics_state,
+            frame_number=0,
+            events=[],
+            timing_mode=TimingMode.ASYNC,
+            motion_state=motion_state,
+        )
+
+        assert should_quit is False
+        assert graphics_state.grid == core_state.grid
+        assert active_falls(graphics_state.fall_state) == active_falls(core_state.fall_state)
+        assert graphics_state.render_lines() == core_state.render_lines()
+        assert get_motion(motion_state, (2, 2)) == make_motion(SLIME_ELEMENT_ID, (2, 1), (2, 2), 0)
+    finally:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(original_registry)
+
+
 def test_update_graphics_frame_keeps_snap_pushed_rock_on_edge_for_horizontal_glide(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

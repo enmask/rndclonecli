@@ -1503,6 +1503,66 @@ def test_realtime_terminal_engine_em_applies_sync_timing_defaults(
     assert state.pending_action == "d"
 
 
+def test_realtime_terminal_uses_deferred_falls_in_runtime_loop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeStdScr:
+        keys = [-1, ord("q")]
+        index = 0
+
+        def erase(self) -> None:
+            pass
+
+        def addstr(self, y: int, x: int, text: str) -> None:
+            pass
+
+        def refresh(self) -> None:
+            pass
+
+        def nodelay(self, value: bool) -> None:
+            pass
+
+        def timeout(self, value: int) -> None:
+            pass
+
+        def keypad(self, value: bool) -> None:
+            pass
+
+        def getch(self) -> int:
+            if self.index >= len(self.keys):
+                return ord("q")
+            key = self.keys[self.index]
+            self.index += 1
+            return key
+
+    def fake_wrapper(func: object) -> None:
+        func(FakeStdScr())
+
+    monkeypatch.setattr("rnd_foundation.curses.wrapper", fake_wrapper)
+    monkeypatch.setattr("rnd_foundation.curses.curs_set", lambda value: None)
+    monkeypatch.setattr("rnd_foundation.sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("rnd_foundation.sys.stdout.isatty", lambda: True)
+
+    state = make_state(
+        "#####",
+        "# O #",
+        "#P  #",
+        "#####",
+    )
+
+    run_interactive_realtime_terminal(state, tick_ms=250, engine_mode=EngineMode.RND)
+
+    assert state.get(2, 1) == Tile.ROCK
+    assert state.get(2, 2) == Tile.EMPTY
+    assert state.is_blocked_fall_destination(2, 2) is True
+    assert state.render_lines() == [
+        "#####",
+        "# O #",
+        "#Pv #",
+        "#####",
+    ]
+
+
 def test_make_motion_builds_a_transition_model() -> None:
     motion = make_motion(Tile.PLAYER, (1, 2), (2, 2), 7)
 

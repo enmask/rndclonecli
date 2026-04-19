@@ -1817,7 +1817,7 @@ def run_interactive_realtime_terminal(
                 break
             action = action_from_curses_key(key)
             if state.alive and not state.won:
-                step_realtime_frame(state, frame_number, action, timing_mode, sync_interval)
+                step_realtime_frame(state, frame_number, action, timing_mode, sync_interval, defer_falls=True)
             frame_number += 1
 
     curses.wrapper(_loop)

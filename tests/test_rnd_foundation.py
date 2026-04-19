@@ -146,6 +146,7 @@ from rnd_foundation import (
     tile_for_element_cell,
     tile_grid_for_element_cells,
     symbol_for_element_cell,
+    text_render_symbol_for_position,
     tile_color,
     tile_rect,
     tile_surface,
@@ -482,6 +483,19 @@ def test_symbol_for_element_cell_supports_empty_builtin_and_custom_cells() -> No
     assert symbol_for_element_cell(None, DEFAULT_CUSTOM_ELEMENTS) == " "
     assert symbol_for_element_cell(ROCK_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) == "O"
     assert symbol_for_element_cell(SLIME_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) == "s"
+
+
+def test_text_render_symbol_for_position_shows_blocked_fall_destination() -> None:
+    state = make_state(
+        "#####",
+        "#PO #",
+        "#   #",
+        "#####",
+    )
+    set_fall_in_progress(state.fall_state, make_fall_in_progress(ROCK_ELEMENT_ID, (2, 1), (2, 2)))
+
+    assert text_render_symbol_for_position(state, 2, 1) == "O"
+    assert text_render_symbol_for_position(state, 2, 2) == "v"
 
 
 def test_color_for_element_id_supports_builtin_and_custom_ids() -> None:
@@ -1620,6 +1634,58 @@ def test_complete_fall_returns_none_when_destination_is_not_pending() -> None:
         "#P  #",
         "#####",
     ]
+
+
+def test_render_lines_shows_blocked_fall_destination_for_in_progress_fall() -> None:
+    state = make_state(
+        "#####",
+        "# O #",
+        "#P  #",
+        "#####",
+    )
+
+    step_game(state, None)
+
+    assert state.render_lines() == [
+        "#####",
+        "# O #",
+        "#Pv #",
+        "#####",
+    ]
+
+
+def test_render_lines_shows_blocked_fall_destination_for_custom_slime_when_enabled() -> None:
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    registry[SLIME_ELEMENT_ID] = CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        pushable=True,
+        can_fall=True,
+    )
+
+    original_registry = dict(CUSTOM_ELEMENTS)
+    try:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(registry)
+        state = make_state(
+            "#####",
+            "# s #",
+            "#P  #",
+            "#####",
+        )
+
+        step_game(state, None)
+
+        assert state.render_lines() == [
+            "#####",
+            "# s #",
+            "#Pv #",
+            "#####",
+        ]
+    finally:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(original_registry)
 
 
 def test_step_game_uses_deferred_fall_lifecycle_by_default() -> None:

@@ -436,6 +436,12 @@ def symbol_for_element_cell(cell: ElementCell, registry: dict[str, CustomElement
     return element.symbol
 
 
+def text_render_symbol_for_position(state: "GameState", x: int, y: int) -> str:
+    if state.is_blocked_fall_destination(x, y):
+        return "v"
+    return symbol_for_element_cell(state.get_cell(x, y), CUSTOM_ELEMENTS)
+
+
 def parsed_cell_is_diggable(cell: ParsedCell, registry: dict[str, CustomElement]) -> bool:
     return cell_is_diggable(element_cell_for_parsed_cell(cell), registry)
 
@@ -523,7 +529,7 @@ class GameState:
 
     def render_lines(self) -> List[str]:
         return [
-            "".join(symbol_for_element_cell(self.get_cell(x, y), CUSTOM_ELEMENTS) for x in range(self.width))
+            "".join(text_render_symbol_for_position(self, x, y) for x in range(self.width))
             for y in range(self.height)
         ]
 

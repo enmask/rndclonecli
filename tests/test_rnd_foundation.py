@@ -1622,6 +1622,27 @@ def test_complete_fall_returns_none_when_destination_is_not_pending() -> None:
     ]
 
 
+def test_step_game_uses_deferred_fall_lifecycle_by_default() -> None:
+    state = make_state(
+        "######",
+        "# O P#",
+        "#    #",
+        "######",
+    )
+
+    step_game(state, None)
+
+    assert state.get(2, 1) == Tile.ROCK
+    assert state.get(2, 2) == Tile.EMPTY
+    assert state.is_blocked_fall_destination(2, 2) is True
+
+    step_game(state, None)
+
+    assert state.get(2, 1) == Tile.EMPTY
+    assert state.get(2, 2) == Tile.ROCK
+    assert state.blocked_fall_destinations() == set()
+
+
 def test_player_cannot_move_into_blocked_fall_destination_even_when_cell_is_empty() -> None:
     state = make_state(
         "#####",
@@ -1877,8 +1898,26 @@ def test_pushed_rock_falls_on_next_gravity_update_after_edge_push() -> None:
     step_game(state, "d")
     step_game(state, None)
 
+    assert state.get(3, 1) == Tile.ROCK
+    assert state.get(3, 2) == Tile.EMPTY
+    assert state.is_blocked_fall_destination(3, 2) is True
+
+
+def test_pushed_rock_completes_deferred_fall_on_following_core_update() -> None:
+    state = make_state(
+        "#######",
+        "#PO   #",
+        "#     #",
+        "#######",
+    )
+
+    step_game(state, "d")
+    step_game(state, None)
+    step_game(state, None)
+
     assert state.get(3, 1) == Tile.EMPTY
     assert state.get(3, 2) == Tile.ROCK
+    assert state.blocked_fall_destinations() == set()
 
 
 def test_unsupported_rock_cannot_be_pushed_again_over_hole() -> None:
@@ -1893,8 +1932,9 @@ def test_unsupported_rock_cannot_be_pushed_again_over_hole() -> None:
     step_game(state, "d")
 
     assert state.get(2, 1) == Tile.PLAYER
-    assert state.get(3, 1) == Tile.EMPTY
-    assert state.get(3, 2) == Tile.ROCK
+    assert state.get(3, 1) == Tile.ROCK
+    assert state.get(3, 2) == Tile.EMPTY
+    assert state.is_blocked_fall_destination(3, 2) is True
 
 
 def test_track_falling_motions_stores_detected_falling_motion() -> None:

@@ -752,7 +752,9 @@ def engine_hold_repeat_frames(engine_mode: EngineMode) -> tuple[int, int]:
     raise ValueError(f"Unsupported engine mode: {engine_mode}")
 
 
-def step_game(state: GameState, action: str | None, defer_falls: bool = False) -> None:
+def step_game(state: GameState, action: str | None, defer_falls: bool = True) -> None:
+    if defer_falls and not state.motion_locked_positions:
+        complete_pending_falls(state)
     if action in DIRECTIONS and state.alive and not state.won:
         dx, dy = DIRECTIONS[action]
         state.try_move_player(dx, dy)
@@ -1191,6 +1193,15 @@ def complete_fall(state: "GameState", cell: Cell) -> FallInProgress | None:
     state.set_cell(dest_x, dest_y, fall_cell(fall))
     state.falling_positions.add((dest_x, dest_y))
     return fall
+
+
+def complete_pending_falls(state: "GameState") -> list[FallInProgress]:
+    completed: list[FallInProgress] = []
+    for cell in sorted(state.blocked_fall_destinations(), key=lambda position: (position[1], position[0]), reverse=True):
+        fall = complete_fall(state, cell)
+        if fall is not None:
+            completed.append(fall)
+    return completed
 
 
 def set_motion(motion_state: MotionState, motion: Motion) -> None:

@@ -797,7 +797,7 @@ def step_realtime_frame(
     action: str | None,
     timing_mode: TimingMode = RND_BASELINE_TIMING_MODE,
     sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
-    defer_falls: bool = False,
+    defer_falls: bool = True,
 ) -> None:
     if timing_mode == TimingMode.ASYNC:
         buffer_action(state, action)

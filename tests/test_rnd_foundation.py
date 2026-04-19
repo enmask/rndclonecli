@@ -5071,7 +5071,7 @@ def test_step_realtime_frame_async_mode_updates_every_frame() -> None:
         "#####",
     )
 
-    step_realtime_frame(state, frame_number=1, action="d", timing_mode=TimingMode.ASYNC, sync_interval=8)
+    step_realtime_frame(state, frame_number=1, action="d", timing_mode=TimingMode.ASYNC, sync_interval=8, defer_falls=False)
 
     assert (state.player_x, state.player_y) == (2, 1)
     assert state.get(2, 3) == Tile.ROCK
@@ -5159,10 +5159,25 @@ def test_step_realtime_frame_async_mode_runs_gravity_without_buffered_action() -
         "#####",
     )
 
-    step_realtime_frame(state, frame_number=4, action=None, timing_mode=TimingMode.ASYNC)
+    step_realtime_frame(state, frame_number=4, action=None, timing_mode=TimingMode.ASYNC, defer_falls=False)
 
     assert state.get(2, 2) == Tile.ROCK
     assert state.pending_action is None
+
+
+def test_step_realtime_frame_uses_deferred_falls_by_default() -> None:
+    state = make_state(
+        "#####",
+        "# O #",
+        "#P  #",
+        "#####",
+    )
+
+    step_realtime_frame(state, frame_number=0, action=None, timing_mode=TimingMode.ASYNC)
+
+    assert state.get(2, 1) == Tile.ROCK
+    assert state.get(2, 2) == Tile.EMPTY
+    assert state.is_blocked_fall_destination(2, 2) is True
 
 
 def test_step_realtime_frame_async_mode_advances_falling_state_each_frame() -> None:
@@ -5175,12 +5190,12 @@ def test_step_realtime_frame_async_mode_advances_falling_state_each_frame() -> N
         "#####",
     )
 
-    step_realtime_frame(state, frame_number=0, action=None, timing_mode=TimingMode.ASYNC)
+    step_realtime_frame(state, frame_number=0, action=None, timing_mode=TimingMode.ASYNC, defer_falls=False)
 
     assert state.get(2, 2) == Tile.ROCK
     assert state.alive is True
 
-    step_realtime_frame(state, frame_number=1, action=None, timing_mode=TimingMode.ASYNC)
+    step_realtime_frame(state, frame_number=1, action=None, timing_mode=TimingMode.ASYNC, defer_falls=False)
 
     assert state.get(2, 3) == Tile.ROCK
     assert state.alive is True
@@ -5212,13 +5227,13 @@ def test_step_realtime_frame_sync_mode_skipped_frames_do_not_advance_gravity() -
         "#####",
     )
 
-    step_realtime_frame(state, frame_number=1, action=None, timing_mode=TimingMode.SYNC, sync_interval=2)
+    step_realtime_frame(state, frame_number=1, action=None, timing_mode=TimingMode.SYNC, sync_interval=2, defer_falls=False)
 
     assert state.get(2, 1) == Tile.ROCK
     assert state.get(2, 2) == Tile.EMPTY
     assert state.alive is True
 
-    step_realtime_frame(state, frame_number=2, action=None, timing_mode=TimingMode.SYNC, sync_interval=2)
+    step_realtime_frame(state, frame_number=2, action=None, timing_mode=TimingMode.SYNC, sync_interval=2, defer_falls=False)
 
     assert state.get(2, 2) == Tile.ROCK
     assert state.alive is True
@@ -5301,17 +5316,17 @@ def test_step_realtime_frame_sync_mode_preserves_falling_state_across_skipped_fr
         "#####",
     )
 
-    step_realtime_frame(state, frame_number=2, action=None, timing_mode=TimingMode.SYNC, sync_interval=2)
+    step_realtime_frame(state, frame_number=2, action=None, timing_mode=TimingMode.SYNC, sync_interval=2, defer_falls=False)
 
     assert state.get(2, 2) == Tile.ROCK
     assert state.alive is True
 
-    step_realtime_frame(state, frame_number=3, action=None, timing_mode=TimingMode.SYNC, sync_interval=2)
+    step_realtime_frame(state, frame_number=3, action=None, timing_mode=TimingMode.SYNC, sync_interval=2, defer_falls=False)
 
     assert state.get(2, 2) == Tile.ROCK
     assert state.alive is True
 
-    step_realtime_frame(state, frame_number=4, action=None, timing_mode=TimingMode.SYNC, sync_interval=2)
+    step_realtime_frame(state, frame_number=4, action=None, timing_mode=TimingMode.SYNC, sync_interval=2, defer_falls=False)
 
     assert state.get(2, 3) == Tile.ROCK
     assert state.alive is False
@@ -5326,7 +5341,7 @@ def test_step_realtime_frame_sync_mode_runs_game_update_on_update_frames() -> No
         "#####",
     )
 
-    step_realtime_frame(state, frame_number=2, action="d", timing_mode=TimingMode.SYNC, sync_interval=2)
+    step_realtime_frame(state, frame_number=2, action="d", timing_mode=TimingMode.SYNC, sync_interval=2, defer_falls=False)
 
     assert (state.player_x, state.player_y) == (2, 1)
     assert state.get(2, 3) == Tile.ROCK

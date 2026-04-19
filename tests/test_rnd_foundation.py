@@ -1643,6 +1643,55 @@ def test_step_game_uses_deferred_fall_lifecycle_by_default() -> None:
     assert state.blocked_fall_destinations() == set()
 
 
+def test_step_game_completes_pending_fall_before_processing_player_action() -> None:
+    state = make_state(
+        "#######",
+        "# O P #",
+        "#     #",
+        "#######",
+    )
+    set_fall_in_progress(state.fall_state, make_fall_in_progress(ROCK_ELEMENT_ID, (2, 1), (2, 2)))
+
+    step_game(state, "a")
+
+    assert (state.player_x, state.player_y) == (3, 1)
+    assert state.get(2, 1) == Tile.EMPTY
+    assert state.get(2, 2) == Tile.ROCK
+    assert state.blocked_fall_destinations() == set()
+
+
+def test_step_game_completes_pending_custom_slime_fall_in_core_path_when_enabled() -> None:
+    registry = dict(DEFAULT_CUSTOM_ELEMENTS)
+    registry[SLIME_ELEMENT_ID] = CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        pushable=True,
+        can_fall=True,
+    )
+
+    original_registry = dict(CUSTOM_ELEMENTS)
+    try:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(registry)
+        state = make_state(
+            "######",
+            "# s P#",
+            "#    #",
+            "######",
+        )
+        set_fall_in_progress(state.fall_state, make_fall_in_progress(SLIME_ELEMENT_ID, (2, 1), (2, 2)))
+
+        step_game(state, None)
+
+        assert state.get_cell(2, 1) is None
+        assert state.get_cell(2, 2) == SLIME_ELEMENT_ID
+        assert state.blocked_fall_destinations() == set()
+    finally:
+        CUSTOM_ELEMENTS.clear()
+        CUSTOM_ELEMENTS.update(original_registry)
+
+
 def test_player_cannot_move_into_blocked_fall_destination_even_when_cell_is_empty() -> None:
     state = make_state(
         "#####",

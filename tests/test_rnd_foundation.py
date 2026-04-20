@@ -1674,6 +1674,20 @@ def test_game_state_reports_reserved_cells_from_fall_state() -> None:
     assert state.is_reserved_cell(1, 1) is False
 
 
+def test_game_state_reports_fall_origin_cells_from_fall_state() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    fall = make_fall_in_progress(ROCK_ELEMENT_ID, (2, 1), (2, 2))
+    set_fall_in_progress(state.fall_state, fall)
+
+    assert state.fall_origin_cells() == {(2, 1)}
+    assert state.is_fall_origin_cell(2, 1) is True
+    assert state.is_fall_origin_cell(2, 2) is False
+
+
 def test_game_state_reports_open_cells_for_entry() -> None:
     state = make_state(
         "#####",
@@ -1704,6 +1718,25 @@ def test_game_state_reports_open_cells_for_push_targets() -> None:
     assert state.is_open_for_push_target(2, 1) is False
     assert state.is_open_for_push_target(2, 2) is False
     assert state.is_open_for_push_target(1, 1) is False
+
+
+def test_entry_semantics_distinguish_origin_and_reserved_cells() -> None:
+    state = make_state(
+        "#####",
+        "#PO #",
+        "#   #",
+        "#####",
+    )
+    fall = make_fall_in_progress(ROCK_ELEMENT_ID, (2, 1), (2, 2))
+    set_fall_in_progress(state.fall_state, fall)
+
+    assert state.is_reserved_cell(2, 1) is False
+    assert state.is_fall_origin_cell(2, 1) is True
+    assert state.is_open_for_entry(2, 1) is False
+
+    assert state.is_reserved_cell(2, 2) is True
+    assert state.is_fall_origin_cell(2, 2) is False
+    assert state.is_open_for_entry(2, 2) is False
 
 
 def test_complete_fall_commits_destination_and_clears_blocked_state() -> None:

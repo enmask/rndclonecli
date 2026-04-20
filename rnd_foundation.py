@@ -527,6 +527,9 @@ class GameState:
     def is_reserved_cell(self, x: int, y: int) -> bool:
         return (x, y) in self.reserved_cells()
 
+    def is_open_for_entry(self, x: int, y: int) -> bool:
+        return cell_is_empty(self.get_cell(x, y)) and not self.is_reserved_cell(x, y)
+
     def fall_origin_cells(self) -> Set[Tuple[int, int]]:
         return {fall_start_cell(fall) for fall in active_falls(self.fall_state)}
 

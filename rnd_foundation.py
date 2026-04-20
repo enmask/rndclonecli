@@ -562,12 +562,10 @@ class GameState:
 
         target = self.get_cell(tx, ty)
 
-        if self.is_blocked_fall_destination(tx, ty):
-            return
         if self.is_fall_origin_cell(tx, ty):
             return
 
-        if cell_is_empty(target) or cell_is_diggable(target, CUSTOM_ELEMENTS) or cell_is_collectible(target, CUSTOM_ELEMENTS):
+        if self.is_open_for_entry(tx, ty) or cell_is_diggable(target, CUSTOM_ELEMENTS) or cell_is_collectible(target, CUSTOM_ELEMENTS):
             if cell_is_collectible(target, CUSTOM_ELEMENTS):
                 self.diamonds_collected += 1
                 if self.diamonds_collected >= self.diamonds_total:

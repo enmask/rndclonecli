@@ -1914,6 +1914,21 @@ def test_player_cannot_move_into_blocked_fall_destination_even_when_cell_is_empt
     assert state.get_cell(2, 1) is None
 
 
+def test_player_can_move_into_open_empty_cell_while_another_cell_is_reserved() -> None:
+    state = make_state(
+        "######",
+        "#P   #",
+        "#    #",
+        "######",
+    )
+    set_fall_in_progress(state.fall_state, make_fall_in_progress(ROCK_ELEMENT_ID, (3, 0), (3, 1)))
+
+    state.try_move_player(1, 0)
+
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.get_cell(2, 1) == PLAYER_ELEMENT_ID
+
+
 def test_player_cannot_interact_with_fall_origin_cell_while_fall_is_in_progress() -> None:
     state = make_state(
         "######",

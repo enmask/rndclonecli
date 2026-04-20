@@ -521,6 +521,12 @@ class GameState:
     def is_blocked_fall_destination(self, x: int, y: int) -> bool:
         return (x, y) in self.blocked_fall_destinations()
 
+    def reserved_cells(self) -> Set[Tuple[int, int]]:
+        return self.blocked_fall_destinations()
+
+    def is_reserved_cell(self, x: int, y: int) -> bool:
+        return (x, y) in self.reserved_cells()
+
     def fall_origin_cells(self) -> Set[Tuple[int, int]]:
         return {fall_start_cell(fall) for fall in active_falls(self.fall_state)}
 

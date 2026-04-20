@@ -1660,6 +1660,20 @@ def test_game_state_reports_blocked_fall_destinations_from_fall_state() -> None:
     assert state.is_blocked_fall_destination(1, 1) is False
 
 
+def test_game_state_reports_reserved_cells_from_fall_state() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    fall = make_fall_in_progress(ROCK_ELEMENT_ID, (2, 1), (2, 2))
+    set_fall_in_progress(state.fall_state, fall)
+
+    assert state.reserved_cells() == {(2, 2)}
+    assert state.is_reserved_cell(2, 2) is True
+    assert state.is_reserved_cell(1, 1) is False
+
+
 def test_complete_fall_commits_destination_and_clears_blocked_state() -> None:
     state = make_state(
         "#####",

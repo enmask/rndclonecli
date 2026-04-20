@@ -838,11 +838,9 @@ def can_player_take_action(state: GameState, action: str | None) -> bool:
         return False
 
     target = state.get_cell(tx, ty)
-    if state.is_blocked_fall_destination(tx, ty):
-        return False
     if state.is_fall_origin_cell(tx, ty):
         return False
-    if cell_is_empty(target) or cell_is_diggable(target, CUSTOM_ELEMENTS) or cell_is_collectible(target, CUSTOM_ELEMENTS):
+    if state.is_open_for_entry(tx, ty) or cell_is_diggable(target, CUSTOM_ELEMENTS) or cell_is_collectible(target, CUSTOM_ELEMENTS):
         return True
 
     if cell_is_pushable(target, CUSTOM_ELEMENTS) and dy == 0:
@@ -853,8 +851,7 @@ def can_player_take_action(state: GameState, action: str | None) -> bool:
         push_x, push_y = tx + dx, ty
         return (
             state.in_bounds(push_x, push_y)
-            and not state.is_blocked_fall_destination(push_x, push_y)
-            and cell_is_empty(state.get_cell(push_x, push_y))
+            and state.is_open_for_push_target(push_x, push_y)
         )
 
     return False

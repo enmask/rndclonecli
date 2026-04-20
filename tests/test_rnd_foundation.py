@@ -1929,6 +1929,18 @@ def test_player_can_move_into_open_empty_cell_while_another_cell_is_reserved() -
     assert state.get_cell(2, 1) == PLAYER_ELEMENT_ID
 
 
+def test_can_player_take_action_is_true_for_open_entry_while_another_cell_is_reserved() -> None:
+    state = make_state(
+        "######",
+        "#P   #",
+        "#    #",
+        "######",
+    )
+    set_fall_in_progress(state.fall_state, make_fall_in_progress(ROCK_ELEMENT_ID, (3, 0), (3, 1)))
+
+    assert can_player_take_action(state, "d") is True
+
+
 def test_player_cannot_interact_with_fall_origin_cell_while_fall_is_in_progress() -> None:
     state = make_state(
         "######",

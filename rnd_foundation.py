@@ -581,8 +581,7 @@ class GameState:
             push_x, push_y = tx + dx, ty
             if (
                 self.in_bounds(push_x, push_y)
-                and not self.is_blocked_fall_destination(push_x, push_y)
-                and cell_is_empty(self.get_cell(push_x, push_y))
+                and self.is_open_for_push_target(push_x, push_y)
             ):
                 self.set_cell(push_x, push_y, target)
                 self.just_pushed_positions = {(push_x, push_y)}
@@ -620,8 +619,7 @@ class GameState:
             push_x, push_y = tx + dx, ty
             if (
                 self.in_bounds(push_x, push_y)
-                and not self.is_blocked_fall_destination(push_x, push_y)
-                and cell_is_empty(self.get_cell(push_x, push_y))
+                and self.is_open_for_push_target(push_x, push_y)
             ):
                 self.set_cell(push_x, push_y, target)
                 self.set_cell(tx, ty, None)

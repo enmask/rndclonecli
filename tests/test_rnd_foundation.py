@@ -1993,6 +1993,36 @@ def test_player_cannot_snap_push_rock_into_blocked_fall_destination() -> None:
     assert state.get(3, 1) == Tile.EMPTY
 
 
+def test_player_can_push_rock_into_open_target_while_another_cell_is_reserved() -> None:
+    state = make_state(
+        "#######",
+        "#PO   #",
+        "#     #",
+        "#######",
+    )
+    set_fall_in_progress(state.fall_state, make_fall_in_progress(ROCK_ELEMENT_ID, (4, 0), (4, 1)))
+
+    state.try_move_player(1, 0)
+
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.get(3, 1) == Tile.ROCK
+
+
+def test_player_can_snap_push_rock_into_open_target_while_another_cell_is_reserved() -> None:
+    state = make_state(
+        "#######",
+        "#PO   #",
+        "#     #",
+        "#######",
+    )
+    set_fall_in_progress(state.fall_state, make_fall_in_progress(ROCK_ELEMENT_ID, (4, 0), (4, 1)))
+
+    state.try_snap(1, 0)
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.get(3, 1) == Tile.ROCK
+
+
 def test_moving_object_cells_tracks_rocks_and_diamonds_only() -> None:
     state = make_state(
         "#####",

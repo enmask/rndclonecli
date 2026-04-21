@@ -1103,10 +1103,13 @@ def color_for_element_id(element_id: str | None) -> Tuple[int, int, int]:
     return colors.get(element_id, (220, 90, 90))
 
 
-def element_color(element: ElementLike) -> Tuple[int, int, int]:
+def element_color(
+    element: ElementLike,
+    registry: dict[str, CustomElement] | None = None,
+) -> Tuple[int, int, int]:
     if isinstance(element, Tile):
         return tile_color(element)
-    if element.name in CUSTOM_ELEMENTS:
+    if element.name in BUILTIN_ELEMENTS or element.name in DEFAULT_LEVEL_CUSTOM_ELEMENTS:
         return color_for_element_id(element.name)
 
     if element.symbol == ".":
@@ -1124,15 +1127,23 @@ def element_color(element: ElementLike) -> Tuple[int, int, int]:
     return (220, 90, 90)
 
 
-def element_appearance(element: ElementLike, tile_size: int) -> Tuple[object | None, Tuple[int, int, int]]:
+def element_appearance(
+    element: ElementLike,
+    tile_size: int,
+    registry: dict[str, CustomElement] | None = None,
+) -> Tuple[object | None, Tuple[int, int, int]]:
     if isinstance(element, Tile):
         return tile_appearance(element, tile_size)
-    return (None, element_color(element))
+    return (None, element_color(element, registry))
 
 
 def element_cell_color(cell: ElementCell, registry: dict[str, CustomElement]) -> Tuple[int, int, int]:
-    _ = registry
-    return color_for_element_id(cell)
+    if cell is None or cell in BUILTIN_ELEMENTS or cell in DEFAULT_LEVEL_CUSTOM_ELEMENTS:
+        return color_for_element_id(cell)
+    element = custom_element_for_cell(cell, registry)
+    if element is None:
+        return color_for_element_id(None)
+    return element_color(element, registry)
 
 
 def element_cell_appearance(
@@ -1555,7 +1566,7 @@ def draw_board(
             if (x, y) in blocked_destinations:
                 continue
             cell = origin_fall_cells.get((x, y), state.get_cell(x, y))
-            surface, fallback_color = element_cell_appearance(cell, CUSTOM_ELEMENTS, tile_size)
+            surface, fallback_color = element_cell_appearance(cell, state.registry, tile_size)
             if surface is not None:
                 screen.blit(surface, rect)
             else:
@@ -1563,7 +1574,7 @@ def draw_board(
             pygame.draw.rect(screen, (30, 30, 30), rect, 1)
 
     for cell, rect in moving_tiles:
-        surface, fallback_color = element_cell_appearance(cell, CUSTOM_ELEMENTS, tile_size)
+        surface, fallback_color = element_cell_appearance(cell, state.registry, tile_size)
         if surface is not None:
             screen.blit(surface, rect)
         else:

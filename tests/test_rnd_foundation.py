@@ -550,6 +550,16 @@ def test_element_cell_color_supports_empty_builtin_and_custom_cells() -> None:
     assert element_cell_color(SLIME_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS) == (220, 90, 90)
 
 
+def test_element_cell_color_uses_explicit_registry_for_non_global_custom_cells() -> None:
+    registry = make_active_registry(
+        {
+            "mud": CustomElement(name="mud", symbol=".", diggable=True),
+        }
+    )
+
+    assert element_cell_color("mud", registry) == tile_color(Tile.SAND)
+
+
 def test_element_cell_appearance_supports_builtin_and_custom_cells() -> None:
     assert element_cell_appearance(ROCK_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS, 24) == tile_appearance(Tile.ROCK, 24)
     assert element_cell_appearance(SLIME_ELEMENT_ID, DEFAULT_CUSTOM_ELEMENTS, 24) == (None, (220, 90, 90))
@@ -2928,6 +2938,43 @@ def test_draw_board_renders_true_custom_slime_cell_from_game_state() -> None:
     assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
     assert (screen, (220, 90, 90), (16, 8, 8, 8), 0) in calls
     assert (screen, (30, 30, 30), (16, 8, 8, 8), 1) in calls
+
+
+def test_draw_board_uses_state_registry_for_non_global_custom_cell_appearance() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.registry = make_active_registry(
+        {
+            "mud": CustomElement(name="mud", symbol=".", diggable=True),
+        }
+    )
+    state.set_cell(2, 1, "mud")
+    calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+
+    class FakeDraw:
+        @staticmethod
+        def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            calls.append((screen, color, rect, width))
+
+    class FakePygame:
+        draw = FakeDraw()
+
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    class FakeScreen:
+        def blit(self, surface: object, rect: object) -> None:
+            raise AssertionError("unexpected sprite blit")
+
+    screen = FakeScreen()
+
+    draw_board(FakePygame, screen, state, tile_size=8)
+
+    assert (screen, tile_color(Tile.SAND), (16, 8, 8, 8), 0) in calls
 
 
 def test_draw_board_renders_moving_custom_slime_with_custom_appearance() -> None:

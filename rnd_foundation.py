@@ -302,8 +302,12 @@ def tile_for_symbol(symbol: str) -> Tile | None:
     return BUILTIN_TILE_SYMBOLS.get(symbol)
 
 
-def custom_element_for_symbol(symbol: str) -> CustomElement | None:
-    return CUSTOM_ELEMENT_SYMBOLS.get(symbol)
+def custom_element_for_symbol(
+    symbol: str,
+    registry: dict[str, CustomElement] | None = None,
+) -> CustomElement | None:
+    active_registry = CUSTOM_ELEMENTS if registry is None else registry
+    return custom_element_symbols(active_registry).get(symbol)
 
 
 def surrogate_tile_for_custom_element(element: CustomElement) -> Tile | None:
@@ -316,8 +320,12 @@ def surrogate_tile_for_custom_element(element: CustomElement) -> Tile | None:
     return None
 
 
-def tile_for_level_symbol(symbol: str) -> Tile:
-    return compatibility_tile_for_level_symbol(symbol, CUSTOM_ELEMENTS)
+def tile_for_level_symbol(
+    symbol: str,
+    registry: dict[str, CustomElement] | None = None,
+) -> Tile:
+    active_registry = CUSTOM_ELEMENTS if registry is None else registry
+    return compatibility_tile_for_level_symbol(symbol, active_registry)
 
 
 def parsed_cell_for_level_symbol(
@@ -327,7 +335,7 @@ def parsed_cell_for_level_symbol(
     tile = tile_for_symbol(symbol)
     if tile is not None:
         return parsed_cell_for_tile(tile)
-    element = custom_element_symbols(registry).get(symbol)
+    element = custom_element_for_symbol(symbol, registry)
     if element is not None:
         return ParsedCell(custom_element_name=element.name)
     raise ValueError(f"Unsupported tile '{symbol}'")
@@ -454,7 +462,7 @@ def symbol_for_element_cell(cell: ElementCell, registry: dict[str, CustomElement
 def text_render_symbol_for_position(state: "GameState", x: int, y: int) -> str:
     if state.is_blocked_fall_destination(x, y):
         return "v"
-    return symbol_for_element_cell(state.get_cell(x, y), CUSTOM_ELEMENTS)
+    return symbol_for_element_cell(state.get_cell(x, y), state.registry)
 
 
 def parsed_cell_is_diggable(cell: ParsedCell, registry: dict[str, CustomElement]) -> bool:

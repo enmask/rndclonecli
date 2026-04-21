@@ -501,6 +501,24 @@ def test_text_render_symbol_for_position_shows_blocked_fall_destination() -> Non
     assert text_render_symbol_for_position(state, 2, 2) == "v"
 
 
+def test_text_render_symbol_for_position_uses_state_registry() -> None:
+    registry = make_active_registry(
+        {
+            "mud": CustomElement(name="mud", symbol="m", diggable=True),
+        }
+    )
+    state = parse_level(
+        [
+            "#####",
+            "#Pm #",
+            "#####",
+        ],
+        registry,
+    )
+
+    assert text_render_symbol_for_position(state, 2, 1) == "m"
+
+
 def test_color_for_element_id_supports_builtin_and_custom_ids() -> None:
     assert color_for_element_id(None) == tile_color(Tile.EMPTY)
     assert color_for_element_id(ROCK_ELEMENT_ID) == tile_color(Tile.ROCK)
@@ -1082,6 +1100,16 @@ def test_symbol_lookup_helpers_return_builtin_or_custom_matches() -> None:
     assert custom_element_for_symbol("*") == CUSTOM_ELEMENTS["diamond"]
 
 
+def test_custom_element_for_symbol_uses_explicit_registry() -> None:
+    registry = make_active_registry(
+        {
+            "mud": CustomElement(name="mud", symbol="m", diggable=True),
+        }
+    )
+
+    assert custom_element_for_symbol("m", registry) == registry["mud"]
+
+
 def test_symbol_lookup_helpers_return_none_for_unknown_symbols() -> None:
     assert tile_for_symbol("x") is None
     assert custom_element_for_symbol("x") is None
@@ -1094,6 +1122,16 @@ def test_tile_for_level_symbol_returns_builtin_tiles_from_mapping_layer() -> Non
     assert tile_for_level_symbol("O") == Tile.ROCK
     assert tile_for_level_symbol("*") == Tile.DIAMOND
     assert tile_for_level_symbol("P") == Tile.PLAYER
+
+
+def test_tile_for_level_symbol_uses_explicit_registry() -> None:
+    registry = make_active_registry(
+        {
+            "mud": CustomElement(name="mud", symbol="m", diggable=True),
+        }
+    )
+
+    assert tile_for_level_symbol("m", registry) == Tile.SAND
 
 
 def test_compatibility_tile_for_level_symbol_matches_existing_bridge() -> None:

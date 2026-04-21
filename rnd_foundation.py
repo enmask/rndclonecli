@@ -763,12 +763,31 @@ class GameState:
             for y in range(self.height)
         ]
 
-    def render(self) -> str:
-        status = (
-            f"Diamonds: {self.diamonds_collected}/{self.diamonds_total}  "
-            f"Status: {'WON' if self.won else 'ALIVE' if self.alive else 'DEAD'}"
+    def status_text(self) -> str:
+        status = f"Diamonds: {self.diamonds_collected}/{self.diamonds_total}"
+        if self.won:
+            status += "   YOU WON"
+        elif not self.alive:
+            status += "   YOU DIED"
+        return status
+
+    def editor_hud_text(self) -> str:
+        selected = self.selected_editor_element()
+        return (
+            f"Editor: ON   Cursor: {self.cursor_x},{self.cursor_y}   "
+            f"Paint: {selected.symbol} ({selected.name})"
         )
-        return "\n".join(self.render_lines() + [status])
+
+    def hud_text_lines(self, include_controls: bool = True) -> list[str]:
+        lines = [self.status_text()]
+        if self.editor_active:
+            lines.append(self.editor_hud_text())
+        if include_controls:
+            lines.append("Move: WASD/Arrows   Quit: Q")
+        return lines
+
+    def render(self) -> str:
+        return "\n".join(self.render_lines() + self.hud_text_lines(include_controls=False))
 
     def try_move_player(self, dx: int, dy: int) -> None:
         if not self.alive or self.won:
@@ -1807,22 +1826,14 @@ def draw_hud(
     if hud_line_gap is None:
         hud_line_gap = hud_line_gap_px()
 
-    status = f"Diamonds: {state.diamonds_collected}/{state.diamonds_total}"
-    if state.won:
-        status += "   YOU WON"
-    elif not state.alive:
-        status += "   YOU DIED"
-
-    help_text = "Move: WASD/Arrows   Quit: Q"
     hud_y = state.height * tile_size
-    screen.blit(
-        font.render(status, True, (245, 245, 245)),
-        (hud_padding_x, hud_y + hud_top_padding),
-    )
-    screen.blit(
-        font.render(help_text, True, (190, 190, 190)),
-        (hud_padding_x, hud_y + hud_top_padding + hud_line_gap),
-    )
+    hud_lines = state.hud_text_lines()
+    for index, line in enumerate(hud_lines):
+        color = (245, 245, 245) if index == 0 else EDITOR_CURSOR_COLOR if line.startswith("Editor:") else (190, 190, 190)
+        screen.blit(
+            font.render(line, True, color),
+            (hud_padding_x, hud_y + hud_top_padding + index * hud_line_gap),
+        )
 
 
 def draw_background(
@@ -1840,7 +1851,7 @@ def draw_background(
     if hud_line_gap is None:
         hud_line_gap = hud_line_gap_px(font_size)
     if hud_height is None:
-        hud_height = hud_height_px(hud_top_padding, hud_line_gap, font_size)
+        hud_height = hud_height_px(hud_top_padding, hud_line_gap, font_size, hud_line_count(state))
 
     screen.fill(background_color())
 
@@ -1902,8 +1913,17 @@ def hud_line_gap_px(font_size: int = 20) -> int:
     return font_size + 8
 
 
-def hud_height_px(hud_top_padding: int = 10, hud_line_gap: int = 28, font_size: int = 20) -> int:
-    return hud_top_padding + hud_line_gap + font_size + 12
+def hud_height_px(
+    hud_top_padding: int = 10,
+    hud_line_gap: int = 28,
+    font_size: int = 20,
+    line_count: int = 2,
+) -> int:
+    return hud_top_padding + hud_line_gap * (line_count - 1) + font_size + 12
+
+
+def hud_line_count(state: GameState) -> int:
+    return len(state.hud_text_lines())
 
 
 def board_size_px(state: GameState, tile_size: int) -> Tuple[int, int]:
@@ -1924,7 +1944,7 @@ def screen_size_px(
         hud_line_gap = hud_line_gap_px(font_size)
     board_width, board_height = board_size_px(state, tile_size)
     if hud_height is None:
-        hud_height = hud_height_px(hud_top_padding, hud_line_gap, font_size)
+        hud_height = hud_height_px(hud_top_padding, hud_line_gap, font_size, hud_line_count(state))
     return (board_width, board_height + hud_height)
 
 
@@ -2063,12 +2083,8 @@ def run_interactive_realtime_terminal(
             for y, row in enumerate(state.render_lines()):
                 stdscr.addstr(y, 0, row)
 
-            status = (
-                f"Diamonds: {state.diamonds_collected}/{state.diamonds_total}  "
-                f"Status: {'WON' if state.won else 'ALIVE' if state.alive else 'DEAD'}"
-            )
-            stdscr.addstr(state.height + 1, 0, status)
-            stdscr.addstr(state.height + 2, 0, "Controls: WASD/Arrows move, q quit")
+            for offset, line in enumerate(state.hud_text_lines()):
+                stdscr.addstr(state.height + 1 + offset, 0, line)
             stdscr.refresh()
 
             key = stdscr.getch()
@@ -2113,7 +2129,7 @@ def run_interactive_realtime_graphics(
 
     hud_top_padding = hud_top_padding_px(font_size)
     hud_line_gap = hud_line_gap_px(font_size)
-    computed_hud_height = hud_height_px(hud_top_padding, hud_line_gap, font_size)
+    computed_hud_height = hud_height_px(hud_top_padding, hud_line_gap, font_size, hud_line_count(state))
     if hud_height is None:
         hud_height = computed_hud_height
     elif hud_height < computed_hud_height:

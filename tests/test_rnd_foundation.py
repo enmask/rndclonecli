@@ -82,6 +82,7 @@ from rnd_foundation import (
     has_active_player_motion,
     hud_background_color,
     hud_height_px,
+    hud_line_count,
     hud_line_gap_px,
     hud_top_padding_px,
     is_collectible,
@@ -2460,6 +2461,27 @@ def test_render_lines_show_editor_cursor_when_active() -> None:
     ]
 
 
+def test_render_includes_editor_hud_line_when_active() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.editor_active = True
+    state.move_editor_cursor(1, 0)
+    state.select_editor_element(SAND_ELEMENT_ID)
+
+    assert state.render() == "\n".join(
+        [
+            "#####",
+            "#P@ #",
+            "#####",
+            "Diamonds: 0/0",
+            "Editor: ON   Cursor: 2,1   Paint: . (sand)",
+        ]
+    )
+
+
 def test_step_game_uses_deferred_fall_lifecycle_by_default() -> None:
     state = make_state(
         "######",
@@ -4088,6 +4110,41 @@ def test_draw_hud_renders_status_and_help_text() -> None:
     ]
 
 
+def test_draw_hud_renders_editor_status_line_when_active() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.editor_active = True
+    state.move_editor_cursor(1, 0)
+    state.select_editor_element(SAND_ELEMENT_ID)
+    render_calls: list[tuple[str, bool, tuple[int, int, int]]] = []
+    blit_calls: list[tuple[object, tuple[int, int]]] = []
+
+    class FakeFont:
+        def render(self, text: str, antialias: bool, color: tuple[int, int, int]) -> object:
+            render_calls.append((text, antialias, color))
+            return text
+
+    class FakeScreen:
+        def blit(self, surface: object, position: tuple[int, int]) -> None:
+            blit_calls.append((surface, position))
+
+    draw_hud(FakeScreen(), FakeFont(), state, tile_size=8)
+
+    assert render_calls == [
+        ("Diamonds: 0/0", True, (245, 245, 245)),
+        ("Editor: ON   Cursor: 2,1   Paint: . (sand)", True, EDITOR_CURSOR_COLOR),
+        ("Move: WASD/Arrows   Quit: Q", True, (190, 190, 190)),
+    ]
+    assert blit_calls == [
+        ("Diamonds: 0/0", (10, 34)),
+        ("Editor: ON   Cursor: 2,1   Paint: . (sand)", (10, 62)),
+        ("Move: WASD/Arrows   Quit: Q", (10, 90)),
+    ]
+
+
 def test_draw_background_renders_window_board_and_hud_underlays() -> None:
     state = make_state(
         "#####",
@@ -4261,6 +4318,19 @@ def test_layout_helpers_return_expected_pixel_sizes() -> None:
     assert hud_height_px() == 70
     assert board_size_px(state, tile_size=16) == (80, 48)
     assert screen_size_px(state, tile_size=16) == (80, 118)
+
+
+def test_layout_helpers_account_for_editor_hud_line() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.editor_active = True
+
+    assert hud_line_count(state) == 3
+    assert hud_height_px(line_count=3) == 98
+    assert screen_size_px(state, tile_size=16) == (80, 146)
 
 
 def test_layout_helpers_support_custom_visual_config() -> None:

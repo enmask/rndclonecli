@@ -252,6 +252,82 @@ def test_editor_cursor_starts_at_player_position() -> None:
     assert (state.cursor_x, state.cursor_y) == (3, 1)
 
 
+def test_editor_palette_selection_defaults_to_player_element() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    assert state.selected_editor_element_id == PLAYER_ELEMENT_ID
+    assert state.selected_editor_element() == state.registry[PLAYER_ELEMENT_ID]
+
+
+def test_editor_palette_element_ids_follow_active_registry_order() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    assert state.editor_palette_element_ids() == [
+        EMPTY_ELEMENT_ID,
+        WALL_ELEMENT_ID,
+        SAND_ELEMENT_ID,
+        ROCK_ELEMENT_ID,
+        DIAMOND_ELEMENT_ID,
+        PLAYER_ELEMENT_ID,
+        SLIME_ELEMENT_ID,
+        BRICK_ELEMENT_ID,
+    ]
+
+
+def test_select_editor_element_can_target_level_custom_element() -> None:
+    registry = make_active_registry(
+        {
+            "mud": CustomElement(name="mud", symbol="m", diggable=True),
+        }
+    )
+    state = parse_level(
+        [
+            "#####",
+            "#P  #",
+            "#####",
+        ],
+        registry,
+    )
+
+    state.select_editor_element("mud")
+
+    assert state.selected_editor_element_id == "mud"
+    assert state.selected_editor_element() == registry["mud"]
+
+
+def test_editor_palette_selection_cycles_forward_and_backward() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    state.select_next_editor_element()
+    assert state.selected_editor_element_id == SLIME_ELEMENT_ID
+
+    state.select_previous_editor_element()
+    assert state.selected_editor_element_id == PLAYER_ELEMENT_ID
+
+
+def test_select_editor_element_rejects_unknown_id() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    with pytest.raises(ValueError, match="Unknown editor element 'mud'"):
+        state.select_editor_element("mud")
+
+
 def test_move_editor_cursor_moves_within_bounds() -> None:
     state = make_state(
         "#####",

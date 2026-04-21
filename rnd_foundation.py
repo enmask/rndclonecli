@@ -623,6 +623,7 @@ class GameState:
     player_y: int
     cursor_x: int
     cursor_y: int
+    selected_editor_element_id: str
     diamonds_total: int
     registry: dict[str, CustomElement] = field(default_factory=lambda: dict(CUSTOM_ELEMENTS))
     editor_active: bool = False
@@ -650,6 +651,27 @@ class GameState:
     def move_editor_cursor(self, dx: int, dy: int) -> None:
         self.cursor_x = min(max(self.cursor_x + dx, 0), self.width - 1)
         self.cursor_y = min(max(self.cursor_y + dy, 0), self.height - 1)
+
+    def editor_palette_element_ids(self) -> list[str]:
+        return list(self.registry.keys())
+
+    def selected_editor_element(self) -> CustomElement:
+        return self.registry[self.selected_editor_element_id]
+
+    def select_editor_element(self, element_id: str) -> None:
+        if element_id not in self.registry:
+            raise ValueError(f"Unknown editor element '{element_id}'")
+        self.selected_editor_element_id = element_id
+
+    def select_next_editor_element(self) -> None:
+        palette = self.editor_palette_element_ids()
+        index = palette.index(self.selected_editor_element_id)
+        self.selected_editor_element_id = palette[(index + 1) % len(palette)]
+
+    def select_previous_editor_element(self) -> None:
+        palette = self.editor_palette_element_ids()
+        index = palette.index(self.selected_editor_element_id)
+        self.selected_editor_element_id = palette[(index - 1) % len(palette)]
 
     def get_tile(self, x: int, y: int) -> Tile:
         return tile_for_element_cell(self.grid[y][x], CUSTOM_ELEMENTS)
@@ -866,6 +888,7 @@ def parse_level(
         player_y=player_pos[1],
         cursor_x=player_pos[0],
         cursor_y=player_pos[1],
+        selected_editor_element_id=PLAYER_ELEMENT_ID,
         diamonds_total=diamonds_total,
         registry=active_registry,
     )

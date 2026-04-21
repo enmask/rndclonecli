@@ -53,6 +53,9 @@ EM_BASELINE_SYNC_INTERVAL = 8
 EM_BASELINE_MOTION_DURATION = 8
 EM_BASELINE_HOLD_REPEAT_DELAY = 8
 EM_BASELINE_HOLD_REPEAT_INTERVAL = 8
+EDITOR_CURSOR_SYMBOL = "@"
+EDITOR_CURSOR_COLOR = (255, 255, 0)
+EDITOR_CURSOR_OUTLINE_WIDTH = 3
 
 
 DIRECTIONS = {
@@ -578,6 +581,8 @@ def symbol_for_element_cell(cell: ElementCell, registry: dict[str, CustomElement
 
 
 def text_render_symbol_for_position(state: "GameState", x: int, y: int) -> str:
+    if state.editor_active and (x, y) == (state.cursor_x, state.cursor_y):
+        return EDITOR_CURSOR_SYMBOL
     if state.is_blocked_fall_destination(x, y):
         return "v"
     return symbol_for_element_cell(state.get_cell(x, y), state.registry)
@@ -1713,6 +1718,14 @@ def draw_board(
         else:
             pygame.draw.rect(screen, fallback_color, rect)
         pygame.draw.rect(screen, (30, 30, 30), rect, 1)
+
+    if state.editor_active and state.in_bounds(state.cursor_x, state.cursor_y):
+        pygame.draw.rect(
+            screen,
+            EDITOR_CURSOR_COLOR,
+            tile_rect(pygame, state.cursor_x, state.cursor_y, tile_size),
+            EDITOR_CURSOR_OUTLINE_WIDTH,
+        )
 
 
 def draw_hud(

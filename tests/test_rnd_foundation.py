@@ -14,6 +14,8 @@ from rnd_foundation import (
     DEFAULT_CUSTOM_ELEMENTS,
     DEFAULT_LEVEL_CUSTOM_ELEMENTS,
     DEFAULT_ENGINE_MODE,
+    EDITOR_CURSOR_COLOR,
+    EDITOR_CURSOR_SYMBOL,
     EngineMode,
     GameState,
     EMPTY_ELEMENT_ID,
@@ -566,6 +568,17 @@ def test_text_render_symbol_for_position_uses_state_registry() -> None:
     )
 
     assert text_render_symbol_for_position(state, 2, 1) == "m"
+
+
+def test_text_render_symbol_for_position_shows_editor_cursor_when_active() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.editor_active = True
+
+    assert text_render_symbol_for_position(state, 1, 1) == EDITOR_CURSOR_SYMBOL
 
 
 def test_color_for_element_id_supports_builtin_and_custom_ids() -> None:
@@ -2208,6 +2221,22 @@ def test_render_lines_shows_blocked_fall_destination_for_custom_slime_when_enabl
         CUSTOM_ELEMENTS.update(original_registry)
 
 
+def test_render_lines_show_editor_cursor_when_active() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.editor_active = True
+    state.move_editor_cursor(1, 0)
+
+    assert state.render_lines() == [
+        "#####",
+        "#P@ #",
+        "#####",
+    ]
+
+
 def test_step_game_uses_deferred_fall_lifecycle_by_default() -> None:
     state = make_state(
         "######",
@@ -3318,6 +3347,39 @@ def test_draw_board_renders_true_custom_brick_cell_from_game_state() -> None:
     assert state.get_cell(2, 1) == BRICK_ELEMENT_ID
     assert (screen, (150, 80, 80), (16, 8, 8, 8), 0) in calls
     assert (screen, (30, 30, 30), (16, 8, 8, 8), 1) in calls
+
+
+def test_draw_board_draws_editor_cursor_outline_when_active() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.editor_active = True
+    state.move_editor_cursor(1, 0)
+    calls: list[tuple[object, tuple[int, int, int], object, int]] = []
+
+    class FakeDraw:
+        @staticmethod
+        def rect(screen: object, color: tuple[int, int, int], rect: object, width: int = 0) -> None:
+            calls.append((screen, color, rect, width))
+
+    class FakePygame:
+        draw = FakeDraw()
+
+        @staticmethod
+        def Rect(x: int, y: int, width: int, height: int) -> tuple[int, int, int, int]:
+            return (x, y, width, height)
+
+    class FakeScreen:
+        def blit(self, surface: object, rect: object) -> None:
+            raise AssertionError("unexpected sprite blit")
+
+    screen = FakeScreen()
+
+    draw_board(FakePygame, screen, state, tile_size=8)
+
+    assert calls[-1] == (screen, EDITOR_CURSOR_COLOR, (16, 8, 8, 8), 3)
 
 
 def test_draw_board_skips_static_draw_at_blocked_fall_destination() -> None:

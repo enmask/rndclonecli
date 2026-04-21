@@ -3975,6 +3975,34 @@ def test_update_graphics_frame_updates_state_and_reports_quit(monkeypatch: pytes
     assert (state.player_x, state.player_y) == (2, 1)
 
 
+def test_update_graphics_frame_does_not_update_gameplay_while_editor_is_active(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "######",
+        "#P   #",
+        "######",
+    )
+    state.editor_active = True
+    state.pending_action = "d"
+    events = [
+        FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d),
+        FakeEvent(FakePygame.KEYDOWN, FakePygame.K_q),
+    ]
+
+    should_quit = update_graphics_frame(
+        state,
+        frame_number=0,
+        events=events,
+        timing_mode=TimingMode.ASYNC,
+    )
+
+    assert should_quit is True
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.pending_action is None
+
+
 def test_update_graphics_frame_uses_held_key_when_no_keydown_event(monkeypatch: pytest.MonkeyPatch) -> None:
     install_fake_pygame(monkeypatch)
     state = make_state(
@@ -5601,6 +5629,24 @@ def test_step_game_supports_snap_actions() -> None:
 
     assert (state.player_x, state.player_y) == (1, 1)
     assert state.get(2, 1) == Tile.EMPTY
+
+
+def test_step_game_does_not_update_while_editor_is_active() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "# O #",
+        "#   #",
+        "#####",
+    )
+    state.editor_active = True
+    state.pending_action = "d"
+
+    step_game(state, "d", defer_falls=False)
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.get(2, 2) == Tile.ROCK
+    assert state.pending_action is None
 
 
 def test_step_realtime_frame_async_mode_consumes_prebuffered_action() -> None:

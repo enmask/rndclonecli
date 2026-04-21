@@ -618,6 +618,7 @@ class GameState:
     player_y: int
     diamonds_total: int
     registry: dict[str, CustomElement] = field(default_factory=lambda: dict(CUSTOM_ELEMENTS))
+    editor_active: bool = False
     diamonds_collected: int = 0
     alive: bool = True
     won: bool = False
@@ -924,6 +925,9 @@ def engine_hold_repeat_frames(engine_mode: EngineMode) -> tuple[int, int]:
 
 
 def step_game(state: GameState, action: str | None, defer_falls: bool = True) -> None:
+    if state.editor_active:
+        state.pending_action = None
+        return
     if defer_falls and not state.motion_locked_positions:
         complete_pending_falls(state)
     if action in DIRECTIONS and state.alive and not state.won:
@@ -954,6 +958,9 @@ def step_realtime_frame(
     sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
     defer_falls: bool = True,
 ) -> None:
+    if state.editor_active:
+        state.pending_action = None
+        return
     if timing_mode == TimingMode.ASYNC:
         buffer_action(state, action)
         if not is_update_frame(frame_number, timing_mode, sync_interval):
@@ -1850,6 +1857,9 @@ def update_graphics_frame(
 ) -> bool:
     event_list = list(events)
     should_quit = pygame_frame_requests_quit(event_list)
+    if state.editor_active:
+        state.pending_action = None
+        return should_quit
     if state.alive and not state.won:
         frame_action = action_from_pygame_frame_events(event_list)
         if frame_action is not None and hold_state is not None:

@@ -1227,6 +1227,14 @@ def make_hold_state() -> HoldState:
     return {"action": None, "press_frame": None, "last_output_action": None}
 
 
+def clear_hold_state(hold_state: HoldState | None) -> None:
+    if hold_state is None:
+        return
+    hold_state["action"] = None
+    hold_state["press_frame"] = None
+    hold_state["last_output_action"] = None
+
+
 def repeated_held_action(
     hold_state: HoldState,
     frame_number: int,
@@ -1983,10 +1991,12 @@ def update_graphics_frame(
     should_quit = pygame_frame_requests_quit(event_list)
     frame_action = action_from_pygame_frame_events(event_list)
     if frame_action == EDITOR_TOGGLE_ACTION:
+        clear_hold_state(hold_state)
         state.toggle_editor_active()
         return should_quit
     if state.editor_active:
         state.pending_action = None
+        clear_hold_state(hold_state)
         return should_quit
     if state.alive and not state.won:
         if frame_action is not None and hold_state is not None:

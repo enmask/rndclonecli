@@ -51,6 +51,7 @@ from rnd_foundation import (
     can_smash_element,
     can_player_take_action,
     clamp_progress,
+    clear_hold_state,
     complete_fall,
     complete_motion,
     compatibility_tile_for_element_cell,
@@ -4483,6 +4484,60 @@ def test_update_graphics_frame_toggles_editor_mode_from_key_event(
     assert state.editor_active is False
 
 
+def test_update_graphics_frame_editor_toggle_clears_held_input_state_and_prevents_leak(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "######",
+        "#P   #",
+        "######",
+    )
+    pressed = [False] * 14
+    pressed[FakePygame.K_d] = True
+    hold_state = {"action": ("d",), "press_frame": 0, "last_output_action": "d"}
+
+    update_graphics_frame(
+        state,
+        frame_number=10,
+        events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_e)],
+        timing_mode=TimingMode.ASYNC,
+        pressed_keys=pressed,
+        hold_state=hold_state,
+    )
+
+    assert state.editor_active is True
+    assert hold_state == {"action": None, "press_frame": None, "last_output_action": None}
+    assert (state.player_x, state.player_y) == (1, 1)
+
+    update_graphics_frame(
+        state,
+        frame_number=11,
+        events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_e)],
+        timing_mode=TimingMode.ASYNC,
+        pressed_keys=pressed,
+        hold_state=hold_state,
+    )
+
+    assert state.editor_active is False
+    assert hold_state == {"action": None, "press_frame": None, "last_output_action": None}
+    assert (state.player_x, state.player_y) == (1, 1)
+
+    update_graphics_frame(
+        state,
+        frame_number=12,
+        events=[],
+        timing_mode=TimingMode.ASYNC,
+        pressed_keys=pressed,
+        hold_state=hold_state,
+        hold_repeat_delay_frames=8,
+        hold_repeat_interval_frames=8,
+    )
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert hold_state == {"action": ("d",), "press_frame": 12, "last_output_action": None}
+
+
 def test_update_graphics_frame_uses_held_key_when_no_keydown_event(monkeypatch: pytest.MonkeyPatch) -> None:
     install_fake_pygame(monkeypatch)
     state = make_state(
@@ -6707,6 +6762,14 @@ def test_repeated_held_action_resets_when_key_is_released() -> None:
     assert repeated_held_action(hold_state, 1, None, 4, 4) is None
     assert repeated_held_action(hold_state, 2, "d", 4, 4) is None
     assert hold_state == {"action": ("d",), "press_frame": 2, "last_output_action": None}
+
+
+def test_clear_hold_state_resets_held_input_tracking() -> None:
+    hold_state = {"action": ("d",), "press_frame": 8, "last_output_action": "d"}
+
+    clear_hold_state(hold_state)
+
+    assert hold_state == {"action": None, "press_frame": None, "last_output_action": None}
 
 
 def test_repeated_held_action_alternates_two_orthogonal_directions() -> None:

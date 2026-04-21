@@ -142,6 +142,8 @@ from rnd_foundation import (
     parsed_cell_can_smash,
     parsed_cell_for_tile,
     custom_element_symbols,
+    level_custom_elements_sidecar_data,
+    level_elements_sidecar_path,
     tile_for_symbol,
     tile_for_level_symbol,
     tile_appearance,
@@ -692,6 +694,45 @@ def test_make_active_registry_merges_builtins_with_level_custom_elements() -> No
 
     assert active_registry[WALL_ELEMENT_ID] == BUILTIN_ELEMENT_DEFINITIONS[WALL_ELEMENT_ID]
     assert active_registry["mud"] == CustomElement(name="mud", symbol="m", diggable=True)
+
+
+def test_level_elements_sidecar_path_uses_sidecar_suffix() -> None:
+    assert level_elements_sidecar_path("/tmp/level.txt") == "/tmp/level.elements.json"
+    assert level_elements_sidecar_path("/tmp/level") == "/tmp/level.elements.json"
+
+
+def test_level_custom_elements_sidecar_data_serializes_level_custom_definitions() -> None:
+    data = level_custom_elements_sidecar_data(
+        {
+            "mud": CustomElement(name="mud", symbol="m", diggable=True),
+            "gel": CustomElement(name="gel", symbol="g", pushable=True, can_fall=True),
+        }
+    )
+
+    assert data == {
+        "format": "rndclonecli.level-elements",
+        "version": 1,
+        "elements": [
+            {
+                "name": "gel",
+                "symbol": "g",
+                "diggable": False,
+                "collectible": False,
+                "pushable": True,
+                "can_fall": True,
+                "can_smash": False,
+            },
+            {
+                "name": "mud",
+                "symbol": "m",
+                "diggable": True,
+                "collectible": False,
+                "pushable": False,
+                "can_fall": False,
+                "can_smash": False,
+            },
+        ],
+    }
 
 
 def test_register_custom_element_adds_new_named_element() -> None:

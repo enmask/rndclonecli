@@ -144,6 +144,9 @@ def make_active_registry(
 
 DEFAULT_CUSTOM_ELEMENTS: dict[str, CustomElement] = make_active_registry(DEFAULT_LEVEL_CUSTOM_ELEMENTS)
 CUSTOM_ELEMENTS: dict[str, CustomElement] = make_active_registry(DEFAULT_LEVEL_CUSTOM_ELEMENTS)
+LEVEL_ELEMENTS_SIDECAR_FORMAT = "rndclonecli.level-elements"
+LEVEL_ELEMENTS_SIDECAR_VERSION = 1
+LEVEL_ELEMENTS_SIDECAR_SUFFIX = ".elements.json"
 
 
 def register_custom_element(registry: dict[str, CustomElement], element: CustomElement) -> None:
@@ -180,6 +183,32 @@ def custom_element_symbols(registry: dict[str, CustomElement]) -> dict[str, Cust
 
 
 CUSTOM_ELEMENT_SYMBOLS: dict[str, CustomElement] = custom_element_symbols(CUSTOM_ELEMENTS)
+
+
+def level_elements_sidecar_path(level_path: str) -> str:
+    base, _ = os.path.splitext(level_path)
+    return f"{base}{LEVEL_ELEMENTS_SIDECAR_SUFFIX}"
+
+
+def level_custom_elements_sidecar_data(
+    level_custom_elements: dict[str, CustomElement],
+) -> dict[str, object]:
+    return {
+        "format": LEVEL_ELEMENTS_SIDECAR_FORMAT,
+        "version": LEVEL_ELEMENTS_SIDECAR_VERSION,
+        "elements": [
+            {
+                "name": element.name,
+                "symbol": element.symbol,
+                "diggable": element.diggable,
+                "collectible": element.collectible,
+                "pushable": element.pushable,
+                "can_fall": element.can_fall,
+                "can_smash": element.can_smash,
+            }
+            for _, element in sorted(level_custom_elements.items())
+        ],
+    }
 
 
 @dataclass(frozen=True)

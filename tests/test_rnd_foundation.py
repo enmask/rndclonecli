@@ -166,6 +166,7 @@ from rnd_foundation import (
     update_graphics_frame,
     make_motion,
     update_motion_state,
+    validate_level_custom_elements,
 )
 
 
@@ -560,11 +561,11 @@ def test_element_cell_color_supports_empty_builtin_and_custom_cells() -> None:
 def test_element_cell_color_uses_explicit_registry_for_non_global_custom_cells() -> None:
     registry = make_active_registry(
         {
-            "mud": CustomElement(name="mud", symbol=".", diggable=True),
+            "mud": CustomElement(name="mud", symbol="m", diggable=True),
         }
     )
 
-    assert element_cell_color("mud", registry) == tile_color(Tile.SAND)
+    assert element_cell_color("mud", registry) == (220, 90, 90)
 
 
 def test_element_cell_appearance_supports_builtin_and_custom_cells() -> None:
@@ -701,6 +702,33 @@ def test_make_active_registry_merges_builtins_with_level_custom_elements() -> No
     assert active_registry["mud"] == CustomElement(name="mud", symbol="m", diggable=True)
 
 
+def test_validate_level_custom_elements_rejects_builtin_name_conflict() -> None:
+    with pytest.raises(ValueError, match="name 'sand' conflicts with built-in element"):
+        validate_level_custom_elements(
+            {
+                "sand": CustomElement(name="sand", symbol="m", diggable=True),
+            }
+        )
+
+
+def test_validate_level_custom_elements_rejects_builtin_symbol_conflict() -> None:
+    with pytest.raises(ValueError, match="symbol '\\.' conflicts with built-in element"):
+        validate_level_custom_elements(
+            {
+                "mud": CustomElement(name="mud", symbol=".", diggable=True),
+            }
+        )
+
+
+def test_make_active_registry_rejects_level_custom_conflicts_with_builtins() -> None:
+    with pytest.raises(ValueError, match="symbol 'P' conflicts with built-in element"):
+        make_active_registry(
+            {
+                "hero": CustomElement(name="hero", symbol="P"),
+            }
+        )
+
+
 def test_level_elements_sidecar_path_uses_sidecar_suffix() -> None:
     assert level_elements_sidecar_path("/tmp/level.txt") == "/tmp/level.elements.json"
     assert level_elements_sidecar_path("/tmp/level") == "/tmp/level.elements.json"
@@ -765,6 +793,38 @@ def test_level_custom_elements_from_sidecar_data_deserializes_custom_definitions
         "gel": CustomElement(name="gel", symbol="g", pushable=True, can_fall=True),
         "mud": CustomElement(name="mud", symbol="m", diggable=True),
     }
+
+
+def test_level_custom_elements_from_sidecar_data_rejects_builtin_name_conflict() -> None:
+    with pytest.raises(ValueError, match="name 'rock' conflicts with built-in element"):
+        level_custom_elements_from_sidecar_data(
+            {
+                "format": "rndclonecli.level-elements",
+                "version": 1,
+                "elements": [
+                    {
+                        "name": "rock",
+                        "symbol": "r",
+                    },
+                ],
+            }
+        )
+
+
+def test_level_custom_elements_from_sidecar_data_rejects_builtin_symbol_conflict() -> None:
+    with pytest.raises(ValueError, match="symbol '\\*' conflicts with built-in element"):
+        level_custom_elements_from_sidecar_data(
+            {
+                "format": "rndclonecli.level-elements",
+                "version": 1,
+                "elements": [
+                    {
+                        "name": "gem2",
+                        "symbol": "*",
+                    },
+                ],
+            }
+        )
 
 
 def test_load_level_custom_elements_returns_empty_registry_when_sidecar_is_missing(tmp_path) -> None:
@@ -3086,7 +3146,7 @@ def test_draw_board_uses_state_registry_for_non_global_custom_cell_appearance() 
     )
     state.registry = make_active_registry(
         {
-            "mud": CustomElement(name="mud", symbol=".", diggable=True),
+            "mud": CustomElement(name="mud", symbol="m", diggable=True),
         }
     )
     state.set_cell(2, 1, "mud")
@@ -3112,7 +3172,7 @@ def test_draw_board_uses_state_registry_for_non_global_custom_cell_appearance() 
 
     draw_board(FakePygame, screen, state, tile_size=8)
 
-    assert (screen, tile_color(Tile.SAND), (16, 8, 8, 8), 0) in calls
+    assert (screen, (220, 90, 90), (16, 8, 8, 8), 0) in calls
 
 
 def test_draw_board_renders_moving_custom_slime_with_custom_appearance() -> None:

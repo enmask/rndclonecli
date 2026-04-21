@@ -134,9 +134,28 @@ DEFAULT_LEVEL_CUSTOM_ELEMENTS: dict[str, CustomElement] = {
 }
 
 
+def validate_level_custom_elements(level_custom_elements: dict[str, CustomElement]) -> None:
+    builtin_symbols = {element.symbol for element in BUILTIN_ELEMENT_DEFINITIONS.values()}
+    seen_symbols: set[str] = set()
+
+    for key, element in level_custom_elements.items():
+        if key != element.name:
+            raise ValueError(
+                f"Level custom element key '{key}' must match element name '{element.name}'"
+            )
+        if element.name in BUILTIN_ELEMENT_DEFINITIONS:
+            raise ValueError(f"Level custom element name '{element.name}' conflicts with built-in element")
+        if element.symbol in builtin_symbols:
+            raise ValueError(f"Level custom element symbol '{element.symbol}' conflicts with built-in element")
+        if element.symbol in seen_symbols:
+            raise ValueError(f"Level custom element symbol '{element.symbol}' is already registered")
+        seen_symbols.add(element.symbol)
+
+
 def make_active_registry(
     level_custom_elements: dict[str, CustomElement] | None = None,
 ) -> dict[str, CustomElement]:
+    validate_level_custom_elements(level_custom_elements or {})
     return {
         **BUILTIN_ELEMENT_DEFINITIONS,
         **(level_custom_elements or {}),
@@ -247,6 +266,7 @@ def level_custom_elements_from_sidecar_data(data: dict[str, object]) -> dict[str
             ),
         )
 
+    validate_level_custom_elements(registry)
     return registry
 
 
@@ -272,6 +292,7 @@ def level_custom_elements_from_registry(registry: dict[str, CustomElement]) -> d
 
 
 def save_level_custom_elements(level_path: str, level_custom_elements: dict[str, CustomElement]) -> None:
+    validate_level_custom_elements(level_custom_elements)
     sidecar_path = level_elements_sidecar_path(level_path)
     sidecar_data = level_custom_elements_sidecar_data(level_custom_elements)
     with open(sidecar_path, "w", encoding="utf-8") as sidecar_file:

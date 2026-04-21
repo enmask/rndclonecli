@@ -4596,6 +4596,42 @@ def test_update_graphics_frame_editor_toggle_clears_held_input_state_and_prevent
     assert hold_state == {"action": ("d",), "press_frame": 12, "last_output_action": None}
 
 
+def test_update_graphics_frame_routes_editor_controls_when_active(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "######",
+        "#P   #",
+        "######",
+    )
+    state.editor_active = True
+
+    update_graphics_frame(
+        state,
+        frame_number=0,
+        events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+        timing_mode=TimingMode.ASYNC,
+    )
+    update_graphics_frame(
+        state,
+        frame_number=1,
+        events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_RIGHTBRACKET)],
+        timing_mode=TimingMode.ASYNC,
+    )
+    update_graphics_frame(
+        state,
+        frame_number=2,
+        events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_SPACE)],
+        timing_mode=TimingMode.ASYNC,
+    )
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert (state.cursor_x, state.cursor_y) == (2, 1)
+    assert state.selected_editor_element_id == SLIME_ELEMENT_ID
+    assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
+
+
 def test_update_graphics_frame_uses_held_key_when_no_keydown_event(monkeypatch: pytest.MonkeyPatch) -> None:
     install_fake_pygame(monkeypatch)
     state = make_state(
@@ -6672,6 +6708,11 @@ class FakePygame:
     K_RIGHT = 11
     K_x = 12
     K_e = 13
+    K_LEFTBRACKET = 14
+    K_RIGHTBRACKET = 15
+    K_SPACE = 16
+    K_RETURN = 17
+    K_KP_ENTER = 18
     KMOD_CTRL = 64
 
     class display:
@@ -6826,6 +6867,18 @@ def test_action_from_pygame_key_supports_editor_toggle_action(monkeypatch: pytes
     install_fake_pygame(monkeypatch)
 
     assert action_from_pygame_key(FakePygame.K_e) == EDITOR_TOGGLE_ACTION
+
+
+def test_action_from_pygame_key_supports_editor_palette_and_paint_actions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+
+    assert action_from_pygame_key(FakePygame.K_LEFTBRACKET) == EDITOR_PREVIOUS_ELEMENT_ACTION
+    assert action_from_pygame_key(FakePygame.K_RIGHTBRACKET) == EDITOR_NEXT_ELEMENT_ACTION
+    assert action_from_pygame_key(FakePygame.K_SPACE) == EDITOR_PAINT_ACTION
+    assert action_from_pygame_key(FakePygame.K_RETURN) == EDITOR_PAINT_ACTION
+    assert action_from_pygame_key(FakePygame.K_KP_ENTER) == EDITOR_PAINT_ACTION
 
 
 def test_step_game_toggles_editor_mode_immediately() -> None:

@@ -1172,6 +1172,12 @@ def action_from_pygame_key(key: int, ctrl_held: bool = False) -> str | None:
     pygame = importlib.import_module("pygame")
     if key == pygame.K_e:
         return EDITOR_TOGGLE_ACTION
+    if key == pygame.K_LEFTBRACKET:
+        return EDITOR_PREVIOUS_ELEMENT_ACTION
+    if key == pygame.K_RIGHTBRACKET:
+        return EDITOR_NEXT_ELEMENT_ACTION
+    if key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP_ENTER):
+        return EDITOR_PAINT_ACTION
     if ctrl_held:
         if key in (pygame.K_w, pygame.K_UP):
             return "W"
@@ -2015,6 +2021,14 @@ def update_graphics_frame(
     if state.editor_active:
         state.pending_action = None
         clear_hold_state(hold_state)
+        if frame_action is not None:
+            step_realtime_frame(
+                state,
+                frame_number,
+                frame_action,
+                timing_mode,
+                sync_interval,
+            )
         return should_quit
     if state.alive and not state.won:
         if frame_action is not None and hold_state is not None:

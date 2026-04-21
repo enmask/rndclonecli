@@ -787,12 +787,17 @@ class GameState:
             f"Paint: {selected.symbol} ({selected.name})"
         )
 
+    def controls_hud_text(self) -> str:
+        if self.editor_active:
+            return "Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   E exit   Q quit"
+        return "Move: WASD/Arrows   E editor   Q quit"
+
     def hud_text_lines(self, include_controls: bool = True) -> list[str]:
         lines = [self.status_text()]
         if self.editor_active:
             lines.append(self.editor_hud_text())
         if include_controls:
-            lines.append("Move: WASD/Arrows   Quit: Q")
+            lines.append(self.controls_hud_text())
         return lines
 
     def render(self) -> str:

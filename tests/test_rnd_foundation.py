@@ -4213,11 +4213,11 @@ def test_draw_hud_renders_status_and_help_text() -> None:
 
     assert render_calls == [
         ("Diamonds: 1/1   YOU WON", True, (245, 245, 245)),
-        ("Move: WASD/Arrows   Quit: Q", True, (190, 190, 190)),
+        ("Move: WASD/Arrows   E editor   Q quit", True, (190, 190, 190)),
     ]
     assert blit_calls == [
         ("Diamonds: 1/1   YOU WON", (10, 34)),
-        ("Move: WASD/Arrows   Quit: Q", (10, 62)),
+        ("Move: WASD/Arrows   E editor   Q quit", (10, 62)),
     ]
 
 
@@ -4247,12 +4247,12 @@ def test_draw_hud_renders_editor_status_line_when_active() -> None:
     assert render_calls == [
         ("Diamonds: 0/0", True, (245, 245, 245)),
         ("Editor: ON   Cursor: 2,1   Paint: . (sand)", True, EDITOR_CURSOR_COLOR),
-        ("Move: WASD/Arrows   Quit: Q", True, (190, 190, 190)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   E exit   Q quit", True, (190, 190, 190)),
     ]
     assert blit_calls == [
         ("Diamonds: 0/0", (10, 34)),
         ("Editor: ON   Cursor: 2,1   Paint: . (sand)", (10, 62)),
-        ("Move: WASD/Arrows   Quit: Q", (10, 90)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   E exit   Q quit", (10, 90)),
     ]
 
 
@@ -4323,11 +4323,11 @@ def test_draw_hud_scales_spacing_with_font_size() -> None:
 
     assert render_calls == [
         ("Diamonds: 0/0", True, (245, 245, 245)),
-        ("Move: WASD/Arrows   Quit: Q", True, (190, 190, 190)),
+        ("Move: WASD/Arrows   E editor   Q quit", True, (190, 190, 190)),
     ]
     assert blit_calls == [
         ("Diamonds: 0/0", (10, 39)),
-        ("Move: WASD/Arrows   Quit: Q", (10, 77)),
+        ("Move: WASD/Arrows   E editor   Q quit", (10, 77)),
     ]
 
 
@@ -4354,11 +4354,11 @@ def test_draw_hud_renders_dead_status_text() -> None:
 
     assert render_calls == [
         ("Diamonds: 0/0   YOU DIED", True, (245, 245, 245)),
-        ("Move: WASD/Arrows   Quit: Q", True, (190, 190, 190)),
+        ("Move: WASD/Arrows   E editor   Q quit", True, (190, 190, 190)),
     ]
     assert blit_calls == [
         ("Diamonds: 0/0   YOU DIED", (10, 34)),
-        ("Move: WASD/Arrows   Quit: Q", (10, 62)),
+        ("Move: WASD/Arrows   E editor   Q quit", (10, 62)),
     ]
 
 
@@ -4411,11 +4411,11 @@ def test_render_frame_clears_screen_and_draws_board_and_hud() -> None:
     ]
     assert render_calls == [
         ("Diamonds: 0/0", True, (245, 245, 245)),
-        ("Move: WASD/Arrows   Quit: Q", True, (190, 190, 190)),
+        ("Move: WASD/Arrows   E editor   Q quit", True, (190, 190, 190)),
     ]
     assert blit_calls == [
         ("Diamonds: 0/0", (10, 34)),
-        ("Move: WASD/Arrows   Quit: Q", (10, 62)),
+        ("Move: WASD/Arrows   E editor   Q quit", (10, 62)),
     ]
 
 
@@ -7278,11 +7278,11 @@ def test_render_frame_supports_sprite_tiles_with_background_and_hud(monkeypatch:
     assert blit_calls[0] == (("player-surface", 8), (8, 8, 8, 8))
     assert blit_calls[1:] == [
         ("Diamonds: 0/0", (10, 34)),
-        ("Move: WASD/Arrows   Quit: Q", (10, 62)),
+        ("Move: WASD/Arrows   E editor   Q quit", (10, 62)),
     ]
     assert render_calls == [
         ("Diamonds: 0/0", True, (245, 245, 245)),
-        ("Move: WASD/Arrows   Quit: Q", True, (190, 190, 190)),
+        ("Move: WASD/Arrows   E editor   Q quit", True, (190, 190, 190)),
     ]
     assert (screen, tile_color(Tile.PLAYER), (8, 8, 8, 8), 0) not in draw_calls
 
@@ -7398,5 +7398,5 @@ def test_render_frame_scales_background_and_hud_with_visual_config() -> None:
     ]
     assert blit_calls[-2:] == [
         ("Diamonds: 0/0", (10, 63)),
-        ("Move: WASD/Arrows   Quit: Q", (10, 101)),
+        ("Move: WASD/Arrows   E editor   Q quit", (10, 101)),
     ]

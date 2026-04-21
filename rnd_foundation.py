@@ -131,11 +131,19 @@ DEFAULT_LEVEL_CUSTOM_ELEMENTS: dict[str, CustomElement] = {
     SLIME_ELEMENT_ID: CustomElement(name=SLIME_ELEMENT_ID, symbol="s", diggable=True),
     BRICK_ELEMENT_ID: CustomElement(name=BRICK_ELEMENT_ID, symbol="B"),
 }
-DEFAULT_CUSTOM_ELEMENTS: dict[str, CustomElement] = {
-    **BUILTIN_ELEMENT_DEFINITIONS,
-    **DEFAULT_LEVEL_CUSTOM_ELEMENTS,
-}
-CUSTOM_ELEMENTS: dict[str, CustomElement] = dict(DEFAULT_CUSTOM_ELEMENTS)
+
+
+def make_active_registry(
+    level_custom_elements: dict[str, CustomElement] | None = None,
+) -> dict[str, CustomElement]:
+    return {
+        **BUILTIN_ELEMENT_DEFINITIONS,
+        **(level_custom_elements or {}),
+    }
+
+
+DEFAULT_CUSTOM_ELEMENTS: dict[str, CustomElement] = make_active_registry(DEFAULT_LEVEL_CUSTOM_ELEMENTS)
+CUSTOM_ELEMENTS: dict[str, CustomElement] = make_active_registry(DEFAULT_LEVEL_CUSTOM_ELEMENTS)
 
 
 def register_custom_element(registry: dict[str, CustomElement], element: CustomElement) -> None:
@@ -483,6 +491,7 @@ class GameState:
     player_x: int
     player_y: int
     diamonds_total: int
+    registry: dict[str, CustomElement] = field(default_factory=lambda: dict(CUSTOM_ELEMENTS))
     diamonds_collected: int = 0
     alive: bool = True
     won: bool = False
@@ -692,18 +701,22 @@ class GameState:
         self.recently_pushed_positions = just_pushed_positions
 
 
-def parse_level(lines: Iterable[str]) -> GameState:
-    element_cells = parse_level_element_cells(lines, CUSTOM_ELEMENTS)
+def parse_level(
+    lines: Iterable[str],
+    registry: dict[str, CustomElement] | None = None,
+) -> GameState:
+    active_registry = dict(CUSTOM_ELEMENTS) if registry is None else dict(registry)
+    element_cells = parse_level_element_cells(lines, active_registry)
     player_pos: Tuple[int, int] | None = None
     diamonds_total = 0
 
     for y, row in enumerate(element_cells):
         for x, cell in enumerate(row):
-            if cell_is_player(cell, CUSTOM_ELEMENTS):
+            if cell_is_player(cell, active_registry):
                 if player_pos is not None:
                     raise ValueError("Only one player is allowed")
                 player_pos = (x, y)
-            if cell_is_collectible(cell, CUSTOM_ELEMENTS):
+            if cell_is_collectible(cell, active_registry):
                 diamonds_total += 1
 
     if player_pos is None:
@@ -714,6 +727,7 @@ def parse_level(lines: Iterable[str]) -> GameState:
         player_x=player_pos[0],
         player_y=player_pos[1],
         diamonds_total=diamonds_total,
+        registry=active_registry,
     )
 
 

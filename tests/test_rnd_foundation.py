@@ -91,6 +91,7 @@ from rnd_foundation import (
     main,
     make_fall_in_progress,
     make_fall_state,
+    make_active_registry,
     motion_destination_cell,
     motion_cell,
     motion_is_complete,
@@ -651,10 +652,18 @@ def test_builtin_element_definitions_are_split_from_default_level_custom_element
 
 
 def test_default_custom_elements_merge_builtin_and_default_level_custom_definitions() -> None:
-    assert DEFAULT_CUSTOM_ELEMENTS == {
-        **BUILTIN_ELEMENT_DEFINITIONS,
-        **DEFAULT_LEVEL_CUSTOM_ELEMENTS,
-    }
+    assert DEFAULT_CUSTOM_ELEMENTS == make_active_registry(DEFAULT_LEVEL_CUSTOM_ELEMENTS)
+
+
+def test_make_active_registry_merges_builtins_with_level_custom_elements() -> None:
+    active_registry = make_active_registry(
+        {
+            "mud": CustomElement(name="mud", symbol="m", diggable=True),
+        }
+    )
+
+    assert active_registry[WALL_ELEMENT_ID] == BUILTIN_ELEMENT_DEFINITIONS[WALL_ELEMENT_ID]
+    assert active_registry["mud"] == CustomElement(name="mud", symbol="m", diggable=True)
 
 
 def test_register_custom_element_adds_new_named_element() -> None:
@@ -1261,6 +1270,26 @@ def test_builtin_only_level_round_trips_through_unified_parse_bridge() -> None:
     state = parse_level(lines)
 
     assert element_cells == state.grid
+
+
+def test_parse_level_stores_explicit_active_registry_on_state() -> None:
+    registry = make_active_registry(
+        {
+            "mud": CustomElement(name="mud", symbol="m", diggable=True),
+        }
+    )
+
+    state = parse_level(
+        [
+            "#####",
+            "#Pm #",
+            "#####",
+        ],
+        registry,
+    )
+
+    assert state.registry == registry
+    assert state.get_cell(2, 1) == "mud"
 
 
 def test_builtin_only_state_after_move_matches_unified_parse_bridge_baseline() -> None:

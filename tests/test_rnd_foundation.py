@@ -1,6 +1,7 @@
 import pytest
 
 from rnd_foundation import (
+    BUILTIN_ELEMENT_DEFINITIONS,
     BUILTIN_ELEMENTS,
     BUILTIN_TILE_ELEMENTS,
     BUILTIN_TILE_ELEMENT_IDS,
@@ -11,6 +12,7 @@ from rnd_foundation import (
     BRICK_ELEMENT_ID,
     DIAMOND_ELEMENT_ID,
     DEFAULT_CUSTOM_ELEMENTS,
+    DEFAULT_LEVEL_CUSTOM_ELEMENTS,
     DEFAULT_ENGINE_MODE,
     EngineMode,
     GameState,
@@ -621,6 +623,40 @@ def test_default_custom_elements_seed_runtime_custom_element_registry() -> None:
     assert CUSTOM_ELEMENTS == DEFAULT_CUSTOM_ELEMENTS
 
 
+def test_builtin_element_definitions_are_split_from_default_level_custom_elements() -> None:
+    assert BUILTIN_ELEMENT_DEFINITIONS == {
+        EMPTY_ELEMENT_ID: CustomElement(name=EMPTY_ELEMENT_ID, symbol=" "),
+        WALL_ELEMENT_ID: CustomElement(name=WALL_ELEMENT_ID, symbol="#"),
+        SAND_ELEMENT_ID: CustomElement(name=SAND_ELEMENT_ID, symbol=".", diggable=True),
+        ROCK_ELEMENT_ID: CustomElement(
+            name=ROCK_ELEMENT_ID,
+            symbol="O",
+            pushable=True,
+            can_fall=True,
+            can_smash=True,
+        ),
+        DIAMOND_ELEMENT_ID: CustomElement(
+            name=DIAMOND_ELEMENT_ID,
+            symbol="*",
+            collectible=True,
+            can_fall=True,
+            can_smash=True,
+        ),
+        PLAYER_ELEMENT_ID: CustomElement(name=PLAYER_ELEMENT_ID, symbol="P"),
+    }
+    assert DEFAULT_LEVEL_CUSTOM_ELEMENTS == {
+        SLIME_ELEMENT_ID: CustomElement(name=SLIME_ELEMENT_ID, symbol="s", diggable=True),
+        BRICK_ELEMENT_ID: CustomElement(name=BRICK_ELEMENT_ID, symbol="B"),
+    }
+
+
+def test_default_custom_elements_merge_builtin_and_default_level_custom_definitions() -> None:
+    assert DEFAULT_CUSTOM_ELEMENTS == {
+        **BUILTIN_ELEMENT_DEFINITIONS,
+        **DEFAULT_LEVEL_CUSTOM_ELEMENTS,
+    }
+
+
 def test_register_custom_element_adds_new_named_element() -> None:
     registry = dict(DEFAULT_CUSTOM_ELEMENTS)
     slime = CustomElement(name="slime", symbol="s", diggable=True)
@@ -652,11 +688,11 @@ def test_custom_element_registry_uses_unique_symbols() -> None:
 
 def test_builtin_tile_elements_mirror_current_builtin_tiles() -> None:
     assert BUILTIN_TILE_ELEMENTS[Tile.EMPTY] == CustomElement(name="empty", symbol=" ")
-    assert BUILTIN_TILE_ELEMENTS[Tile.WALL] == CUSTOM_ELEMENTS["wall"]
-    assert BUILTIN_TILE_ELEMENTS[Tile.SAND] == CUSTOM_ELEMENTS["sand"]
-    assert BUILTIN_TILE_ELEMENTS[Tile.ROCK] == CUSTOM_ELEMENTS["rock"]
-    assert BUILTIN_TILE_ELEMENTS[Tile.DIAMOND] == CUSTOM_ELEMENTS["diamond"]
-    assert BUILTIN_TILE_ELEMENTS[Tile.PLAYER] == CUSTOM_ELEMENTS["player"]
+    assert BUILTIN_TILE_ELEMENTS[Tile.WALL] == BUILTIN_ELEMENT_DEFINITIONS[WALL_ELEMENT_ID]
+    assert BUILTIN_TILE_ELEMENTS[Tile.SAND] == BUILTIN_ELEMENT_DEFINITIONS[SAND_ELEMENT_ID]
+    assert BUILTIN_TILE_ELEMENTS[Tile.ROCK] == BUILTIN_ELEMENT_DEFINITIONS[ROCK_ELEMENT_ID]
+    assert BUILTIN_TILE_ELEMENTS[Tile.DIAMOND] == BUILTIN_ELEMENT_DEFINITIONS[DIAMOND_ELEMENT_ID]
+    assert BUILTIN_TILE_ELEMENTS[Tile.PLAYER] == BUILTIN_ELEMENT_DEFINITIONS[PLAYER_ELEMENT_ID]
 
 
 def test_builtin_tile_element_ids_expose_stable_builtin_names() -> None:
@@ -672,11 +708,11 @@ def test_builtin_tile_element_ids_expose_stable_builtin_names() -> None:
 
 def test_builtin_elements_are_addressable_by_builtin_element_id() -> None:
     assert BUILTIN_ELEMENTS[EMPTY_ELEMENT_ID] == CustomElement(name=EMPTY_ELEMENT_ID, symbol=" ")
-    assert BUILTIN_ELEMENTS[WALL_ELEMENT_ID] == CUSTOM_ELEMENTS["wall"]
-    assert BUILTIN_ELEMENTS[SAND_ELEMENT_ID] == CUSTOM_ELEMENTS["sand"]
-    assert BUILTIN_ELEMENTS[ROCK_ELEMENT_ID] == CUSTOM_ELEMENTS["rock"]
-    assert BUILTIN_ELEMENTS[DIAMOND_ELEMENT_ID] == CUSTOM_ELEMENTS["diamond"]
-    assert BUILTIN_ELEMENTS[PLAYER_ELEMENT_ID] == CUSTOM_ELEMENTS["player"]
+    assert BUILTIN_ELEMENTS[WALL_ELEMENT_ID] == BUILTIN_ELEMENT_DEFINITIONS[WALL_ELEMENT_ID]
+    assert BUILTIN_ELEMENTS[SAND_ELEMENT_ID] == BUILTIN_ELEMENT_DEFINITIONS[SAND_ELEMENT_ID]
+    assert BUILTIN_ELEMENTS[ROCK_ELEMENT_ID] == BUILTIN_ELEMENT_DEFINITIONS[ROCK_ELEMENT_ID]
+    assert BUILTIN_ELEMENTS[DIAMOND_ELEMENT_ID] == BUILTIN_ELEMENT_DEFINITIONS[DIAMOND_ELEMENT_ID]
+    assert BUILTIN_ELEMENTS[PLAYER_ELEMENT_ID] == BUILTIN_ELEMENT_DEFINITIONS[PLAYER_ELEMENT_ID]
 
 
 def test_element_id_for_tile_returns_stable_builtin_ids() -> None:
@@ -690,11 +726,11 @@ def test_element_id_for_tile_returns_stable_builtin_ids() -> None:
 
 def test_builtin_element_for_id_returns_builtin_elements() -> None:
     assert builtin_element_for_id(EMPTY_ELEMENT_ID) == CustomElement(name=EMPTY_ELEMENT_ID, symbol=" ")
-    assert builtin_element_for_id(WALL_ELEMENT_ID) == CUSTOM_ELEMENTS["wall"]
-    assert builtin_element_for_id(SAND_ELEMENT_ID) == CUSTOM_ELEMENTS["sand"]
-    assert builtin_element_for_id(ROCK_ELEMENT_ID) == CUSTOM_ELEMENTS["rock"]
-    assert builtin_element_for_id(DIAMOND_ELEMENT_ID) == CUSTOM_ELEMENTS["diamond"]
-    assert builtin_element_for_id(PLAYER_ELEMENT_ID) == CUSTOM_ELEMENTS["player"]
+    assert builtin_element_for_id(WALL_ELEMENT_ID) == BUILTIN_ELEMENT_DEFINITIONS[WALL_ELEMENT_ID]
+    assert builtin_element_for_id(SAND_ELEMENT_ID) == BUILTIN_ELEMENT_DEFINITIONS[SAND_ELEMENT_ID]
+    assert builtin_element_for_id(ROCK_ELEMENT_ID) == BUILTIN_ELEMENT_DEFINITIONS[ROCK_ELEMENT_ID]
+    assert builtin_element_for_id(DIAMOND_ELEMENT_ID) == BUILTIN_ELEMENT_DEFINITIONS[DIAMOND_ELEMENT_ID]
+    assert builtin_element_for_id(PLAYER_ELEMENT_ID) == BUILTIN_ELEMENT_DEFINITIONS[PLAYER_ELEMENT_ID]
 
 
 def test_builtin_element_for_id_rejects_unknown_id() -> None:

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from types import MappingProxyType
 from typing import Iterable, List, Set, Tuple
 import argparse
 import curses
@@ -104,26 +105,35 @@ DIAMOND_ELEMENT_ID = "diamond"
 PLAYER_ELEMENT_ID = "player"
 
 
-DEFAULT_CUSTOM_ELEMENTS: dict[str, CustomElement] = {
-    SAND_ELEMENT_ID: CustomElement(name=SAND_ELEMENT_ID, symbol=".", diggable=True),
+BUILTIN_ELEMENT_DEFINITIONS = MappingProxyType(
+    {
+        EMPTY_ELEMENT_ID: CustomElement(name=EMPTY_ELEMENT_ID, symbol=" "),
+        WALL_ELEMENT_ID: CustomElement(name=WALL_ELEMENT_ID, symbol="#"),
+        SAND_ELEMENT_ID: CustomElement(name=SAND_ELEMENT_ID, symbol=".", diggable=True),
+        ROCK_ELEMENT_ID: CustomElement(
+            name=ROCK_ELEMENT_ID,
+            symbol="O",
+            pushable=True,
+            can_fall=True,
+            can_smash=True,
+        ),
+        DIAMOND_ELEMENT_ID: CustomElement(
+            name=DIAMOND_ELEMENT_ID,
+            symbol="*",
+            collectible=True,
+            can_fall=True,
+            can_smash=True,
+        ),
+        PLAYER_ELEMENT_ID: CustomElement(name=PLAYER_ELEMENT_ID, symbol="P"),
+    }
+)
+DEFAULT_LEVEL_CUSTOM_ELEMENTS: dict[str, CustomElement] = {
     SLIME_ELEMENT_ID: CustomElement(name=SLIME_ELEMENT_ID, symbol="s", diggable=True),
     BRICK_ELEMENT_ID: CustomElement(name=BRICK_ELEMENT_ID, symbol="B"),
-    ROCK_ELEMENT_ID: CustomElement(
-        name=ROCK_ELEMENT_ID,
-        symbol="O",
-        pushable=True,
-        can_fall=True,
-        can_smash=True,
-    ),
-    DIAMOND_ELEMENT_ID: CustomElement(
-        name=DIAMOND_ELEMENT_ID,
-        symbol="*",
-        collectible=True,
-        can_fall=True,
-        can_smash=True,
-    ),
-    WALL_ELEMENT_ID: CustomElement(name=WALL_ELEMENT_ID, symbol="#"),
-    PLAYER_ELEMENT_ID: CustomElement(name=PLAYER_ELEMENT_ID, symbol="P"),
+}
+DEFAULT_CUSTOM_ELEMENTS: dict[str, CustomElement] = {
+    **BUILTIN_ELEMENT_DEFINITIONS,
+    **DEFAULT_LEVEL_CUSTOM_ELEMENTS,
 }
 CUSTOM_ELEMENTS: dict[str, CustomElement] = dict(DEFAULT_CUSTOM_ELEMENTS)
 
@@ -140,21 +150,18 @@ def register_custom_element(registry: dict[str, CustomElement], element: CustomE
     registry[element.name] = element
 
 BUILTIN_TILE_ELEMENTS: dict[Tile, CustomElement] = {
-    Tile.EMPTY: CustomElement(name=EMPTY_ELEMENT_ID, symbol=" "),
-    Tile.WALL: CUSTOM_ELEMENTS[WALL_ELEMENT_ID],
-    Tile.SAND: CUSTOM_ELEMENTS[SAND_ELEMENT_ID],
-    Tile.ROCK: CUSTOM_ELEMENTS[ROCK_ELEMENT_ID],
-    Tile.DIAMOND: CUSTOM_ELEMENTS[DIAMOND_ELEMENT_ID],
-    Tile.PLAYER: CUSTOM_ELEMENTS[PLAYER_ELEMENT_ID],
+    Tile.EMPTY: BUILTIN_ELEMENT_DEFINITIONS[EMPTY_ELEMENT_ID],
+    Tile.WALL: BUILTIN_ELEMENT_DEFINITIONS[WALL_ELEMENT_ID],
+    Tile.SAND: BUILTIN_ELEMENT_DEFINITIONS[SAND_ELEMENT_ID],
+    Tile.ROCK: BUILTIN_ELEMENT_DEFINITIONS[ROCK_ELEMENT_ID],
+    Tile.DIAMOND: BUILTIN_ELEMENT_DEFINITIONS[DIAMOND_ELEMENT_ID],
+    Tile.PLAYER: BUILTIN_ELEMENT_DEFINITIONS[PLAYER_ELEMENT_ID],
 }
 BUILTIN_TILE_SYMBOLS: dict[str, Tile] = {tile.value: tile for tile in Tile}
 BUILTIN_TILE_ELEMENT_IDS: dict[Tile, str] = {
     tile: element.name for tile, element in BUILTIN_TILE_ELEMENTS.items()
 }
-BUILTIN_ELEMENTS: dict[str, CustomElement] = {
-    element_id: BUILTIN_TILE_ELEMENTS[tile]
-    for tile, element_id in BUILTIN_TILE_ELEMENT_IDS.items()
-}
+BUILTIN_ELEMENTS = BUILTIN_ELEMENT_DEFINITIONS
 BUILTIN_ELEMENT_ID_TILES: dict[str, Tile] = {
     element_id: tile for tile, element_id in BUILTIN_TILE_ELEMENT_IDS.items()
 }

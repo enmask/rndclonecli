@@ -71,6 +71,9 @@ SNAP_ACTIONS = {
     "D": (1, 0),
 }
 EDITOR_TOGGLE_ACTION = "editor_toggle"
+EDITOR_PREVIOUS_ELEMENT_ACTION = "editor_previous_element"
+EDITOR_NEXT_ELEMENT_ACTION = "editor_next_element"
+EDITOR_PAINT_ACTION = "editor_paint"
 
 
 ElementCell = str | None
@@ -1069,6 +1072,15 @@ def step_realtime_frame(
         return
     if state.editor_active:
         state.pending_action = None
+        if action in DIRECTIONS:
+            dx, dy = DIRECTIONS[action]
+            state.move_editor_cursor(dx, dy)
+        elif action == EDITOR_PREVIOUS_ELEMENT_ACTION:
+            state.select_previous_editor_element()
+        elif action == EDITOR_NEXT_ELEMENT_ACTION:
+            state.select_next_editor_element()
+        elif action == EDITOR_PAINT_ACTION:
+            state.paint_selected_editor_cell()
         return
     if timing_mode == TimingMode.ASYNC:
         buffer_action(state, action)
@@ -1131,6 +1143,12 @@ def action_from_turn_input(text: str) -> str | None:
 def action_from_curses_key(key: int) -> str | None:
     if key in (ord("e"), ord("E")):
         return EDITOR_TOGGLE_ACTION
+    if key == ord("["):
+        return EDITOR_PREVIOUS_ELEMENT_ACTION
+    if key == ord("]"):
+        return EDITOR_NEXT_ELEMENT_ACTION
+    if key in (ord(" "), 10, 13):
+        return EDITOR_PAINT_ACTION
     if key in (ord("w"), ord("W"), curses.KEY_UP):
         return "w"
     if key in (ord("a"), ord("A"), curses.KEY_LEFT):

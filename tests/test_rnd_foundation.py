@@ -14,6 +14,9 @@ from rnd_foundation import (
     DEFAULT_CUSTOM_ELEMENTS,
     DEFAULT_LEVEL_CUSTOM_ELEMENTS,
     DEFAULT_ENGINE_MODE,
+    EDITOR_NEXT_ELEMENT_ACTION,
+    EDITOR_PAINT_ACTION,
+    EDITOR_PREVIOUS_ELEMENT_ACTION,
     EDITOR_CURSOR_COLOR,
     EDITOR_CURSOR_SYMBOL,
     EDITOR_TOGGLE_ACTION,
@@ -2232,6 +2235,61 @@ def test_realtime_terminal_uses_deferred_falls_in_runtime_loop(
         "#Pv #",
         "#####",
     ]
+
+
+def test_realtime_terminal_editor_controls_move_cursor_cycle_palette_and_paint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeStdScr:
+        keys = [ord("e"), ord("d"), ord("]"), ord(" "), ord("q")]
+        index = 0
+
+        def erase(self) -> None:
+            pass
+
+        def addstr(self, y: int, x: int, text: str) -> None:
+            pass
+
+        def refresh(self) -> None:
+            pass
+
+        def nodelay(self, value: bool) -> None:
+            pass
+
+        def timeout(self, value: int) -> None:
+            pass
+
+        def keypad(self, value: bool) -> None:
+            pass
+
+        def getch(self) -> int:
+            if self.index >= len(self.keys):
+                return ord("q")
+            key = self.keys[self.index]
+            self.index += 1
+            return key
+
+    def fake_wrapper(func: object) -> None:
+        func(FakeStdScr())
+
+    monkeypatch.setattr("rnd_foundation.curses.wrapper", fake_wrapper)
+    monkeypatch.setattr("rnd_foundation.curses.curs_set", lambda value: None)
+    monkeypatch.setattr("rnd_foundation.sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("rnd_foundation.sys.stdout.isatty", lambda: True)
+
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    run_interactive_realtime_terminal(state, tick_ms=250, engine_mode=EngineMode.RND)
+
+    assert state.editor_active is True
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert (state.cursor_x, state.cursor_y) == (2, 1)
+    assert state.selected_editor_element_id == SLIME_ELEMENT_ID
+    assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
 
 
 def test_make_motion_builds_a_transition_model() -> None:
@@ -6304,6 +6362,39 @@ def test_step_realtime_frame_toggles_editor_mode_immediately_on_non_update_frame
     assert state.editor_active is False
 
 
+def test_step_realtime_frame_routes_editor_actions_without_moving_player() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.editor_active = True
+
+    step_realtime_frame(
+        state,
+        frame_number=0,
+        action="d",
+        timing_mode=TimingMode.ASYNC,
+    )
+    step_realtime_frame(
+        state,
+        frame_number=1,
+        action=EDITOR_NEXT_ELEMENT_ACTION,
+        timing_mode=TimingMode.ASYNC,
+    )
+    step_realtime_frame(
+        state,
+        frame_number=2,
+        action=EDITOR_PAINT_ACTION,
+        timing_mode=TimingMode.ASYNC,
+    )
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert (state.cursor_x, state.cursor_y) == (2, 1)
+    assert state.selected_editor_element_id == SLIME_ELEMENT_ID
+    assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
+
+
 def test_step_realtime_frame_async_mode_advances_falling_state_each_frame() -> None:
     state = make_state(
         "#####",
@@ -6721,6 +6812,14 @@ def test_action_from_turn_input_supports_editor_toggle_action() -> None:
 def test_action_from_curses_key_supports_editor_toggle_action() -> None:
     assert action_from_curses_key(ord("e")) == EDITOR_TOGGLE_ACTION
     assert action_from_curses_key(ord("E")) == EDITOR_TOGGLE_ACTION
+
+
+def test_action_from_curses_key_supports_editor_palette_and_paint_actions() -> None:
+    assert action_from_curses_key(ord("[")) == EDITOR_PREVIOUS_ELEMENT_ACTION
+    assert action_from_curses_key(ord("]")) == EDITOR_NEXT_ELEMENT_ACTION
+    assert action_from_curses_key(ord(" ")) == EDITOR_PAINT_ACTION
+    assert action_from_curses_key(10) == EDITOR_PAINT_ACTION
+    assert action_from_curses_key(13) == EDITOR_PAINT_ACTION
 
 
 def test_action_from_pygame_key_supports_editor_toggle_action(monkeypatch: pytest.MonkeyPatch) -> None:

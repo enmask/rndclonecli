@@ -892,6 +892,35 @@ def test_save_level_custom_elements_writes_sidecar_file_that_round_trips(tmp_pat
     assert load_level_custom_elements(level_path) == custom_elements
 
 
+def test_sidecar_round_trip_supports_explicit_registry_parse_and_text_render(tmp_path) -> None:
+    level_path = str(tmp_path / "custom-level.txt")
+    custom_elements = {
+        "mud": CustomElement(name="mud", symbol="m", diggable=True),
+        "gem2": CustomElement(name="gem2", symbol="g", collectible=True),
+    }
+    save_level_custom_elements(level_path, custom_elements)
+
+    registry = load_level_registry(level_path)
+    state = parse_level(
+        [
+            "#####",
+            "#Pmg#",
+            "#####",
+        ],
+        registry,
+    )
+
+    assert state.registry == registry
+    assert state.get_cell(2, 1) == "mud"
+    assert state.get_cell(3, 1) == "gem2"
+    assert state.diamonds_total == 1
+    assert state.render_lines() == [
+        "#####",
+        "#Pmg#",
+        "#####",
+    ]
+
+
 def test_register_custom_element_adds_new_named_element() -> None:
     registry = dict(DEFAULT_CUSTOM_ELEMENTS)
     slime = CustomElement(name="slime", symbol="s", diggable=True)

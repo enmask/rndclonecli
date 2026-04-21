@@ -18,6 +18,7 @@ import argparse
 import curses
 import importlib
 import importlib.util
+import json
 import os
 import sys
 
@@ -209,6 +210,57 @@ def level_custom_elements_sidecar_data(
             for _, element in sorted(level_custom_elements.items())
         ],
     }
+
+
+def level_custom_elements_from_sidecar_data(data: dict[str, object]) -> dict[str, CustomElement]:
+    if data.get("format") != LEVEL_ELEMENTS_SIDECAR_FORMAT:
+        raise ValueError(f"Unsupported level-elements sidecar format '{data.get('format')}'")
+    if data.get("version") != LEVEL_ELEMENTS_SIDECAR_VERSION:
+        raise ValueError(f"Unsupported level-elements sidecar version '{data.get('version')}'")
+
+    raw_elements = data.get("elements")
+    if not isinstance(raw_elements, list):
+        raise ValueError("Level-elements sidecar must contain an 'elements' list")
+
+    registry: dict[str, CustomElement] = {}
+    for raw_element in raw_elements:
+        if not isinstance(raw_element, dict):
+            raise ValueError("Each level-elements sidecar entry must be an object")
+        try:
+            name = raw_element["name"]
+            symbol = raw_element["symbol"]
+        except KeyError as exc:
+            raise ValueError(f"Missing required sidecar element field '{exc.args[0]}'") from None
+        if not isinstance(name, str) or not isinstance(symbol, str):
+            raise ValueError("Sidecar element 'name' and 'symbol' must be strings")
+
+        register_custom_element(
+            registry,
+            CustomElement(
+                name=name,
+                symbol=symbol,
+                diggable=bool(raw_element.get("diggable", False)),
+                collectible=bool(raw_element.get("collectible", False)),
+                pushable=bool(raw_element.get("pushable", False)),
+                can_fall=bool(raw_element.get("can_fall", False)),
+                can_smash=bool(raw_element.get("can_smash", False)),
+            ),
+        )
+
+    return registry
+
+
+def load_level_custom_elements(level_path: str) -> dict[str, CustomElement]:
+    sidecar_path = level_elements_sidecar_path(level_path)
+    if not os.path.exists(sidecar_path):
+        return {}
+
+    with open(sidecar_path, encoding="utf-8") as sidecar_file:
+        return level_custom_elements_from_sidecar_data(json.load(sidecar_file))
+
+
+def load_level_registry(level_path: str) -> dict[str, CustomElement]:
+    return make_active_registry(load_level_custom_elements(level_path))
 
 
 @dataclass(frozen=True)

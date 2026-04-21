@@ -143,7 +143,10 @@ from rnd_foundation import (
     parsed_cell_for_tile,
     custom_element_symbols,
     level_custom_elements_sidecar_data,
+    level_custom_elements_from_sidecar_data,
     level_elements_sidecar_path,
+    load_level_custom_elements,
+    load_level_registry,
     tile_for_symbol,
     tile_for_level_symbol,
     tile_appearance,
@@ -733,6 +736,74 @@ def test_level_custom_elements_sidecar_data_serializes_level_custom_definitions(
             },
         ],
     }
+
+
+def test_level_custom_elements_from_sidecar_data_deserializes_custom_definitions() -> None:
+    registry = level_custom_elements_from_sidecar_data(
+        {
+            "format": "rndclonecli.level-elements",
+            "version": 1,
+            "elements": [
+                {
+                    "name": "gel",
+                    "symbol": "g",
+                    "pushable": True,
+                    "can_fall": True,
+                },
+                {
+                    "name": "mud",
+                    "symbol": "m",
+                    "diggable": True,
+                },
+            ],
+        }
+    )
+
+    assert registry == {
+        "gel": CustomElement(name="gel", symbol="g", pushable=True, can_fall=True),
+        "mud": CustomElement(name="mud", symbol="m", diggable=True),
+    }
+
+
+def test_load_level_custom_elements_returns_empty_registry_when_sidecar_is_missing(tmp_path) -> None:
+    assert load_level_custom_elements(str(tmp_path / "level.txt")) == {}
+
+
+def test_load_level_custom_elements_reads_sidecar_file(tmp_path) -> None:
+    level_path = tmp_path / "level.txt"
+    level_path.write_text("###\n#P#\n###\n", encoding="utf-8")
+    sidecar_path = tmp_path / "level.elements.json"
+    sidecar_path.write_text(
+        (
+            '{"format":"rndclonecli.level-elements","version":1,"elements":['
+            '{"name":"mud","symbol":"m","diggable":true}'
+            "]}"
+        ),
+        encoding="utf-8",
+    )
+
+    assert load_level_custom_elements(str(level_path)) == {
+        "mud": CustomElement(name="mud", symbol="m", diggable=True),
+    }
+
+
+def test_load_level_registry_merges_builtins_with_loaded_sidecar_elements(tmp_path) -> None:
+    level_path = tmp_path / "level.txt"
+    level_path.write_text("###\n#P#\n###\n", encoding="utf-8")
+    sidecar_path = tmp_path / "level.elements.json"
+    sidecar_path.write_text(
+        (
+            '{"format":"rndclonecli.level-elements","version":1,"elements":['
+            '{"name":"mud","symbol":"m","diggable":true}'
+            "]}"
+        ),
+        encoding="utf-8",
+    )
+
+    registry = load_level_registry(str(level_path))
+
+    assert registry[WALL_ELEMENT_ID] == BUILTIN_ELEMENT_DEFINITIONS[WALL_ELEMENT_ID]
+    assert registry["mud"] == CustomElement(name="mud", symbol="m", diggable=True)
 
 
 def test_register_custom_element_adds_new_named_element() -> None:

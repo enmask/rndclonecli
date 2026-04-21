@@ -70,6 +70,7 @@ SNAP_ACTIONS = {
     "S": (0, 1),
     "D": (1, 0),
 }
+EDITOR_TOGGLE_ACTION = "editor_toggle"
 
 
 ElementCell = str | None
@@ -652,6 +653,11 @@ class GameState:
         self.cursor_x = min(max(self.cursor_x + dx, 0), self.width - 1)
         self.cursor_y = min(max(self.cursor_y + dy, 0), self.height - 1)
 
+    def toggle_editor_active(self) -> bool:
+        self.editor_active = not self.editor_active
+        self.pending_action = None
+        return self.editor_active
+
     def editor_palette_element_ids(self) -> list[str]:
         return list(self.registry.keys())
 
@@ -1022,6 +1028,9 @@ def engine_hold_repeat_frames(engine_mode: EngineMode) -> tuple[int, int]:
 
 
 def step_game(state: GameState, action: str | None, defer_falls: bool = True) -> None:
+    if action == EDITOR_TOGGLE_ACTION:
+        state.toggle_editor_active()
+        return
     if state.editor_active:
         state.pending_action = None
         return
@@ -1055,6 +1064,9 @@ def step_realtime_frame(
     sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
     defer_falls: bool = True,
 ) -> None:
+    if action == EDITOR_TOGGLE_ACTION:
+        state.toggle_editor_active()
+        return
     if state.editor_active:
         state.pending_action = None
         return
@@ -1109,12 +1121,16 @@ def can_player_take_action(state: GameState, action: str | None) -> bool:
 
 
 def action_from_turn_input(text: str) -> str | None:
+    if text in ("e", "E"):
+        return EDITOR_TOGGLE_ACTION
     if text in DIRECTIONS or text in SNAP_ACTIONS:
         return text
     return None
 
 
 def action_from_curses_key(key: int) -> str | None:
+    if key in (ord("e"), ord("E")):
+        return EDITOR_TOGGLE_ACTION
     if key in (ord("w"), ord("W"), curses.KEY_UP):
         return "w"
     if key in (ord("a"), ord("A"), curses.KEY_LEFT):
@@ -1136,6 +1152,8 @@ def action_from_curses_key(key: int) -> str | None:
 
 def action_from_pygame_key(key: int, ctrl_held: bool = False) -> str | None:
     pygame = importlib.import_module("pygame")
+    if key == pygame.K_e:
+        return EDITOR_TOGGLE_ACTION
     if ctrl_held:
         if key in (pygame.K_w, pygame.K_UP):
             return "W"
@@ -1963,11 +1981,14 @@ def update_graphics_frame(
 ) -> bool:
     event_list = list(events)
     should_quit = pygame_frame_requests_quit(event_list)
+    frame_action = action_from_pygame_frame_events(event_list)
+    if frame_action == EDITOR_TOGGLE_ACTION:
+        state.toggle_editor_active()
+        return should_quit
     if state.editor_active:
         state.pending_action = None
         return should_quit
     if state.alive and not state.won:
-        frame_action = action_from_pygame_frame_events(event_list)
         if frame_action is not None and hold_state is not None:
             hold_state["action"] = (frame_action,)
             hold_state["press_frame"] = frame_number

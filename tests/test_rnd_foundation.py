@@ -16,6 +16,7 @@ from rnd_foundation import (
     DEFAULT_ENGINE_MODE,
     EDITOR_CURSOR_COLOR,
     EDITOR_CURSOR_SYMBOL,
+    EDITOR_TOGGLE_ACTION,
     EngineMode,
     GameState,
     EMPTY_ELEMENT_ID,
@@ -31,6 +32,7 @@ from rnd_foundation import (
     action_from_pygame_frame_events,
     action_from_pygame_key,
     action_from_pygame_pressed_keys,
+    action_from_curses_key,
     action_from_turn_input,
     buffer_action,
     builtin_tile_for_element_id,
@@ -4449,6 +4451,38 @@ def test_update_graphics_frame_does_not_update_gameplay_while_editor_is_active(
     assert state.pending_action is None
 
 
+def test_update_graphics_frame_toggles_editor_mode_from_key_event(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+    state = make_state(
+        "######",
+        "#P   #",
+        "######",
+    )
+
+    should_quit = update_graphics_frame(
+        state,
+        frame_number=0,
+        events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_e)],
+        timing_mode=TimingMode.ASYNC,
+    )
+
+    assert should_quit is False
+    assert state.editor_active is True
+    assert (state.player_x, state.player_y) == (1, 1)
+
+    should_quit = update_graphics_frame(
+        state,
+        frame_number=1,
+        events=[FakeEvent(FakePygame.KEYDOWN, FakePygame.K_e)],
+        timing_mode=TimingMode.ASYNC,
+    )
+
+    assert should_quit is False
+    assert state.editor_active is False
+
+
 def test_update_graphics_frame_uses_held_key_when_no_keydown_event(monkeypatch: pytest.MonkeyPatch) -> None:
     install_fake_pygame(monkeypatch)
     state = make_state(
@@ -6185,6 +6219,36 @@ def test_step_realtime_frame_uses_deferred_falls_by_default() -> None:
     assert state.is_blocked_fall_destination(2, 2) is True
 
 
+def test_step_realtime_frame_toggles_editor_mode_immediately_on_non_update_frame() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.pending_action = "d"
+
+    step_realtime_frame(
+        state,
+        frame_number=7,
+        action=EDITOR_TOGGLE_ACTION,
+        timing_mode=TimingMode.SYNC,
+        sync_interval=8,
+    )
+
+    assert state.editor_active is True
+    assert state.pending_action is None
+
+    step_realtime_frame(
+        state,
+        frame_number=7,
+        action=EDITOR_TOGGLE_ACTION,
+        timing_mode=TimingMode.SYNC,
+        sync_interval=8,
+    )
+
+    assert state.editor_active is False
+
+
 def test_step_realtime_frame_async_mode_advances_falling_state_each_frame() -> None:
     state = make_state(
         "#####",
@@ -6461,6 +6525,7 @@ class FakePygame:
     K_d = 10
     K_RIGHT = 11
     K_x = 12
+    K_e = 13
     KMOD_CTRL = 64
 
     class display:
@@ -6551,6 +6616,16 @@ def test_action_from_pygame_frame_events_supports_ctrl_snap_actions(monkeypatch:
     assert action_from_pygame_frame_events(events) == "D"
 
 
+def test_action_from_pygame_frame_events_supports_editor_toggle_action(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+
+    events = [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_e)]
+
+    assert action_from_pygame_frame_events(events) == EDITOR_TOGGLE_ACTION
+
+
 def test_action_from_pygame_pressed_keys_uses_held_direction(monkeypatch: pytest.MonkeyPatch) -> None:
     install_fake_pygame(monkeypatch)
     pressed = [False] * 13
@@ -6581,6 +6656,39 @@ def test_action_from_pygame_key_supports_ctrl_snap_actions(monkeypatch: pytest.M
 
     assert action_from_pygame_key(FakePygame.K_d, ctrl_held=True) == "D"
     assert action_from_pygame_key(FakePygame.K_UP, ctrl_held=True) == "W"
+
+
+def test_action_from_turn_input_supports_editor_toggle_action() -> None:
+    assert action_from_turn_input("e") == EDITOR_TOGGLE_ACTION
+    assert action_from_turn_input("E") == EDITOR_TOGGLE_ACTION
+
+
+def test_action_from_curses_key_supports_editor_toggle_action() -> None:
+    assert action_from_curses_key(ord("e")) == EDITOR_TOGGLE_ACTION
+    assert action_from_curses_key(ord("E")) == EDITOR_TOGGLE_ACTION
+
+
+def test_action_from_pygame_key_supports_editor_toggle_action(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+
+    assert action_from_pygame_key(FakePygame.K_e) == EDITOR_TOGGLE_ACTION
+
+
+def test_step_game_toggles_editor_mode_immediately() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    step_game(state, EDITOR_TOGGLE_ACTION)
+
+    assert state.editor_active is True
+    assert state.pending_action is None
+
+    step_game(state, EDITOR_TOGGLE_ACTION)
+
+    assert state.editor_active is False
 
 
 def test_repeated_held_action_waits_for_repeat_delay() -> None:

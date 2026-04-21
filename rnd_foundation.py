@@ -263,6 +263,22 @@ def load_level_registry(level_path: str) -> dict[str, CustomElement]:
     return make_active_registry(load_level_custom_elements(level_path))
 
 
+def level_custom_elements_from_registry(registry: dict[str, CustomElement]) -> dict[str, CustomElement]:
+    return {
+        name: element
+        for name, element in registry.items()
+        if name not in BUILTIN_ELEMENT_DEFINITIONS
+    }
+
+
+def save_level_custom_elements(level_path: str, level_custom_elements: dict[str, CustomElement]) -> None:
+    sidecar_path = level_elements_sidecar_path(level_path)
+    sidecar_data = level_custom_elements_sidecar_data(level_custom_elements)
+    with open(sidecar_path, "w", encoding="utf-8") as sidecar_file:
+        json.dump(sidecar_data, sidecar_file, indent=2)
+        sidecar_file.write("\n")
+
+
 @dataclass(frozen=True)
 class ParsedCell:
     tile: Tile | None = None

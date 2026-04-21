@@ -144,9 +144,11 @@ from rnd_foundation import (
     custom_element_symbols,
     level_custom_elements_sidecar_data,
     level_custom_elements_from_sidecar_data,
+    level_custom_elements_from_registry,
     level_elements_sidecar_path,
     load_level_custom_elements,
     load_level_registry,
+    save_level_custom_elements,
     tile_for_symbol,
     tile_for_level_symbol,
     tile_appearance,
@@ -804,6 +806,30 @@ def test_load_level_registry_merges_builtins_with_loaded_sidecar_elements(tmp_pa
 
     assert registry[WALL_ELEMENT_ID] == BUILTIN_ELEMENT_DEFINITIONS[WALL_ELEMENT_ID]
     assert registry["mud"] == CustomElement(name="mud", symbol="m", diggable=True)
+
+
+def test_level_custom_elements_from_registry_filters_out_builtins() -> None:
+    registry = make_active_registry(
+        {
+            "mud": CustomElement(name="mud", symbol="m", diggable=True),
+        }
+    )
+
+    assert level_custom_elements_from_registry(registry) == {
+        "mud": CustomElement(name="mud", symbol="m", diggable=True),
+    }
+
+
+def test_save_level_custom_elements_writes_sidecar_file_that_round_trips(tmp_path) -> None:
+    level_path = str(tmp_path / "roundtrip-level.txt")
+    custom_elements = {
+        "mud": CustomElement(name="mud", symbol="m", diggable=True),
+        "gel": CustomElement(name="gel", symbol="g", pushable=True, can_fall=True),
+    }
+
+    save_level_custom_elements(level_path, custom_elements)
+
+    assert load_level_custom_elements(level_path) == custom_elements
 
 
 def test_register_custom_element_adds_new_named_element() -> None:

@@ -233,8 +233,49 @@ def test_parse_level_tracks_dimensions_and_diamonds() -> None:
     assert state.height == 4
     assert state.player_x == 1
     assert state.player_y == 1
+    assert state.cursor_x == 1
+    assert state.cursor_y == 1
     assert state.diamonds_total == 1
     assert state.get(2, 2) == Tile.ROCK
+
+
+def test_editor_cursor_starts_at_player_position() -> None:
+    state = make_state(
+        "#####",
+        "#  P#",
+        "# * #",
+        "#####",
+    )
+
+    assert (state.cursor_x, state.cursor_y) == (3, 1)
+
+
+def test_move_editor_cursor_moves_within_bounds() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#   #",
+        "#####",
+    )
+
+    state.move_editor_cursor(1, 1)
+
+    assert (state.cursor_x, state.cursor_y) == (2, 2)
+
+
+def test_move_editor_cursor_clamps_to_board_edges() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#   #",
+        "#####",
+    )
+
+    state.move_editor_cursor(-10, -10)
+    assert (state.cursor_x, state.cursor_y) == (0, 0)
+
+    state.move_editor_cursor(10, 10)
+    assert (state.cursor_x, state.cursor_y) == (4, 3)
 
 
 def test_parse_level_supports_sand() -> None:

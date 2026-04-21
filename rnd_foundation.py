@@ -616,6 +616,8 @@ class GameState:
     grid: List[List[ElementCell]]
     player_x: int
     player_y: int
+    cursor_x: int
+    cursor_y: int
     diamonds_total: int
     registry: dict[str, CustomElement] = field(default_factory=lambda: dict(CUSTOM_ELEMENTS))
     editor_active: bool = False
@@ -639,6 +641,10 @@ class GameState:
 
     def in_bounds(self, x: int, y: int) -> bool:
         return 0 <= x < self.width and 0 <= y < self.height
+
+    def move_editor_cursor(self, dx: int, dy: int) -> None:
+        self.cursor_x = min(max(self.cursor_x + dx, 0), self.width - 1)
+        self.cursor_y = min(max(self.cursor_y + dy, 0), self.height - 1)
 
     def get_tile(self, x: int, y: int) -> Tile:
         return tile_for_element_cell(self.grid[y][x], CUSTOM_ELEMENTS)
@@ -853,6 +859,8 @@ def parse_level(
         grid=element_cells,
         player_x=player_pos[0],
         player_y=player_pos[1],
+        cursor_x=player_pos[0],
+        cursor_y=player_pos[1],
         diamonds_total=diamonds_total,
         registry=active_registry,
     )

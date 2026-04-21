@@ -328,6 +328,85 @@ def test_select_editor_element_rejects_unknown_id() -> None:
         state.select_editor_element("mud")
 
 
+def test_paint_selected_editor_cell_replaces_cursor_cell_with_selected_element() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.select_editor_element(SAND_ELEMENT_ID)
+    state.move_editor_cursor(1, 0)
+
+    state.paint_selected_editor_cell()
+
+    assert state.get_cell(2, 1) == SAND_ELEMENT_ID
+
+
+def test_paint_selected_editor_cell_can_paint_level_custom_element() -> None:
+    registry = make_active_registry(
+        {
+            "mud": CustomElement(name="mud", symbol="m", diggable=True),
+        }
+    )
+    state = parse_level(
+        [
+            "#####",
+            "#P  #",
+            "#####",
+        ],
+        registry,
+    )
+    state.select_editor_element("mud")
+    state.move_editor_cursor(1, 0)
+
+    state.paint_selected_editor_cell()
+
+    assert state.get_cell(2, 1) == "mud"
+
+
+def test_paint_selected_editor_cell_can_clear_non_player_cell() -> None:
+    state = make_state(
+        "#####",
+        "#P* #",
+        "#####",
+    )
+    state.move_editor_cursor(1, 0)
+    state.select_editor_element(EMPTY_ELEMENT_ID)
+
+    state.paint_selected_editor_cell()
+
+    assert state.get_cell(2, 1) is None
+    assert state.diamonds_total == 0
+
+
+def test_paint_selected_editor_cell_moves_tracked_player() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.select_editor_element(PLAYER_ELEMENT_ID)
+    state.move_editor_cursor(1, 0)
+
+    state.paint_selected_editor_cell()
+
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.get_cell(1, 1) is None
+    assert state.get_cell(2, 1) == PLAYER_ELEMENT_ID
+
+
+def test_paint_selected_editor_cell_rejects_painting_over_tracked_player() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.select_editor_element(SAND_ELEMENT_ID)
+
+    with pytest.raises(ValueError, match="Cannot paint over the tracked player"):
+        state.paint_selected_editor_cell()
+
+
 def test_move_editor_cursor_moves_within_bounds() -> None:
     state = make_state(
         "#####",

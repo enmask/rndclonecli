@@ -673,6 +673,34 @@ class GameState:
         index = palette.index(self.selected_editor_element_id)
         self.selected_editor_element_id = palette[(index - 1) % len(palette)]
 
+    def recount_diamonds_total(self) -> None:
+        self.diamonds_total = sum(
+            1
+            for row in self.grid
+            for cell in row
+            if cell_is_collectible(cell, self.registry)
+        )
+
+    def paint_selected_editor_cell(self) -> None:
+        x, y = self.cursor_x, self.cursor_y
+        selected_cell = None if self.selected_editor_element_id == EMPTY_ELEMENT_ID else self.selected_editor_element_id
+        current_cell = self.get_cell(x, y)
+
+        if (
+            current_cell == PLAYER_ELEMENT_ID
+            and selected_cell != PLAYER_ELEMENT_ID
+            and (x, y) == (self.player_x, self.player_y)
+        ):
+            raise ValueError("Cannot paint over the tracked player with a non-player element")
+
+        if selected_cell == PLAYER_ELEMENT_ID:
+            if (self.player_x, self.player_y) != (x, y) and self.get_cell(self.player_x, self.player_y) == PLAYER_ELEMENT_ID:
+                self.set_cell(self.player_x, self.player_y, None)
+            self.player_x, self.player_y = x, y
+
+        self.set_cell(x, y, selected_cell)
+        self.recount_diamonds_total()
+
     def get_tile(self, x: int, y: int) -> Tile:
         return tile_for_element_cell(self.grid[y][x], CUSTOM_ELEMENTS)
 

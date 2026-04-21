@@ -407,6 +407,74 @@ def test_paint_selected_editor_cell_rejects_painting_over_tracked_player() -> No
         state.paint_selected_editor_cell()
 
 
+def test_reset_after_editor_edit_clears_transient_runtime_state() -> None:
+    state = make_state(
+        "#####",
+        "#P* #",
+        "#####",
+    )
+    state.diamonds_collected = 1
+    state.alive = False
+    state.won = True
+    state.falling_positions = {(2, 1)}
+    state.just_pushed_positions = {(2, 1)}
+    state.recently_pushed_positions = {(2, 1)}
+    state.motion_locked_positions = {(2, 1)}
+    set_fall_in_progress(state.fall_state, make_fall_in_progress(ROCK_ELEMENT_ID, (2, 1), (2, 2)))
+    state.pending_action = "d"
+    motion_state = make_motion_state()
+    set_motion(motion_state, make_motion(ROCK_ELEMENT_ID, (2, 1), (2, 2), 10))
+
+    state.reset_after_editor_edit(motion_state)
+
+    assert state.diamonds_collected == 0
+    assert state.alive is True
+    assert state.won is False
+    assert state.falling_positions == set()
+    assert state.just_pushed_positions == set()
+    assert state.recently_pushed_positions == set()
+    assert state.motion_locked_positions == set()
+    assert active_falls(state.fall_state) == []
+    assert state.pending_action is None
+    assert active_motions(motion_state) == []
+
+
+def test_paint_selected_editor_cell_resets_runtime_state_after_edit() -> None:
+    state = make_state(
+        "#####",
+        "#P* #",
+        "#####",
+    )
+    state.move_editor_cursor(1, 0)
+    state.select_editor_element(EMPTY_ELEMENT_ID)
+    state.diamonds_collected = 1
+    state.alive = False
+    state.won = True
+    state.falling_positions = {(2, 1)}
+    state.just_pushed_positions = {(2, 1)}
+    state.recently_pushed_positions = {(2, 1)}
+    state.motion_locked_positions = {(2, 1)}
+    set_fall_in_progress(state.fall_state, make_fall_in_progress(ROCK_ELEMENT_ID, (2, 1), (2, 2)))
+    state.pending_action = "d"
+    motion_state = make_motion_state()
+    set_motion(motion_state, make_motion(ROCK_ELEMENT_ID, (2, 1), (2, 2), 10))
+
+    state.paint_selected_editor_cell(motion_state)
+
+    assert state.get_cell(2, 1) is None
+    assert state.diamonds_total == 0
+    assert state.diamonds_collected == 0
+    assert state.alive is True
+    assert state.won is False
+    assert state.falling_positions == set()
+    assert state.just_pushed_positions == set()
+    assert state.recently_pushed_positions == set()
+    assert state.motion_locked_positions == set()
+    assert active_falls(state.fall_state) == []
+    assert state.pending_action is None
+    assert active_motions(motion_state) == []
+
+
 def test_move_editor_cursor_moves_within_bounds() -> None:
     state = make_state(
         "#####",

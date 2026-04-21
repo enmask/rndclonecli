@@ -681,7 +681,20 @@ class GameState:
             if cell_is_collectible(cell, self.registry)
         )
 
-    def paint_selected_editor_cell(self) -> None:
+    def reset_after_editor_edit(self, motion_state: MotionState | None = None) -> None:
+        self.diamonds_collected = 0
+        self.alive = True
+        self.won = False
+        self.falling_positions.clear()
+        self.just_pushed_positions.clear()
+        self.recently_pushed_positions.clear()
+        self.motion_locked_positions.clear()
+        self.fall_state.clear()
+        self.pending_action = None
+        if motion_state is not None:
+            motion_state.clear()
+
+    def paint_selected_editor_cell(self, motion_state: MotionState | None = None) -> None:
         x, y = self.cursor_x, self.cursor_y
         selected_cell = None if self.selected_editor_element_id == EMPTY_ELEMENT_ID else self.selected_editor_element_id
         current_cell = self.get_cell(x, y)
@@ -700,6 +713,7 @@ class GameState:
 
         self.set_cell(x, y, selected_cell)
         self.recount_diamonds_total()
+        self.reset_after_editor_edit(motion_state)
 
     def get_tile(self, x: int, y: int) -> Tile:
         return tile_for_element_cell(self.grid[y][x], CUSTOM_ELEMENTS)

@@ -1143,9 +1143,9 @@ def action_from_turn_input(text: str) -> str | None:
 def action_from_curses_key(key: int) -> str | None:
     if key in (ord("e"), ord("E")):
         return EDITOR_TOGGLE_ACTION
-    if key == ord("["):
+    if key in (ord("["), ord(",")):
         return EDITOR_PREVIOUS_ELEMENT_ACTION
-    if key == ord("]"):
+    if key in (ord("]"), ord(".")):
         return EDITOR_NEXT_ELEMENT_ACTION
     if key in (ord(" "), 10, 13):
         return EDITOR_PAINT_ACTION
@@ -1172,9 +1172,9 @@ def action_from_pygame_key(key: int, ctrl_held: bool = False) -> str | None:
     pygame = importlib.import_module("pygame")
     if key == pygame.K_e:
         return EDITOR_TOGGLE_ACTION
-    if key == pygame.K_LEFTBRACKET:
+    if key in (pygame.K_LEFTBRACKET, pygame.K_COMMA):
         return EDITOR_PREVIOUS_ELEMENT_ACTION
-    if key == pygame.K_RIGHTBRACKET:
+    if key in (pygame.K_RIGHTBRACKET, pygame.K_PERIOD):
         return EDITOR_NEXT_ELEMENT_ACTION
     if key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP_ENTER):
         return EDITOR_PAINT_ACTION

@@ -6713,6 +6713,8 @@ class FakePygame:
     K_SPACE = 16
     K_RETURN = 17
     K_KP_ENTER = 18
+    K_COMMA = 19
+    K_PERIOD = 20
     KMOD_CTRL = 64
 
     class display:
@@ -6857,7 +6859,9 @@ def test_action_from_curses_key_supports_editor_toggle_action() -> None:
 
 def test_action_from_curses_key_supports_editor_palette_and_paint_actions() -> None:
     assert action_from_curses_key(ord("[")) == EDITOR_PREVIOUS_ELEMENT_ACTION
+    assert action_from_curses_key(ord(",")) == EDITOR_PREVIOUS_ELEMENT_ACTION
     assert action_from_curses_key(ord("]")) == EDITOR_NEXT_ELEMENT_ACTION
+    assert action_from_curses_key(ord(".")) == EDITOR_NEXT_ELEMENT_ACTION
     assert action_from_curses_key(ord(" ")) == EDITOR_PAINT_ACTION
     assert action_from_curses_key(10) == EDITOR_PAINT_ACTION
     assert action_from_curses_key(13) == EDITOR_PAINT_ACTION
@@ -6875,7 +6879,9 @@ def test_action_from_pygame_key_supports_editor_palette_and_paint_actions(
     install_fake_pygame(monkeypatch)
 
     assert action_from_pygame_key(FakePygame.K_LEFTBRACKET) == EDITOR_PREVIOUS_ELEMENT_ACTION
+    assert action_from_pygame_key(FakePygame.K_COMMA) == EDITOR_PREVIOUS_ELEMENT_ACTION
     assert action_from_pygame_key(FakePygame.K_RIGHTBRACKET) == EDITOR_NEXT_ELEMENT_ACTION
+    assert action_from_pygame_key(FakePygame.K_PERIOD) == EDITOR_NEXT_ELEMENT_ACTION
     assert action_from_pygame_key(FakePygame.K_SPACE) == EDITOR_PAINT_ACTION
     assert action_from_pygame_key(FakePygame.K_RETURN) == EDITOR_PAINT_ACTION
     assert action_from_pygame_key(FakePygame.K_KP_ENTER) == EDITOR_PAINT_ACTION

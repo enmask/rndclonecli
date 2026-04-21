@@ -476,6 +476,56 @@ def test_paint_selected_editor_cell_resets_runtime_state_after_edit() -> None:
     assert active_motions(motion_state) == []
 
 
+def test_editor_workflow_can_paint_level_local_custom_element_and_render_it() -> None:
+    registry = make_active_registry(
+        {
+            "mud": CustomElement(name="mud", symbol="m", diggable=True),
+        }
+    )
+    state = parse_level(
+        [
+            "#####",
+            "#P  #",
+            "#####",
+        ],
+        registry,
+    )
+    state.editor_active = True
+    state.select_editor_element("mud")
+    state.move_editor_cursor(1, 0)
+
+    state.paint_selected_editor_cell()
+
+    assert state.get_cell(2, 1) == "mud"
+    assert state.render() == "\n".join(
+        [
+            "#####",
+            "#P@ #",
+            "#####",
+            "Diamonds: 0/0",
+            "Editor: ON   Cursor: 2,1   Paint: m (mud)",
+        ]
+    )
+
+
+def test_step_game_remains_paused_during_editor_after_painting() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.editor_active = True
+    state.select_editor_element(SAND_ELEMENT_ID)
+    state.move_editor_cursor(1, 0)
+    state.paint_selected_editor_cell()
+
+    step_game(state, "d")
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.get_cell(2, 1) == SAND_ELEMENT_ID
+    assert state.pending_action is None
+
+
 def test_move_editor_cursor_moves_within_bounds() -> None:
     state = make_state(
         "#####",

@@ -281,6 +281,35 @@ def test_definition_editor_state_defaults_to_inactive_for_selected_element() -> 
     assert state.definition_editor_element() == state.registry[PLAYER_ELEMENT_ID]
 
 
+def test_definition_editor_marks_builtins_read_only_and_customs_editable() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    assert state.definition_editor_element_is_read_only() is True
+
+    state.select_editor_element(SLIME_ELEMENT_ID)
+
+    assert state.definition_editor_element_is_read_only() is False
+
+
+def test_editable_definition_editor_element_rejects_builtins_and_returns_customs() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    with pytest.raises(ValueError, match="read-only"):
+        state.editable_definition_editor_element()
+
+    state.select_editor_element(SLIME_ELEMENT_ID)
+
+    assert state.editable_definition_editor_element() == state.registry[SLIME_ELEMENT_ID]
+
+
 def test_definition_editor_toggle_requires_editor_mode_and_tracks_selected_element() -> None:
     state = make_state(
         "#####",
@@ -391,6 +420,21 @@ def test_paint_selected_editor_cell_replaces_cursor_cell_with_selected_element()
 
     state.paint_selected_editor_cell()
 
+    assert state.get_cell(2, 1) == SAND_ELEMENT_ID
+
+
+def test_builtin_elements_remain_paintable_even_if_definition_editing_is_read_only() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.select_editor_element(SAND_ELEMENT_ID)
+    state.move_editor_cursor(1, 0)
+
+    state.paint_selected_editor_cell()
+
+    assert state.definition_editor_element_is_read_only() is True
     assert state.get_cell(2, 1) == SAND_ELEMENT_ID
 
 

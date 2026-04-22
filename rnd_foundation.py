@@ -710,6 +710,14 @@ class GameState:
     def definition_editor_element(self) -> CustomElement:
         return self.selected_editor_element()
 
+    def definition_editor_element_is_read_only(self) -> bool:
+        return self.selected_editor_element_id in BUILTIN_ELEMENT_DEFINITIONS
+
+    def editable_definition_editor_element(self) -> CustomElement:
+        if self.definition_editor_element_is_read_only():
+            raise ValueError("Built-in element definitions are read-only")
+        return self.definition_editor_element()
+
     def toggle_definition_editor_active(self) -> bool:
         if not self.editor_active:
             raise ValueError("Definition editor requires editor mode to be active")

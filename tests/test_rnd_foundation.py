@@ -171,6 +171,7 @@ from rnd_foundation import (
     load_level_custom_elements,
     load_level_registry,
     save_level_custom_elements,
+    serialize_level_lines,
     tile_for_symbol,
     tile_for_level_symbol,
     tile_appearance,
@@ -302,6 +303,54 @@ def test_set_level_path_updates_and_clears_sidecar_state() -> None:
     state.set_level_path(None)
     assert state.level_path is None
     assert state.level_sidecar_path is None
+
+
+def test_serialize_level_lines_uses_active_registry_symbols() -> None:
+    registry = make_active_registry(
+        {
+            "mud": CustomElement(name="mud", symbol="m", diggable=True),
+        }
+    )
+    state = parse_level(
+        [
+            "#####",
+            "#Pm #",
+            "#####",
+        ],
+        registry=registry,
+    )
+
+    assert serialize_level_lines(state) == [
+        "#####",
+        "#Pm #",
+        "#####",
+    ]
+
+
+def test_serialize_level_lines_ignores_editor_cursor_and_blocked_fall_destination() -> None:
+    state = make_state(
+        "#####",
+        "# O #",
+        "#P  #",
+        "#####",
+    )
+    state.editor_active = True
+    state.cursor_x = 2
+    state.cursor_y = 1
+    state.apply_gravity(defer_falls=True)
+
+    assert state.render_lines() == [
+        "#####",
+        "# @ #",
+        "#Pv #",
+        "#####",
+    ]
+    assert serialize_level_lines(state) == [
+        "#####",
+        "# O #",
+        "#P  #",
+        "#####",
+    ]
 
 
 def test_editor_cursor_starts_at_player_position() -> None:

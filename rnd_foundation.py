@@ -1205,6 +1205,13 @@ def parse_level(
     return state
 
 
+def serialize_level_lines(state: GameState) -> list[str]:
+    return [
+        "".join(symbol_for_element_cell(cell, state.registry) for cell in row)
+        for row in state.grid
+    ]
+
+
 DEFAULT_LEVEL = [
     "########################################",
     "#ss.... ..*.O .....O.O....... ....O....#",

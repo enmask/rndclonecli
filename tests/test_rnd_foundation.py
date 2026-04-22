@@ -201,6 +201,33 @@ def test_parse_level_rejects_empty_input() -> None:
         parse_level([])
 
 
+def test_parse_level_defaults_level_paths_to_none() -> None:
+    state = parse_level(
+        [
+            "#####",
+            "#P  #",
+            "#####",
+        ]
+    )
+
+    assert state.level_path is None
+    assert state.level_sidecar_path is None
+
+
+def test_parse_level_stores_level_paths_when_provided() -> None:
+    state = parse_level(
+        [
+            "#####",
+            "#P  #",
+            "#####",
+        ],
+        level_path="/tmp/test-level.txt",
+    )
+
+    assert state.level_path == "/tmp/test-level.txt"
+    assert state.level_sidecar_path == "/tmp/test-level.elements.json"
+
+
 def test_parse_level_rejects_uneven_rows() -> None:
     with pytest.raises(ValueError, match="equal width"):
         parse_level(
@@ -259,6 +286,22 @@ def test_parse_level_tracks_dimensions_and_diamonds() -> None:
     assert state.cursor_y == 1
     assert state.diamonds_total == 1
     assert state.get(2, 2) == Tile.ROCK
+
+
+def test_set_level_path_updates_and_clears_sidecar_state() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    state.set_level_path("/tmp/edited-level.txt")
+    assert state.level_path == "/tmp/edited-level.txt"
+    assert state.level_sidecar_path == "/tmp/edited-level.elements.json"
+
+    state.set_level_path(None)
+    assert state.level_path is None
+    assert state.level_sidecar_path is None
 
 
 def test_editor_cursor_starts_at_player_position() -> None:

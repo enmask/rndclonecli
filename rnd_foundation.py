@@ -751,6 +751,8 @@ class GameState:
     selected_editor_element_id: str
     diamonds_total: int
     registry: dict[str, CustomElement] = field(default_factory=lambda: dict(CUSTOM_ELEMENTS))
+    level_path: str | None = None
+    level_sidecar_path: str | None = None
     editor_active: bool = False
     definition_editor_active: bool = False
     diamonds_collected: int = 0
@@ -777,6 +779,12 @@ class GameState:
     def move_editor_cursor(self, dx: int, dy: int) -> None:
         self.cursor_x = min(max(self.cursor_x + dx, 0), self.width - 1)
         self.cursor_y = min(max(self.cursor_y + dy, 0), self.height - 1)
+
+    def set_level_path(self, level_path: str | None) -> None:
+        self.level_path = level_path
+        self.level_sidecar_path = (
+            None if level_path is None else level_elements_sidecar_path(level_path)
+        )
 
     def toggle_editor_active(self) -> bool:
         self.editor_active = not self.editor_active
@@ -1164,6 +1172,7 @@ class GameState:
 def parse_level(
     lines: Iterable[str],
     registry: dict[str, CustomElement] | None = None,
+    level_path: str | None = None,
 ) -> GameState:
     active_registry = dict(CUSTOM_ELEMENTS) if registry is None else dict(registry)
     element_cells = parse_level_element_cells(lines, active_registry)
@@ -1182,7 +1191,7 @@ def parse_level(
     if player_pos is None:
         raise ValueError("Level must contain a player 'P'")
 
-    return GameState(
+    state = GameState(
         grid=element_cells,
         player_x=player_pos[0],
         player_y=player_pos[1],
@@ -1192,6 +1201,8 @@ def parse_level(
         diamonds_total=diamonds_total,
         registry=active_registry,
     )
+    state.set_level_path(level_path)
+    return state
 
 
 DEFAULT_LEVEL = [

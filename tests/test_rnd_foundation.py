@@ -142,6 +142,7 @@ from rnd_foundation import (
     repeated_held_action,
     run_interactive_realtime_graphics,
     run_interactive_realtime_terminal,
+    save_level,
     screen_size_px,
     set_motion,
     set_fall_in_progress,
@@ -351,6 +352,63 @@ def test_serialize_level_lines_ignores_editor_cursor_and_blocked_fall_destinatio
         "#P  #",
         "#####",
     ]
+
+
+def test_save_level_rejects_missing_level_path() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    with pytest.raises(ValueError, match="without a level file path"):
+        save_level(state)
+
+
+def test_save_level_writes_serialized_board_to_explicit_path(tmp_path) -> None:
+    registry = make_active_registry(
+        {
+            "mud": CustomElement(name="mud", symbol="m", diggable=True),
+        }
+    )
+    state = parse_level(
+        [
+            "#####",
+            "#Pm #",
+            "#####",
+        ],
+        registry=registry,
+    )
+    level_path = tmp_path / "saved-level.txt"
+
+    saved_path = save_level(state, str(level_path))
+
+    assert saved_path == str(level_path)
+    assert level_path.read_text(encoding="utf-8") == "#####\n#Pm #\n#####\n"
+    assert state.level_path == str(level_path)
+    assert state.level_sidecar_path == str(tmp_path / "saved-level.elements.json")
+
+
+def test_save_level_uses_existing_state_level_path_by_default(tmp_path) -> None:
+    level_path = tmp_path / "saved-again.txt"
+    state = parse_level(
+        [
+            "#####",
+            "#P  #",
+            "#####",
+        ],
+        level_path=str(level_path),
+    )
+
+    state.select_editor_element(SLIME_ELEMENT_ID)
+    state.cursor_x = 2
+    state.cursor_y = 1
+    state.paint_selected_editor_cell()
+
+    saved_path = save_level(state)
+
+    assert saved_path == str(level_path)
+    assert level_path.read_text(encoding="utf-8") == "#####\n#Ps #\n#####\n"
 
 
 def test_editor_cursor_starts_at_player_position() -> None:

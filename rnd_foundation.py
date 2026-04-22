@@ -1212,6 +1212,19 @@ def serialize_level_lines(state: GameState) -> list[str]:
     ]
 
 
+def save_level(state: GameState, level_path: str | None = None) -> str:
+    target_path = state.level_path if level_path is None else level_path
+    if target_path is None:
+        raise ValueError("Cannot save level without a level file path")
+
+    with open(target_path, "w", encoding="utf-8") as level_file:
+        for line in serialize_level_lines(state):
+            level_file.write(f"{line}\n")
+
+    state.set_level_path(target_path)
+    return target_path
+
+
 DEFAULT_LEVEL = [
     "########################################",
     "#ss.... ..*.O .....O.O....... ....O....#",

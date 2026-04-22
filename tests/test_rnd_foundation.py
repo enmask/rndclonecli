@@ -6979,6 +6979,85 @@ def test_graphics_mode_processes_at_most_one_move_per_frame(monkeypatch: pytest.
     assert (state.player_x, state.player_y) == (2, 1)
 
 
+def test_graphics_mode_editor_controls_move_cursor_cycle_palette_with_period_and_paint(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+
+    class SequencedEventQueue:
+        frames = [
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_e)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_PERIOD)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_SPACE)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_q)],
+        ]
+        index = 0
+
+        @classmethod
+        def get(cls) -> list[FakeEvent]:
+            if cls.index >= len(cls.frames):
+                return []
+            events = cls.frames[cls.index]
+            cls.index += 1
+            return events
+
+    monkeypatch.setattr(FakePygame, "event", SequencedEventQueue)
+
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    run_interactive_realtime_graphics(state, tick_ms=250, tile_size=32, max_frames=5)
+
+    assert state.editor_active is True
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert (state.cursor_x, state.cursor_y) == (2, 1)
+    assert state.selected_editor_element_id == SLIME_ELEMENT_ID
+    assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
+
+
+def test_graphics_mode_can_exit_editor_and_resume_gameplay_controls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+
+    class SequencedEventQueue:
+        frames = [
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_e)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_e)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_q)],
+        ]
+        index = 0
+
+        @classmethod
+        def get(cls) -> list[FakeEvent]:
+            if cls.index >= len(cls.frames):
+                return []
+            events = cls.frames[cls.index]
+            cls.index += 1
+            return events
+
+    monkeypatch.setattr(FakePygame, "event", SequencedEventQueue)
+
+    state = make_state(
+        "######",
+        "#P   #",
+        "######",
+    )
+
+    run_interactive_realtime_graphics(state, tick_ms=250, tile_size=32, max_frames=5)
+
+    assert state.editor_active is False
+    assert (state.cursor_x, state.cursor_y) == (2, 1)
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.get_cell(2, 1) == PLAYER_ELEMENT_ID
+
+
 def test_graphics_mode_sync_timing_consumes_buffered_input_on_sync_frame(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

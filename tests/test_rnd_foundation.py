@@ -270,6 +270,51 @@ def test_editor_palette_selection_defaults_to_player_element() -> None:
     assert state.selected_editor_element() == state.registry[PLAYER_ELEMENT_ID]
 
 
+def test_definition_editor_state_defaults_to_inactive_for_selected_element() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    assert state.definition_editor_active is False
+    assert state.definition_editor_element() == state.registry[PLAYER_ELEMENT_ID]
+
+
+def test_definition_editor_toggle_requires_editor_mode_and_tracks_selected_element() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    with pytest.raises(ValueError, match="requires editor mode"):
+        state.toggle_definition_editor_active()
+
+    assert state.toggle_editor_active() is True
+    assert state.toggle_definition_editor_active() is True
+    assert state.definition_editor_element() == state.registry[PLAYER_ELEMENT_ID]
+
+    state.select_editor_element(SLIME_ELEMENT_ID)
+
+    assert state.definition_editor_element() == state.registry[SLIME_ELEMENT_ID]
+
+
+def test_definition_editor_state_clears_when_editor_mode_is_turned_off() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    state.toggle_editor_active()
+    state.toggle_definition_editor_active()
+
+    assert state.definition_editor_active is True
+    assert state.toggle_editor_active() is False
+    assert state.definition_editor_active is False
+
+
 def test_editor_palette_element_ids_follow_active_registry_order() -> None:
     state = make_state(
         "#####",

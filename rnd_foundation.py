@@ -668,6 +668,7 @@ class GameState:
     diamonds_total: int
     registry: dict[str, CustomElement] = field(default_factory=lambda: dict(CUSTOM_ELEMENTS))
     editor_active: bool = False
+    definition_editor_active: bool = False
     diamonds_collected: int = 0
     alive: bool = True
     won: bool = False
@@ -695,6 +696,8 @@ class GameState:
 
     def toggle_editor_active(self) -> bool:
         self.editor_active = not self.editor_active
+        if not self.editor_active:
+            self.definition_editor_active = False
         self.pending_action = None
         return self.editor_active
 
@@ -703,6 +706,15 @@ class GameState:
 
     def selected_editor_element(self) -> CustomElement:
         return self.registry[self.selected_editor_element_id]
+
+    def definition_editor_element(self) -> CustomElement:
+        return self.selected_editor_element()
+
+    def toggle_definition_editor_active(self) -> bool:
+        if not self.editor_active:
+            raise ValueError("Definition editor requires editor mode to be active")
+        self.definition_editor_active = not self.definition_editor_active
+        return self.definition_editor_active
 
     def select_editor_element(self, element_id: str) -> None:
         if element_id not in self.registry:

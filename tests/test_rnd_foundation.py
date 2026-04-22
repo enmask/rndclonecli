@@ -169,6 +169,7 @@ from rnd_foundation import (
     level_custom_elements_from_sidecar_data,
     level_custom_elements_from_registry,
     level_elements_sidecar_path,
+    load_level,
     load_level_custom_elements,
     load_level_registry,
     save_level_custom_elements,
@@ -463,6 +464,88 @@ def test_save_level_uses_existing_state_level_path_by_default(tmp_path) -> None:
         '  ]\n'
         '}\n'
     )
+
+
+def test_load_level_reads_board_registry_and_level_paths(tmp_path) -> None:
+    level_path = tmp_path / "loaded-level.txt"
+    level_path.write_text("#####\n#Pmg#\n#####\n", encoding="utf-8")
+    (tmp_path / "loaded-level.elements.json").write_text(
+        (
+            '{\n'
+            '  "format": "rndclonecli.level-elements",\n'
+            '  "version": 1,\n'
+            '  "elements": [\n'
+            '    {\n'
+            '      "name": "mud",\n'
+            '      "symbol": "m",\n'
+            '      "diggable": true,\n'
+            '      "collectible": false,\n'
+            '      "pushable": false,\n'
+            '      "can_fall": false,\n'
+            '      "can_smash": false,\n'
+            '      "color": null\n'
+            '    },\n'
+            '    {\n'
+            '      "name": "gem2",\n'
+            '      "symbol": "g",\n'
+            '      "diggable": false,\n'
+            '      "collectible": true,\n'
+            '      "pushable": false,\n'
+            '      "can_fall": false,\n'
+            '      "can_smash": false,\n'
+            '      "color": null\n'
+            '    }\n'
+            '  ]\n'
+            '}\n'
+        ),
+        encoding="utf-8",
+    )
+
+    state = load_level(str(level_path))
+
+    assert state.level_path == str(level_path)
+    assert state.level_sidecar_path == str(tmp_path / "loaded-level.elements.json")
+    assert state.get_cell(1, 1) == PLAYER_ELEMENT_ID
+    assert state.get_cell(2, 1) == "mud"
+    assert state.get_cell(3, 1) == "gem2"
+    assert state.registry["mud"] == CustomElement(name="mud", symbol="m", diggable=True)
+    assert state.registry["gem2"] == CustomElement(name="gem2", symbol="g", collectible=True)
+    assert state.diamonds_total == 1
+
+
+def test_load_level_round_trips_saved_level_and_sidecar(tmp_path) -> None:
+    level_path = tmp_path / "roundtrip-load.txt"
+    state = parse_level(
+        [
+            "#####",
+            "#P  #",
+            "#####",
+        ],
+        level_path=str(level_path),
+    )
+    state.select_editor_element(SLIME_ELEMENT_ID)
+    state.cursor_x = 2
+    state.cursor_y = 1
+    state.paint_selected_editor_cell()
+    state.select_editor_element(BRICK_ELEMENT_ID)
+    state.cursor_x = 3
+    state.cursor_y = 1
+    state.paint_selected_editor_cell()
+
+    save_level(state)
+    loaded = load_level(str(level_path))
+
+    assert serialize_level_lines(loaded) == [
+        "#####",
+        "#PsB#",
+        "#####",
+    ]
+    assert loaded.level_path == str(level_path)
+    assert loaded.level_sidecar_path == str(tmp_path / "roundtrip-load.elements.json")
+    assert loaded.registry[SLIME_ELEMENT_ID] == state.registry[SLIME_ELEMENT_ID]
+    assert loaded.registry[BRICK_ELEMENT_ID] == state.registry[BRICK_ELEMENT_ID]
+    assert loaded.selected_editor_element_id == PLAYER_ELEMENT_ID
+    assert (loaded.cursor_x, loaded.cursor_y) == (loaded.player_x, loaded.player_y)
 
 
 def test_editor_cursor_starts_at_player_position() -> None:

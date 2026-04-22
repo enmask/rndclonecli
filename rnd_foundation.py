@@ -1226,6 +1226,12 @@ def save_level(state: GameState, level_path: str | None = None) -> str:
     return target_path
 
 
+def load_level(level_path: str) -> GameState:
+    registry = load_level_registry(level_path)
+    with open(level_path, encoding="utf-8") as level_file:
+        return parse_level(level_file, registry=registry, level_path=level_path)
+
+
 DEFAULT_LEVEL = [
     "########################################",
     "#ss.... ..*.O .....O.O....... ....O....#",

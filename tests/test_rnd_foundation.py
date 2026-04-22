@@ -918,6 +918,70 @@ def test_step_realtime_frame_routes_editor_load_action_and_sets_feedback(tmp_pat
     assert state.editor_file_feedback_is_error is False
 
 
+def test_step_realtime_frame_save_and_load_round_trips_board_and_definition_edits(tmp_path) -> None:
+    level_path = tmp_path / "editor-roundtrip.txt"
+    state = parse_level(
+        [
+            "#####",
+            "#P  #",
+            "#####",
+        ],
+        level_path=str(level_path),
+    )
+    state.editor_active = True
+    state.select_editor_element(SLIME_ELEMENT_ID)
+
+    step_realtime_frame(state, 0, EDITOR_DEFINITION_TOGGLE_ACTION)
+    step_realtime_frame(state, 1, EDITOR_TOGGLE_DIGGABLE_ACTION)
+    step_realtime_frame(state, 2, EDITOR_NEXT_COLOR_ACTION)
+    step_realtime_frame(state, 3, "d")
+    step_realtime_frame(state, 4, EDITOR_PAINT_ACTION)
+    step_realtime_frame(state, 5, EDITOR_SAVE_ACTION)
+
+    assert load_level_custom_elements(str(level_path))[SLIME_ELEMENT_ID] == CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        color=(150, 80, 80),
+    )
+
+    step_realtime_frame(state, 6, "d")
+    step_realtime_frame(state, 7, EDITOR_PAINT_ACTION)
+    step_realtime_frame(state, 8, EDITOR_TOGGLE_DIGGABLE_ACTION)
+    step_realtime_frame(state, 9, EDITOR_NEXT_COLOR_ACTION)
+
+    assert serialize_level_lines(state) == [
+        "#####",
+        "#Pss#",
+        "#####",
+    ]
+    assert state.registry[SLIME_ELEMENT_ID].diggable is True
+
+    step_realtime_frame(state, 10, EDITOR_LOAD_ACTION)
+
+    assert state.editor_active is True
+    assert state.definition_editor_active is False
+    assert serialize_level_lines(state) == [
+        "#####",
+        "#Ps #",
+        "#####",
+    ]
+    assert state.registry[SLIME_ELEMENT_ID] == CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        color=(150, 80, 80),
+    )
+    assert state.editor_file_feedback == "loaded editor-roundtrip.txt + sidecar"
+    assert state.editor_file_feedback_is_error is False
+
+    state.editor_active = False
+    step_game(state, "d")
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
+
+
 def test_step_realtime_frame_routes_editor_save_action_errors_without_level_path() -> None:
     state = make_state(
         "#####",
@@ -8453,6 +8517,76 @@ def test_graphics_mode_editor_load_control_restores_level_and_sets_feedback(
     assert state.get_cell(2, 1) is None
     assert state.editor_file_feedback == "loaded graphics-load.txt + sidecar"
     assert state.editor_file_feedback_is_error is False
+
+
+def test_graphics_mode_editor_save_and_load_round_trips_board_and_definition_edits(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    install_fake_pygame(monkeypatch)
+
+    class SequencedEventQueue:
+        frames = [
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_e)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_PERIOD)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_f)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_1)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_v)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_SPACE)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_F5)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_SPACE)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_1)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_v)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_F9)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_q)],
+        ]
+        index = 0
+
+        @classmethod
+        def get(cls) -> list[FakeEvent]:
+            if cls.index >= len(cls.frames):
+                return []
+            events = cls.frames[cls.index]
+            cls.index += 1
+            return events
+
+    monkeypatch.setattr(FakePygame, "event", SequencedEventQueue)
+
+    level_path = tmp_path / "graphics-roundtrip.txt"
+    state = parse_level(
+        [
+            "#####",
+            "#P  #",
+            "#####",
+        ],
+        level_path=str(level_path),
+    )
+
+    run_interactive_realtime_graphics(state, tick_ms=250, tile_size=32, max_frames=14)
+
+    assert state.editor_active is True
+    assert state.definition_editor_active is False
+    assert serialize_level_lines(state) == [
+        "#####",
+        "#Ps #",
+        "#####",
+    ]
+    assert state.registry[SLIME_ELEMENT_ID] == CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        color=(150, 80, 80),
+    )
+    assert state.editor_file_feedback == "loaded graphics-roundtrip.txt + sidecar"
+    assert state.editor_file_feedback_is_error is False
+    assert load_level_custom_elements(str(level_path))[SLIME_ELEMENT_ID] == CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        color=(150, 80, 80),
+    )
 
 
 def test_graphics_mode_can_exit_editor_and_resume_gameplay_controls(

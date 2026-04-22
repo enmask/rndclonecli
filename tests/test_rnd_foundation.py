@@ -17,8 +17,12 @@ from rnd_foundation import (
     EDITOR_CREATE_ELEMENT_ACTION,
     EDITOR_DEFINITION_TOGGLE_ACTION,
     EDITOR_NEXT_ELEMENT_ACTION,
+    EDITOR_NEXT_COLOR_ACTION,
+    EDITOR_NEXT_SYMBOL_ACTION,
     EDITOR_PAINT_ACTION,
+    EDITOR_PREVIOUS_COLOR_ACTION,
     EDITOR_PREVIOUS_ELEMENT_ACTION,
+    EDITOR_PREVIOUS_SYMBOL_ACTION,
     EDITOR_TOGGLE_CAN_FALL_ACTION,
     EDITOR_TOGGLE_CAN_SMASH_ACTION,
     EDITOR_TOGGLE_COLLECTIBLE_ACTION,
@@ -395,6 +399,35 @@ def test_toggle_selected_custom_element_property_ignores_built_in_definitions() 
     assert state.registry[SAND_ELEMENT_ID] == original
 
 
+def test_cycle_selected_custom_element_symbol_and_color_updates_custom_element_definition() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.select_editor_element(SLIME_ELEMENT_ID)
+
+    updated_symbol = state.cycle_selected_custom_element_symbol(1)
+    updated_color = state.cycle_selected_custom_element_color(1)
+
+    assert updated_symbol == CustomElement(name=SLIME_ELEMENT_ID, symbol="t", diggable=True, color=(220, 90, 90))
+    assert updated_color == CustomElement(name=SLIME_ELEMENT_ID, symbol="t", diggable=True, color=(150, 80, 80))
+    assert state.registry[SLIME_ELEMENT_ID] == updated_color
+    assert symbol_for_element_cell(SLIME_ELEMENT_ID, state.registry) == "t"
+    assert element_cell_color(SLIME_ELEMENT_ID, state.registry) == (150, 80, 80)
+
+
+def test_cycle_selected_custom_element_symbol_and_color_ignore_built_in_definitions() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    assert state.cycle_selected_custom_element_symbol(1) is None
+    assert state.cycle_selected_custom_element_color(1) is None
+
+
 def test_definition_editor_toggle_requires_editor_mode_and_tracks_selected_element() -> None:
     state = make_state(
         "#####",
@@ -449,6 +482,29 @@ def test_step_realtime_frame_routes_definition_editor_toggle_and_property_action
     step_realtime_frame(state, 2, EDITOR_TOGGLE_COLLECTIBLE_ACTION)
 
     assert state.registry[SLIME_ELEMENT_ID].collectible is True
+
+
+def test_step_realtime_frame_routes_definition_editor_symbol_and_color_actions() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.editor_active = True
+    state.select_editor_element(SLIME_ELEMENT_ID)
+
+    step_realtime_frame(state, 0, EDITOR_NEXT_SYMBOL_ACTION)
+    step_realtime_frame(state, 1, EDITOR_NEXT_COLOR_ACTION)
+
+    assert state.registry[SLIME_ELEMENT_ID].symbol == "s"
+    assert state.registry[SLIME_ELEMENT_ID].color == (220, 90, 90)
+
+    step_realtime_frame(state, 2, EDITOR_DEFINITION_TOGGLE_ACTION)
+    step_realtime_frame(state, 3, EDITOR_NEXT_SYMBOL_ACTION)
+    step_realtime_frame(state, 4, EDITOR_NEXT_COLOR_ACTION)
+
+    assert state.registry[SLIME_ELEMENT_ID].symbol == "t"
+    assert state.registry[SLIME_ELEMENT_ID].color == (150, 80, 80)
 
 
 def test_step_realtime_frame_routes_editor_create_element_action_when_editor_active() -> None:
@@ -6951,6 +7007,10 @@ class FakePygame:
     K_3 = 24
     K_4 = 25
     K_5 = 26
+    K_r = 27
+    K_t = 28
+    K_c = 29
+    K_v = 30
     KMOD_CTRL = 64
 
     class display:
@@ -7091,6 +7151,14 @@ def test_action_from_turn_input_supports_editor_toggle_action() -> None:
 def test_action_from_turn_input_supports_definition_editor_and_property_actions() -> None:
     assert action_from_turn_input("f") == EDITOR_DEFINITION_TOGGLE_ACTION
     assert action_from_turn_input("F") == EDITOR_DEFINITION_TOGGLE_ACTION
+    assert action_from_turn_input("r") == EDITOR_PREVIOUS_SYMBOL_ACTION
+    assert action_from_turn_input("R") == EDITOR_PREVIOUS_SYMBOL_ACTION
+    assert action_from_turn_input("t") == EDITOR_NEXT_SYMBOL_ACTION
+    assert action_from_turn_input("T") == EDITOR_NEXT_SYMBOL_ACTION
+    assert action_from_turn_input("c") == EDITOR_PREVIOUS_COLOR_ACTION
+    assert action_from_turn_input("C") == EDITOR_PREVIOUS_COLOR_ACTION
+    assert action_from_turn_input("v") == EDITOR_NEXT_COLOR_ACTION
+    assert action_from_turn_input("V") == EDITOR_NEXT_COLOR_ACTION
     assert action_from_turn_input("1") == EDITOR_TOGGLE_DIGGABLE_ACTION
     assert action_from_turn_input("2") == EDITOR_TOGGLE_COLLECTIBLE_ACTION
     assert action_from_turn_input("3") == EDITOR_TOGGLE_PUSHABLE_ACTION
@@ -7106,6 +7174,14 @@ def test_action_from_curses_key_supports_editor_toggle_action() -> None:
 def test_action_from_curses_key_supports_definition_editor_and_property_actions() -> None:
     assert action_from_curses_key(ord("f")) == EDITOR_DEFINITION_TOGGLE_ACTION
     assert action_from_curses_key(ord("F")) == EDITOR_DEFINITION_TOGGLE_ACTION
+    assert action_from_curses_key(ord("r")) == EDITOR_PREVIOUS_SYMBOL_ACTION
+    assert action_from_curses_key(ord("R")) == EDITOR_PREVIOUS_SYMBOL_ACTION
+    assert action_from_curses_key(ord("t")) == EDITOR_NEXT_SYMBOL_ACTION
+    assert action_from_curses_key(ord("T")) == EDITOR_NEXT_SYMBOL_ACTION
+    assert action_from_curses_key(ord("c")) == EDITOR_PREVIOUS_COLOR_ACTION
+    assert action_from_curses_key(ord("C")) == EDITOR_PREVIOUS_COLOR_ACTION
+    assert action_from_curses_key(ord("v")) == EDITOR_NEXT_COLOR_ACTION
+    assert action_from_curses_key(ord("V")) == EDITOR_NEXT_COLOR_ACTION
     assert action_from_curses_key(ord("1")) == EDITOR_TOGGLE_DIGGABLE_ACTION
     assert action_from_curses_key(ord("2")) == EDITOR_TOGGLE_COLLECTIBLE_ACTION
     assert action_from_curses_key(ord("3")) == EDITOR_TOGGLE_PUSHABLE_ACTION
@@ -7135,6 +7211,10 @@ def test_action_from_pygame_key_supports_definition_editor_and_property_actions(
     install_fake_pygame(monkeypatch)
 
     assert action_from_pygame_key(FakePygame.K_f) == EDITOR_DEFINITION_TOGGLE_ACTION
+    assert action_from_pygame_key(FakePygame.K_r) == EDITOR_PREVIOUS_SYMBOL_ACTION
+    assert action_from_pygame_key(FakePygame.K_t) == EDITOR_NEXT_SYMBOL_ACTION
+    assert action_from_pygame_key(FakePygame.K_c) == EDITOR_PREVIOUS_COLOR_ACTION
+    assert action_from_pygame_key(FakePygame.K_v) == EDITOR_NEXT_COLOR_ACTION
     assert action_from_pygame_key(FakePygame.K_1) == EDITOR_TOGGLE_DIGGABLE_ACTION
     assert action_from_pygame_key(FakePygame.K_2) == EDITOR_TOGGLE_COLLECTIBLE_ACTION
     assert action_from_pygame_key(FakePygame.K_3) == EDITOR_TOGGLE_PUSHABLE_ACTION

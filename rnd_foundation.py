@@ -81,6 +81,10 @@ EDITOR_TOGGLE_COLLECTIBLE_ACTION = "editor_toggle_collectible"
 EDITOR_TOGGLE_PUSHABLE_ACTION = "editor_toggle_pushable"
 EDITOR_TOGGLE_CAN_FALL_ACTION = "editor_toggle_can_fall"
 EDITOR_TOGGLE_CAN_SMASH_ACTION = "editor_toggle_can_smash"
+EDITOR_PREVIOUS_SYMBOL_ACTION = "editor_previous_symbol"
+EDITOR_NEXT_SYMBOL_ACTION = "editor_next_symbol"
+EDITOR_PREVIOUS_COLOR_ACTION = "editor_previous_color"
+EDITOR_NEXT_COLOR_ACTION = "editor_next_color"
 EDITOR_PROPERTY_TOGGLE_ACTIONS = {
     EDITOR_TOGGLE_DIGGABLE_ACTION: "diggable",
     EDITOR_TOGGLE_COLLECTIBLE_ACTION: "collectible",
@@ -141,6 +145,14 @@ DIAMOND_ELEMENT_ID = "diamond"
 PLAYER_ELEMENT_ID = "player"
 DEFAULT_CUSTOM_ELEMENT_COLOR = (220, 90, 90)
 DEFAULT_BRICK_ELEMENT_COLOR = (150, 80, 80)
+EDITOR_CUSTOM_COLOR_PALETTE = (
+    DEFAULT_CUSTOM_ELEMENT_COLOR,
+    DEFAULT_BRICK_ELEMENT_COLOR,
+    (90, 180, 120),
+    (80, 120, 220),
+    (220, 200, 90),
+    (180, 90, 180),
+)
 
 
 BUILTIN_ELEMENT_DEFINITIONS = MappingProxyType(
@@ -248,6 +260,39 @@ def next_editor_custom_element_symbol(
         if symbol not in used_symbols:
             return symbol
     raise ValueError("No unused editor custom-element symbols are available")
+
+
+def cycle_editor_custom_element_symbol(
+    registry: dict[str, CustomElement],
+    element_name: str,
+    step: int,
+    candidates: str = EDITOR_CUSTOM_SYMBOL_CANDIDATES,
+) -> str:
+    element = registry[element_name]
+    used_symbols = {
+        registered.symbol
+        for name, registered in registry.items()
+        if name != element_name
+    }
+    available_symbols = [symbol for symbol in candidates if symbol not in used_symbols or symbol == element.symbol]
+    if not available_symbols:
+        raise ValueError("No editable symbols are available")
+    if element.symbol not in available_symbols:
+        return available_symbols[0 if step > 0 else -1]
+    index = available_symbols.index(element.symbol)
+    return available_symbols[(index + step) % len(available_symbols)]
+
+
+def cycle_editor_custom_element_color(
+    color: Tuple[int, int, int] | None,
+    step: int,
+    palette: tuple[Tuple[int, int, int], ...] = EDITOR_CUSTOM_COLOR_PALETTE,
+) -> Tuple[int, int, int]:
+    current = DEFAULT_CUSTOM_ELEMENT_COLOR if color is None else color
+    if current not in palette:
+        return palette[0 if step > 0 else -1]
+    index = palette.index(current)
+    return palette[(index + step) % len(palette)]
 
 BUILTIN_TILE_ELEMENTS: dict[Tile, CustomElement] = {
     Tile.EMPTY: BUILTIN_ELEMENT_DEFINITIONS[EMPTY_ELEMENT_ID],
@@ -768,10 +813,22 @@ class GameState:
         self.selected_editor_element_id = element.name
         return element
 
-    def toggle_selected_custom_element_property(self, property_name: str) -> CustomElement | None:
-        element = self.definition_editor_element()
+    def apply_selected_custom_element_definition(self, updated: CustomElement) -> CustomElement | None:
         if self.definition_editor_element_is_read_only():
             return None
+        current = self.definition_editor_element()
+        if updated.name != current.name:
+            raise ValueError("Definition edits cannot change the element id")
+        updated_registry = dict(self.registry)
+        updated_registry[current.name] = updated
+        validate_level_custom_elements(level_custom_elements_from_registry(updated_registry))
+        self.registry[current.name] = updated
+        self.recount_diamonds_total()
+        self.reset_after_editor_edit()
+        return updated
+
+    def toggle_selected_custom_element_property(self, property_name: str) -> CustomElement | None:
+        element = self.definition_editor_element()
         if property_name not in (
             "diggable",
             "collectible",
@@ -781,10 +838,23 @@ class GameState:
         ):
             raise ValueError(f"Unknown editable property '{property_name}'")
         updated = replace(element, **{property_name: not getattr(element, property_name)})
-        self.registry[element.name] = updated
-        self.recount_diamonds_total()
-        self.reset_after_editor_edit()
-        return updated
+        return self.apply_selected_custom_element_definition(updated)
+
+    def cycle_selected_custom_element_symbol(self, step: int) -> CustomElement | None:
+        element = self.definition_editor_element()
+        updated = replace(
+            element,
+            symbol=cycle_editor_custom_element_symbol(self.registry, element.name, step),
+        )
+        return self.apply_selected_custom_element_definition(updated)
+
+    def cycle_selected_custom_element_color(self, step: int) -> CustomElement | None:
+        element = self.definition_editor_element()
+        updated = replace(
+            element,
+            color=cycle_editor_custom_element_color(element.color, step),
+        )
+        return self.apply_selected_custom_element_definition(updated)
 
     def toggle_definition_editor_active(self) -> bool:
         if not self.editor_active:
@@ -1208,6 +1278,14 @@ def step_realtime_frame(
             state.create_editor_custom_element()
         elif state.definition_editor_active and action in EDITOR_PROPERTY_TOGGLE_ACTIONS:
             state.toggle_selected_custom_element_property(EDITOR_PROPERTY_TOGGLE_ACTIONS[action])
+        elif state.definition_editor_active and action == EDITOR_PREVIOUS_SYMBOL_ACTION:
+            state.cycle_selected_custom_element_symbol(-1)
+        elif state.definition_editor_active and action == EDITOR_NEXT_SYMBOL_ACTION:
+            state.cycle_selected_custom_element_symbol(1)
+        elif state.definition_editor_active and action == EDITOR_PREVIOUS_COLOR_ACTION:
+            state.cycle_selected_custom_element_color(-1)
+        elif state.definition_editor_active and action == EDITOR_NEXT_COLOR_ACTION:
+            state.cycle_selected_custom_element_color(1)
         elif action in DIRECTIONS:
             dx, dy = DIRECTIONS[action]
             state.move_editor_cursor(dx, dy)
@@ -1273,6 +1351,14 @@ def action_from_turn_input(text: str) -> str | None:
         return EDITOR_TOGGLE_ACTION
     if text in ("f", "F"):
         return EDITOR_DEFINITION_TOGGLE_ACTION
+    if text in ("r", "R"):
+        return EDITOR_PREVIOUS_SYMBOL_ACTION
+    if text in ("t", "T"):
+        return EDITOR_NEXT_SYMBOL_ACTION
+    if text in ("c", "C"):
+        return EDITOR_PREVIOUS_COLOR_ACTION
+    if text in ("v", "V"):
+        return EDITOR_NEXT_COLOR_ACTION
     if text == "1":
         return EDITOR_TOGGLE_DIGGABLE_ACTION
     if text == "2":
@@ -1293,6 +1379,14 @@ def action_from_curses_key(key: int) -> str | None:
         return EDITOR_TOGGLE_ACTION
     if key in (ord("f"), ord("F")):
         return EDITOR_DEFINITION_TOGGLE_ACTION
+    if key in (ord("r"), ord("R")):
+        return EDITOR_PREVIOUS_SYMBOL_ACTION
+    if key in (ord("t"), ord("T")):
+        return EDITOR_NEXT_SYMBOL_ACTION
+    if key in (ord("c"), ord("C")):
+        return EDITOR_PREVIOUS_COLOR_ACTION
+    if key in (ord("v"), ord("V")):
+        return EDITOR_NEXT_COLOR_ACTION
     if key in (ord("["), ord(",")):
         return EDITOR_PREVIOUS_ELEMENT_ACTION
     if key in (ord("]"), ord(".")):
@@ -1334,6 +1428,14 @@ def action_from_pygame_key(key: int, ctrl_held: bool = False) -> str | None:
         return EDITOR_TOGGLE_ACTION
     if key == pygame.K_f:
         return EDITOR_DEFINITION_TOGGLE_ACTION
+    if key == pygame.K_r:
+        return EDITOR_PREVIOUS_SYMBOL_ACTION
+    if key == pygame.K_t:
+        return EDITOR_NEXT_SYMBOL_ACTION
+    if key == pygame.K_c:
+        return EDITOR_PREVIOUS_COLOR_ACTION
+    if key == pygame.K_v:
+        return EDITOR_NEXT_COLOR_ACTION
     if key in (pygame.K_LEFTBRACKET, pygame.K_COMMA):
         return EDITOR_PREVIOUS_ELEMENT_ACTION
     if key in (pygame.K_RIGHTBRACKET, pygame.K_PERIOD):

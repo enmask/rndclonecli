@@ -153,6 +153,8 @@ EDITOR_CUSTOM_COLOR_PALETTE = (
     (220, 200, 90),
     (180, 90, 180),
 )
+EDITOR_FILE_SUCCESS_COLOR = (140, 220, 140)
+EDITOR_FILE_ERROR_COLOR = (220, 140, 140)
 
 
 BUILTIN_ELEMENT_DEFINITIONS = MappingProxyType(
@@ -755,6 +757,8 @@ class GameState:
     level_sidecar_path: str | None = None
     editor_active: bool = False
     definition_editor_active: bool = False
+    editor_file_feedback: str | None = None
+    editor_file_feedback_is_error: bool = False
     diamonds_collected: int = 0
     alive: bool = True
     won: bool = False
@@ -790,8 +794,17 @@ class GameState:
         self.editor_active = not self.editor_active
         if not self.editor_active:
             self.definition_editor_active = False
+            self.clear_editor_file_feedback()
         self.pending_action = None
         return self.editor_active
+
+    def set_editor_file_feedback(self, message: str, is_error: bool = False) -> None:
+        self.editor_file_feedback = message
+        self.editor_file_feedback_is_error = is_error
+
+    def clear_editor_file_feedback(self) -> None:
+        self.editor_file_feedback = None
+        self.editor_file_feedback_is_error = False
 
     def editor_palette_element_ids(self) -> list[str]:
         return list(self.registry.keys())
@@ -1021,12 +1034,21 @@ class GameState:
     def definition_controls_hud_text(self) -> str:
         return "Defs: 1 dig  2 col  3 push  4 fall  5 smash   R/T sym   C/V color"
 
+    def file_hud_text(self) -> str | None:
+        if self.editor_file_feedback is None:
+            return None
+        prefix = "File Error:" if self.editor_file_feedback_is_error else "File:"
+        return f"{prefix} {self.editor_file_feedback}"
+
     def hud_text_lines(self, include_controls: bool = True) -> list[str]:
         lines = [self.status_text()]
         if self.editor_active:
             lines.append(self.editor_hud_text())
             if self.definition_editor_active:
                 lines.append(self.definition_hud_text())
+            file_line = self.file_hud_text()
+            if file_line is not None:
+                lines.append(file_line)
         if include_controls:
             lines.append(self.controls_hud_text())
             if self.editor_active and self.definition_editor_active:
@@ -2224,6 +2246,10 @@ def draw_hud(
             if index == 0
             else EDITOR_CURSOR_COLOR
             if line.startswith("Editor:") or line.startswith("Definition:")
+            else EDITOR_FILE_ERROR_COLOR
+            if line.startswith("File Error:")
+            else EDITOR_FILE_SUCCESS_COLOR
+            if line.startswith("File:")
             else (190, 190, 190)
         )
         screen.blit(

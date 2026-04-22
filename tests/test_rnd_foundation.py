@@ -3273,6 +3273,45 @@ def test_render_includes_definition_hud_line_when_definition_editor_is_active() 
     )
 
 
+def test_editor_file_feedback_state_updates_and_clears() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    state.set_editor_file_feedback("saved level.txt")
+    assert state.file_hud_text() == "File: saved level.txt"
+
+    state.set_editor_file_feedback("save failed", is_error=True)
+    assert state.file_hud_text() == "File Error: save failed"
+
+    state.clear_editor_file_feedback()
+    assert state.file_hud_text() is None
+
+
+def test_render_includes_editor_file_feedback_line_when_active() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.editor_active = True
+    state.move_editor_cursor(1, 0)
+    state.set_editor_file_feedback("saved level.txt")
+
+    assert state.render() == "\n".join(
+        [
+            "#####",
+            "#P@ #",
+            "#####",
+            "Diamonds: 0/0",
+            "Editor: ON   Cursor: 2,1   Paint: P (player)   Defs: OFF",
+            "File: saved level.txt",
+        ]
+    )
+
+
 def test_step_game_uses_deferred_fall_lifecycle_by_default() -> None:
     state = make_state(
         "######",
@@ -4976,6 +5015,52 @@ def test_draw_hud_renders_definition_editor_lines_when_active() -> None:
     ]
 
 
+def test_draw_hud_renders_editor_file_feedback_lines() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.editor_active = True
+    state.move_editor_cursor(1, 0)
+    state.set_editor_file_feedback("saved level.txt")
+    render_calls: list[tuple[str, bool, tuple[int, int, int]]] = []
+    blit_calls: list[tuple[object, tuple[int, int]]] = []
+
+    class FakeFont:
+        def render(self, text: str, antialias: bool, color: tuple[int, int, int]) -> object:
+            render_calls.append((text, antialias, color))
+            return text
+
+    class FakeScreen:
+        def blit(self, surface: object, position: tuple[int, int]) -> None:
+            blit_calls.append((surface, position))
+
+    draw_hud(FakeScreen(), FakeFont(), state, tile_size=8)
+
+    assert render_calls == [
+        ("Diamonds: 0/0", True, (245, 245, 245)),
+        ("Editor: ON   Cursor: 2,1   Paint: P (player)   Defs: OFF", True, EDITOR_CURSOR_COLOR),
+        ("File: saved level.txt", True, (140, 220, 140)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F defs   E exit   Q quit", True, (190, 190, 190)),
+    ]
+    assert blit_calls == [
+        ("Diamonds: 0/0", (10, 34)),
+        ("Editor: ON   Cursor: 2,1   Paint: P (player)   Defs: OFF", (10, 62)),
+        ("File: saved level.txt", (10, 90)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F defs   E exit   Q quit", (10, 118)),
+    ]
+
+    state.set_editor_file_feedback("save failed", is_error=True)
+    render_calls.clear()
+    blit_calls.clear()
+
+    draw_hud(FakeScreen(), FakeFont(), state, tile_size=8)
+
+    assert render_calls[2] == ("File Error: save failed", True, (220, 140, 140))
+    assert blit_calls[2] == ("File Error: save failed", (10, 90))
+
+
 def test_draw_background_renders_window_board_and_hud_underlays() -> None:
     state = make_state(
         "#####",
@@ -5177,6 +5262,20 @@ def test_layout_helpers_account_for_definition_editor_hud_lines() -> None:
     assert hud_line_count(state) == 5
     assert hud_height_px(line_count=5) == 154
     assert screen_size_px(state, tile_size=16) == (80, 202)
+
+
+def test_layout_helpers_account_for_editor_file_feedback_line() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.editor_active = True
+    state.set_editor_file_feedback("saved level.txt")
+
+    assert hud_line_count(state) == 4
+    assert hud_height_px(line_count=4) == 126
+    assert screen_size_px(state, tile_size=16) == (80, 174)
 
 
 def test_layout_helpers_support_custom_visual_config() -> None:

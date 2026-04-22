@@ -77,6 +77,7 @@ EDITOR_PREVIOUS_ELEMENT_ACTION = "editor_previous_element"
 EDITOR_NEXT_ELEMENT_ACTION = "editor_next_element"
 EDITOR_PAINT_ACTION = "editor_paint"
 EDITOR_SAVE_ACTION = "editor_save"
+EDITOR_LOAD_ACTION = "editor_load"
 EDITOR_TOGGLE_DIGGABLE_ACTION = "editor_toggle_diggable"
 EDITOR_TOGGLE_COLLECTIBLE_ACTION = "editor_toggle_collectible"
 EDITOR_TOGGLE_PUSHABLE_ACTION = "editor_toggle_pushable"
@@ -807,6 +808,31 @@ class GameState:
         self.editor_file_feedback = None
         self.editor_file_feedback_is_error = False
 
+    def replace_with_loaded_level(self, loaded: "GameState", keep_editor_active: bool = False) -> None:
+        self.grid = loaded.grid
+        self.player_x = loaded.player_x
+        self.player_y = loaded.player_y
+        self.cursor_x = loaded.cursor_x
+        self.cursor_y = loaded.cursor_y
+        self.selected_editor_element_id = loaded.selected_editor_element_id
+        self.diamonds_total = loaded.diamonds_total
+        self.registry = loaded.registry
+        self.level_path = loaded.level_path
+        self.level_sidecar_path = loaded.level_sidecar_path
+        self.editor_active = keep_editor_active
+        self.definition_editor_active = False if keep_editor_active else loaded.definition_editor_active
+        self.editor_file_feedback = loaded.editor_file_feedback
+        self.editor_file_feedback_is_error = loaded.editor_file_feedback_is_error
+        self.diamonds_collected = loaded.diamonds_collected
+        self.alive = loaded.alive
+        self.won = loaded.won
+        self.falling_positions = loaded.falling_positions
+        self.just_pushed_positions = loaded.just_pushed_positions
+        self.recently_pushed_positions = loaded.recently_pushed_positions
+        self.motion_locked_positions = loaded.motion_locked_positions
+        self.fall_state = loaded.fall_state
+        self.pending_action = loaded.pending_action
+
     def editor_palette_element_ids(self) -> list[str]:
         return list(self.registry.keys())
 
@@ -1029,7 +1055,10 @@ class GameState:
     def controls_hud_text(self) -> str:
         if self.editor_active:
             defs_text = "F defs off" if self.definition_editor_active else "F defs"
-            return f"Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   {defs_text}   E exit   Q quit"
+            return (
+                f"Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   "
+                f"F5 save   F9 load   {defs_text}   E exit   Q quit"
+            )
         return "Move: WASD/Arrows   E editor   Q quit"
 
     def definition_controls_hud_text(self) -> str:
@@ -1357,6 +1386,7 @@ def step_realtime_frame(
     timing_mode: TimingMode = RND_BASELINE_TIMING_MODE,
     sync_interval: int = RND_BASELINE_SYNC_INTERVAL,
     defer_falls: bool = True,
+    motion_state: MotionState | None = None,
 ) -> None:
     if action == EDITOR_TOGGLE_ACTION:
         state.toggle_editor_active()
@@ -1373,6 +1403,20 @@ def step_realtime_frame(
             else:
                 state.set_editor_file_feedback(
                     f"saved {os.path.basename(saved_path)} + sidecar"
+                )
+        elif action == EDITOR_LOAD_ACTION:
+            try:
+                if state.level_path is None:
+                    raise ValueError("Cannot load level without a level file path")
+                loaded_state = load_level(state.level_path)
+            except (OSError, ValueError) as exc:
+                state.set_editor_file_feedback(str(exc), is_error=True)
+            else:
+                state.replace_with_loaded_level(loaded_state, keep_editor_active=True)
+                if motion_state is not None:
+                    motion_state.clear()
+                state.set_editor_file_feedback(
+                    f"loaded {os.path.basename(loaded_state.level_path or '')} + sidecar"
                 )
         elif action == EDITOR_CREATE_ELEMENT_ACTION:
             state.create_editor_custom_element()
@@ -1477,6 +1521,8 @@ def action_from_turn_input(text: str) -> str | None:
 def action_from_curses_key(key: int) -> str | None:
     if key == curses.KEY_F5:
         return EDITOR_SAVE_ACTION
+    if key == curses.KEY_F9:
+        return EDITOR_LOAD_ACTION
     if key in (ord("e"), ord("E")):
         return EDITOR_TOGGLE_ACTION
     if key in (ord("f"), ord("F")):
@@ -1528,6 +1574,8 @@ def action_from_pygame_key(key: int, ctrl_held: bool = False) -> str | None:
     pygame = importlib.import_module("pygame")
     if key == pygame.K_F5:
         return EDITOR_SAVE_ACTION
+    if key == pygame.K_F9:
+        return EDITOR_LOAD_ACTION
     if key == pygame.K_e:
         return EDITOR_TOGGLE_ACTION
     if key == pygame.K_f:
@@ -2476,6 +2524,7 @@ def update_graphics_frame(
             timing_mode,
             sync_interval,
             defer_falls=motion_state is not None,
+            motion_state=motion_state,
         )
         if motion_state is not None:
             track_player_motion(motion_state, start_cell, state, frame_number)
@@ -2541,7 +2590,14 @@ def run_interactive_realtime_terminal(
                 break
             action = action_from_curses_key(key)
             if state.alive and not state.won:
-                step_realtime_frame(state, frame_number, action, timing_mode, sync_interval, defer_falls=True)
+                step_realtime_frame(
+                    state,
+                    frame_number,
+                    action,
+                    timing_mode,
+                    sync_interval,
+                    defer_falls=True,
+                )
             frame_number += 1
 
     curses.wrapper(_loop)

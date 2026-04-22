@@ -25,6 +25,7 @@ from rnd_foundation import (
     EDITOR_PREVIOUS_COLOR_ACTION,
     EDITOR_PREVIOUS_ELEMENT_ACTION,
     EDITOR_PREVIOUS_SYMBOL_ACTION,
+    EDITOR_LOAD_ACTION,
     EDITOR_SAVE_ACTION,
     EDITOR_TOGGLE_CAN_FALL_ACTION,
     EDITOR_TOGGLE_CAN_SMASH_ACTION,
@@ -878,6 +879,43 @@ def test_step_realtime_frame_routes_editor_save_action_and_sets_feedback(tmp_pat
     assert state.editor_file_feedback_is_error is False
 
 
+def test_step_realtime_frame_routes_editor_load_action_and_sets_feedback(tmp_path) -> None:
+    level_path = tmp_path / "editor-load.txt"
+    baseline = parse_level(
+        [
+            "#####",
+            "#P  #",
+            "#####",
+        ],
+        level_path=str(level_path),
+    )
+    save_level(baseline)
+
+    state = parse_level(
+        [
+            "#####",
+            "#P  #",
+            "#####",
+        ],
+        level_path=str(level_path),
+    )
+    state.editor_active = True
+    state.select_editor_element(SLIME_ELEMENT_ID)
+    state.cursor_x = 2
+    state.cursor_y = 1
+    state.paint_selected_editor_cell()
+
+    assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
+
+    step_realtime_frame(state, 0, EDITOR_LOAD_ACTION)
+
+    assert state.editor_active is True
+    assert state.definition_editor_active is False
+    assert state.get_cell(2, 1) is None
+    assert state.editor_file_feedback == "loaded editor-load.txt + sidecar"
+    assert state.editor_file_feedback_is_error is False
+
+
 def test_step_realtime_frame_routes_editor_save_action_errors_without_level_path() -> None:
     state = make_state(
         "#####",
@@ -889,6 +927,20 @@ def test_step_realtime_frame_routes_editor_save_action_errors_without_level_path
     step_realtime_frame(state, 0, EDITOR_SAVE_ACTION)
 
     assert state.editor_file_feedback == "Cannot save level without a level file path"
+    assert state.editor_file_feedback_is_error is True
+
+
+def test_step_realtime_frame_routes_editor_load_action_errors_without_level_path() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.editor_active = True
+
+    step_realtime_frame(state, 0, EDITOR_LOAD_ACTION)
+
+    assert state.editor_file_feedback == "Cannot load level without a level file path"
     assert state.editor_file_feedback_is_error is True
 
 
@@ -5006,12 +5058,12 @@ def test_draw_hud_renders_editor_status_line_when_active() -> None:
     assert render_calls == [
         ("Diamonds: 0/0", True, (245, 245, 245)),
         ("Editor: ON   Cursor: 2,1   Paint: . (sand)   Defs: OFF", True, EDITOR_CURSOR_COLOR),
-        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   F defs   E exit   Q quit", True, (190, 190, 190)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   F9 load   F defs   E exit   Q quit", True, (190, 190, 190)),
     ]
     assert blit_calls == [
         ("Diamonds: 0/0", (10, 34)),
         ("Editor: ON   Cursor: 2,1   Paint: . (sand)   Defs: OFF", (10, 62)),
-        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   F defs   E exit   Q quit", (10, 90)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   F9 load   F defs   E exit   Q quit", (10, 90)),
     ]
 
 
@@ -5043,14 +5095,14 @@ def test_draw_hud_renders_definition_editor_lines_when_active() -> None:
         ("Diamonds: 0/0", True, (245, 245, 245)),
         ("Editor: ON   Cursor: 2,1   Paint: s (slime)   Defs: ON", True, EDITOR_CURSOR_COLOR),
         ("Definition: editable   Sym: s   Color: 220,90,90   Props: dig", True, EDITOR_CURSOR_COLOR),
-        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   F defs off   E exit   Q quit", True, (190, 190, 190)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   F9 load   F defs off   E exit   Q quit", True, (190, 190, 190)),
         ("Defs: 1 dig  2 col  3 push  4 fall  5 smash   R/T sym   C/V color", True, (190, 190, 190)),
     ]
     assert blit_calls == [
         ("Diamonds: 0/0", (10, 34)),
         ("Editor: ON   Cursor: 2,1   Paint: s (slime)   Defs: ON", (10, 62)),
         ("Definition: editable   Sym: s   Color: 220,90,90   Props: dig", (10, 90)),
-        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   F defs off   E exit   Q quit", (10, 118)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   F9 load   F defs off   E exit   Q quit", (10, 118)),
         ("Defs: 1 dig  2 col  3 push  4 fall  5 smash   R/T sym   C/V color", (10, 146)),
     ]
 
@@ -5082,13 +5134,13 @@ def test_draw_hud_renders_editor_file_feedback_lines() -> None:
         ("Diamonds: 0/0", True, (245, 245, 245)),
         ("Editor: ON   Cursor: 2,1   Paint: P (player)   Defs: OFF", True, EDITOR_CURSOR_COLOR),
         ("File: saved level.txt", True, (140, 220, 140)),
-        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   F defs   E exit   Q quit", True, (190, 190, 190)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   F9 load   F defs   E exit   Q quit", True, (190, 190, 190)),
     ]
     assert blit_calls == [
         ("Diamonds: 0/0", (10, 34)),
         ("Editor: ON   Cursor: 2,1   Paint: P (player)   Defs: OFF", (10, 62)),
         ("File: saved level.txt", (10, 90)),
-        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   F defs   E exit   Q quit", (10, 118)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   F9 load   F defs   E exit   Q quit", (10, 118)),
     ]
 
     state.set_editor_file_feedback("save failed", is_error=True)
@@ -7600,6 +7652,7 @@ class FakePygame:
     K_c = 29
     K_v = 30
     K_F5 = 31
+    K_F9 = 32
     KMOD_CTRL = 64
 
     class display:
@@ -7764,6 +7817,10 @@ def test_action_from_curses_key_supports_editor_save_action() -> None:
     assert action_from_curses_key(curses.KEY_F5) == EDITOR_SAVE_ACTION
 
 
+def test_action_from_curses_key_supports_editor_load_action() -> None:
+    assert action_from_curses_key(curses.KEY_F9) == EDITOR_LOAD_ACTION
+
+
 def test_action_from_curses_key_supports_definition_editor_and_property_actions() -> None:
     assert action_from_curses_key(ord("f")) == EDITOR_DEFINITION_TOGGLE_ACTION
     assert action_from_curses_key(ord("F")) == EDITOR_DEFINITION_TOGGLE_ACTION
@@ -7802,6 +7859,12 @@ def test_action_from_pygame_key_supports_editor_save_action(monkeypatch: pytest.
     install_fake_pygame(monkeypatch)
 
     assert action_from_pygame_key(FakePygame.K_F5) == EDITOR_SAVE_ACTION
+
+
+def test_action_from_pygame_key_supports_editor_load_action(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+
+    assert action_from_pygame_key(FakePygame.K_F9) == EDITOR_LOAD_ACTION
 
 
 def test_action_from_pygame_key_supports_definition_editor_and_property_actions(
@@ -8008,6 +8071,59 @@ def test_graphics_mode_editor_save_control_writes_level_and_sets_feedback(
 
     assert level_path.read_text(encoding="utf-8") == "#####\n#Ps #\n#####\n"
     assert state.editor_file_feedback == "saved graphics-save.txt + sidecar"
+    assert state.editor_file_feedback_is_error is False
+
+
+def test_graphics_mode_editor_load_control_restores_level_and_sets_feedback(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    install_fake_pygame(monkeypatch)
+
+    class SequencedEventQueue:
+        frames = [
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_e)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_PERIOD)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_SPACE)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_F9)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_q)],
+        ]
+        index = 0
+
+        @classmethod
+        def get(cls) -> list[FakeEvent]:
+            if cls.index >= len(cls.frames):
+                return []
+            events = cls.frames[cls.index]
+            cls.index += 1
+            return events
+
+    monkeypatch.setattr(FakePygame, "event", SequencedEventQueue)
+
+    level_path = tmp_path / "graphics-load.txt"
+    baseline = parse_level(
+        [
+            "#####",
+            "#P  #",
+            "#####",
+        ],
+        level_path=str(level_path),
+    )
+    save_level(baseline)
+    state = parse_level(
+        [
+            "#####",
+            "#P  #",
+            "#####",
+        ],
+        level_path=str(level_path),
+    )
+
+    run_interactive_realtime_graphics(state, tick_ms=250, tile_size=32, max_frames=6)
+
+    assert state.get_cell(2, 1) is None
+    assert state.editor_file_feedback == "loaded graphics-load.txt + sidecar"
     assert state.editor_file_feedback_is_error is False
 
 

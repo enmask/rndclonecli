@@ -3046,6 +3046,71 @@ def test_main_loads_file_backed_level_for_turn_based_mode(
     }
 
 
+def test_main_loads_file_backed_level_for_demo_mode(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    captured: dict[str, object] = {}
+    level_path = tmp_path / "demo-level.txt"
+    level_path.write_text("#####\n#Pmg#\n#####\n", encoding="utf-8")
+    (tmp_path / "demo-level.elements.json").write_text(
+        (
+            '{\n'
+            '  "format": "rndclonecli.level-elements",\n'
+            '  "version": 1,\n'
+            '  "elements": [\n'
+            '    {\n'
+            '      "name": "mud",\n'
+            '      "symbol": "m",\n'
+            '      "diggable": true,\n'
+            '      "collectible": false,\n'
+            '      "pushable": false,\n'
+            '      "can_fall": false,\n'
+            '      "can_smash": false,\n'
+            '      "color": null\n'
+            '    },\n'
+            '    {\n'
+            '      "name": "gem2",\n'
+            '      "symbol": "g",\n'
+            '      "diggable": false,\n'
+            '      "collectible": true,\n'
+            '      "pushable": false,\n'
+            '      "can_fall": false,\n'
+            '      "can_smash": false,\n'
+            '      "color": null\n'
+            '    }\n'
+            '  ]\n'
+            '}\n'
+        ),
+        encoding="utf-8",
+    )
+
+    def fake_run_scripted(state: GameState, moves: str) -> None:
+        captured["level_path"] = state.level_path
+        captured["sidecar_path"] = state.level_sidecar_path
+        captured["mud_cell"] = state.get_cell(2, 1)
+        captured["gem_cell"] = state.get_cell(3, 1)
+        captured["diamonds_total"] = state.diamonds_total
+        captured["moves"] = moves
+
+    monkeypatch.setattr("rnd_foundation.run_scripted", fake_run_scripted)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["rnd_foundation.py", "--demo", "--moves", "dd", "--level", str(level_path)],
+    )
+
+    main()
+
+    assert captured == {
+        "level_path": str(level_path),
+        "sidecar_path": str(tmp_path / "demo-level.elements.json"),
+        "mud_cell": "mud",
+        "gem_cell": "gem2",
+        "diamonds_total": 1,
+        "moves": "dd",
+    }
+
+
 def test_main_reports_missing_level_file_error(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],

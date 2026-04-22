@@ -2872,6 +2872,77 @@ def test_main_passes_selected_engine_to_realtime_terminal(monkeypatch: pytest.Mo
     }
 
 
+def test_main_loads_file_backed_level_for_realtime_terminal(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    captured: dict[str, object] = {}
+    level_path = tmp_path / "terminal-level.txt"
+    level_path.write_text("#####\n#Pmg#\n#####\n", encoding="utf-8")
+    (tmp_path / "terminal-level.elements.json").write_text(
+        (
+            '{\n'
+            '  "format": "rndclonecli.level-elements",\n'
+            '  "version": 1,\n'
+            '  "elements": [\n'
+            '    {\n'
+            '      "name": "mud",\n'
+            '      "symbol": "m",\n'
+            '      "diggable": true,\n'
+            '      "collectible": false,\n'
+            '      "pushable": false,\n'
+            '      "can_fall": false,\n'
+            '      "can_smash": false,\n'
+            '      "color": null\n'
+            '    },\n'
+            '    {\n'
+            '      "name": "gem2",\n'
+            '      "symbol": "g",\n'
+            '      "diggable": false,\n'
+            '      "collectible": true,\n'
+            '      "pushable": false,\n'
+            '      "can_fall": false,\n'
+            '      "can_smash": false,\n'
+            '      "color": null\n'
+            '    }\n'
+            '  ]\n'
+            '}\n'
+        ),
+        encoding="utf-8",
+    )
+
+    def fake_run_interactive_realtime_terminal(
+        state: GameState,
+        tick_ms: int,
+        timing_mode: TimingMode = TimingMode.ASYNC,
+        sync_interval: int = 1,
+        engine_mode: EngineMode | None = None,
+    ) -> None:
+        captured["level_path"] = state.level_path
+        captured["sidecar_path"] = state.level_sidecar_path
+        captured["mud_cell"] = state.get_cell(2, 1)
+        captured["gem_cell"] = state.get_cell(3, 1)
+        captured["diamonds_total"] = state.diamonds_total
+        captured["engine_mode"] = engine_mode
+
+    monkeypatch.setattr("rnd_foundation.run_interactive_realtime_terminal", fake_run_interactive_realtime_terminal)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["rnd_foundation.py", "--realtime", "--level", str(level_path)],
+    )
+
+    main()
+
+    assert captured == {
+        "level_path": str(level_path),
+        "sidecar_path": str(tmp_path / "terminal-level.elements.json"),
+        "mud_cell": "mud",
+        "gem_cell": "gem2",
+        "diamonds_total": 1,
+        "engine_mode": EngineMode.RND,
+    }
+
+
 def test_main_uses_rnd_engine_baseline_by_default_for_realtime_terminal(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

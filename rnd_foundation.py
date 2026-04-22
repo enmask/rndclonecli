@@ -76,6 +76,7 @@ EDITOR_CREATE_ELEMENT_ACTION = "editor_create_element"
 EDITOR_PREVIOUS_ELEMENT_ACTION = "editor_previous_element"
 EDITOR_NEXT_ELEMENT_ACTION = "editor_next_element"
 EDITOR_PAINT_ACTION = "editor_paint"
+EDITOR_SAVE_ACTION = "editor_save"
 EDITOR_TOGGLE_DIGGABLE_ACTION = "editor_toggle_diggable"
 EDITOR_TOGGLE_COLLECTIBLE_ACTION = "editor_toggle_collectible"
 EDITOR_TOGGLE_PUSHABLE_ACTION = "editor_toggle_pushable"
@@ -1028,7 +1029,7 @@ class GameState:
     def controls_hud_text(self) -> str:
         if self.editor_active:
             defs_text = "F defs off" if self.definition_editor_active else "F defs"
-            return f"Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   {defs_text}   E exit   Q quit"
+            return f"Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   {defs_text}   E exit   Q quit"
         return "Move: WASD/Arrows   E editor   Q quit"
 
     def definition_controls_hud_text(self) -> str:
@@ -1364,6 +1365,15 @@ def step_realtime_frame(
         state.pending_action = None
         if action == EDITOR_DEFINITION_TOGGLE_ACTION:
             state.toggle_definition_editor_active()
+        elif action == EDITOR_SAVE_ACTION:
+            try:
+                saved_path = save_level(state)
+            except (OSError, ValueError) as exc:
+                state.set_editor_file_feedback(str(exc), is_error=True)
+            else:
+                state.set_editor_file_feedback(
+                    f"saved {os.path.basename(saved_path)} + sidecar"
+                )
         elif action == EDITOR_CREATE_ELEMENT_ACTION:
             state.create_editor_custom_element()
         elif state.definition_editor_active and action in EDITOR_PROPERTY_TOGGLE_ACTIONS:
@@ -1465,6 +1475,8 @@ def action_from_turn_input(text: str) -> str | None:
 
 
 def action_from_curses_key(key: int) -> str | None:
+    if key == curses.KEY_F5:
+        return EDITOR_SAVE_ACTION
     if key in (ord("e"), ord("E")):
         return EDITOR_TOGGLE_ACTION
     if key in (ord("f"), ord("F")):
@@ -1514,6 +1526,8 @@ def action_from_curses_key(key: int) -> str | None:
 
 def action_from_pygame_key(key: int, ctrl_held: bool = False) -> str | None:
     pygame = importlib.import_module("pygame")
+    if key == pygame.K_F5:
+        return EDITOR_SAVE_ACTION
     if key == pygame.K_e:
         return EDITOR_TOGGLE_ACTION
     if key == pygame.K_f:

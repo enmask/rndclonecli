@@ -385,6 +385,24 @@ def test_save_level_writes_serialized_board_to_explicit_path(tmp_path) -> None:
 
     assert saved_path == str(level_path)
     assert level_path.read_text(encoding="utf-8") == "#####\n#Pm #\n#####\n"
+    assert (tmp_path / "saved-level.elements.json").read_text(encoding="utf-8") == (
+        '{\n'
+        '  "format": "rndclonecli.level-elements",\n'
+        '  "version": 1,\n'
+        '  "elements": [\n'
+        '    {\n'
+        '      "name": "mud",\n'
+        '      "symbol": "m",\n'
+        '      "diggable": true,\n'
+        '      "collectible": false,\n'
+        '      "pushable": false,\n'
+        '      "can_fall": false,\n'
+        '      "can_smash": false,\n'
+        '      "color": null\n'
+        '    }\n'
+        '  ]\n'
+        '}\n'
+    )
     assert state.level_path == str(level_path)
     assert state.level_sidecar_path == str(tmp_path / "saved-level.elements.json")
 
@@ -409,6 +427,42 @@ def test_save_level_uses_existing_state_level_path_by_default(tmp_path) -> None:
 
     assert saved_path == str(level_path)
     assert level_path.read_text(encoding="utf-8") == "#####\n#Ps #\n#####\n"
+    assert (tmp_path / "saved-again.elements.json").read_text(encoding="utf-8") == (
+        '{\n'
+        '  "format": "rndclonecli.level-elements",\n'
+        '  "version": 1,\n'
+        '  "elements": [\n'
+        '    {\n'
+        '      "name": "brick",\n'
+        '      "symbol": "B",\n'
+        '      "diggable": false,\n'
+        '      "collectible": false,\n'
+        '      "pushable": false,\n'
+        '      "can_fall": false,\n'
+        '      "can_smash": false,\n'
+        '      "color": [\n'
+        '        150,\n'
+        '        80,\n'
+        '        80\n'
+        '      ]\n'
+        '    },\n'
+        '    {\n'
+        '      "name": "slime",\n'
+        '      "symbol": "s",\n'
+        '      "diggable": true,\n'
+        '      "collectible": false,\n'
+        '      "pushable": false,\n'
+        '      "can_fall": false,\n'
+        '      "can_smash": false,\n'
+        '      "color": [\n'
+        '        220,\n'
+        '        90,\n'
+        '        90\n'
+        '      ]\n'
+        '    }\n'
+        '  ]\n'
+        '}\n'
+    )
 
 
 def test_editor_cursor_starts_at_player_position() -> None:

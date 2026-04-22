@@ -1221,6 +1221,7 @@ def save_level(state: GameState, level_path: str | None = None) -> str:
         for line in serialize_level_lines(state):
             level_file.write(f"{line}\n")
 
+    save_level_custom_elements(target_path, level_custom_elements_from_registry(state.registry))
     state.set_level_path(target_path)
     return target_path
 

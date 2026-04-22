@@ -979,20 +979,50 @@ class GameState:
         selected = self.selected_editor_element()
         return (
             f"Editor: ON   Cursor: {self.cursor_x},{self.cursor_y}   "
-            f"Paint: {selected.symbol} ({selected.name})"
+            f"Paint: {selected.symbol} ({selected.name})   "
+            f"Defs: {'ON' if self.definition_editor_active else 'OFF'}"
+        )
+
+    def definition_hud_text(self) -> str:
+        element = self.definition_editor_element()
+        color = element.color or element_color(element, self.registry)
+        properties = [
+            label
+            for label, enabled in (
+                ("dig", element.diggable),
+                ("col", element.collectible),
+                ("push", element.pushable),
+                ("fall", element.can_fall),
+                ("smash", element.can_smash),
+            )
+            if enabled
+        ]
+        properties_text = "none" if not properties else ",".join(properties)
+        mode = "read-only" if self.definition_editor_element_is_read_only() else "editable"
+        return (
+            f"Definition: {mode}   Sym: {element.symbol}   "
+            f"Color: {color[0]},{color[1]},{color[2]}   Props: {properties_text}"
         )
 
     def controls_hud_text(self) -> str:
         if self.editor_active:
-            return "Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   E exit   Q quit"
+            defs_text = "F defs off" if self.definition_editor_active else "F defs"
+            return f"Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   {defs_text}   E exit   Q quit"
         return "Move: WASD/Arrows   E editor   Q quit"
+
+    def definition_controls_hud_text(self) -> str:
+        return "Defs: 1 dig  2 col  3 push  4 fall  5 smash   R/T sym   C/V color"
 
     def hud_text_lines(self, include_controls: bool = True) -> list[str]:
         lines = [self.status_text()]
         if self.editor_active:
             lines.append(self.editor_hud_text())
+            if self.definition_editor_active:
+                lines.append(self.definition_hud_text())
         if include_controls:
             lines.append(self.controls_hud_text())
+            if self.editor_active and self.definition_editor_active:
+                lines.append(self.definition_controls_hud_text())
         return lines
 
     def render(self) -> str:
@@ -2151,7 +2181,13 @@ def draw_hud(
     hud_y = state.height * tile_size
     hud_lines = state.hud_text_lines()
     for index, line in enumerate(hud_lines):
-        color = (245, 245, 245) if index == 0 else EDITOR_CURSOR_COLOR if line.startswith("Editor:") else (190, 190, 190)
+        color = (
+            (245, 245, 245)
+            if index == 0
+            else EDITOR_CURSOR_COLOR
+            if line.startswith("Editor:") or line.startswith("Definition:")
+            else (190, 190, 190)
+        )
         screen.blit(
             font.render(line, True, color),
             (hud_padding_x, hud_y + hud_top_padding + index * hud_line_gap),

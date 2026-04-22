@@ -775,7 +775,7 @@ def test_editor_workflow_can_paint_level_local_custom_element_and_render_it() ->
             "#P@ #",
             "#####",
             "Diamonds: 0/0",
-            "Editor: ON   Cursor: 2,1   Paint: m (mud)",
+            "Editor: ON   Cursor: 2,1   Paint: m (mud)   Defs: OFF",
         ]
     )
 
@@ -2874,7 +2874,30 @@ def test_render_includes_editor_hud_line_when_active() -> None:
             "#P@ #",
             "#####",
             "Diamonds: 0/0",
-            "Editor: ON   Cursor: 2,1   Paint: . (sand)",
+            "Editor: ON   Cursor: 2,1   Paint: . (sand)   Defs: OFF",
+        ]
+    )
+
+
+def test_render_includes_definition_hud_line_when_definition_editor_is_active() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.editor_active = True
+    state.definition_editor_active = True
+    state.move_editor_cursor(1, 0)
+    state.select_editor_element(SLIME_ELEMENT_ID)
+
+    assert state.render() == "\n".join(
+        [
+            "#####",
+            "#P@ #",
+            "#####",
+            "Diamonds: 0/0",
+            "Editor: ON   Cursor: 2,1   Paint: s (slime)   Defs: ON",
+            "Definition: editable   Sym: s   Color: 220,90,90   Props: dig",
         ]
     )
 
@@ -4532,13 +4555,53 @@ def test_draw_hud_renders_editor_status_line_when_active() -> None:
 
     assert render_calls == [
         ("Diamonds: 0/0", True, (245, 245, 245)),
-        ("Editor: ON   Cursor: 2,1   Paint: . (sand)", True, EDITOR_CURSOR_COLOR),
-        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   E exit   Q quit", True, (190, 190, 190)),
+        ("Editor: ON   Cursor: 2,1   Paint: . (sand)   Defs: OFF", True, EDITOR_CURSOR_COLOR),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F defs   E exit   Q quit", True, (190, 190, 190)),
     ]
     assert blit_calls == [
         ("Diamonds: 0/0", (10, 34)),
-        ("Editor: ON   Cursor: 2,1   Paint: . (sand)", (10, 62)),
-        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   E exit   Q quit", (10, 90)),
+        ("Editor: ON   Cursor: 2,1   Paint: . (sand)   Defs: OFF", (10, 62)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F defs   E exit   Q quit", (10, 90)),
+    ]
+
+
+def test_draw_hud_renders_definition_editor_lines_when_active() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.editor_active = True
+    state.definition_editor_active = True
+    state.move_editor_cursor(1, 0)
+    state.select_editor_element(SLIME_ELEMENT_ID)
+    render_calls: list[tuple[str, bool, tuple[int, int, int]]] = []
+    blit_calls: list[tuple[object, tuple[int, int]]] = []
+
+    class FakeFont:
+        def render(self, text: str, antialias: bool, color: tuple[int, int, int]) -> object:
+            render_calls.append((text, antialias, color))
+            return text
+
+    class FakeScreen:
+        def blit(self, surface: object, position: tuple[int, int]) -> None:
+            blit_calls.append((surface, position))
+
+    draw_hud(FakeScreen(), FakeFont(), state, tile_size=8)
+
+    assert render_calls == [
+        ("Diamonds: 0/0", True, (245, 245, 245)),
+        ("Editor: ON   Cursor: 2,1   Paint: s (slime)   Defs: ON", True, EDITOR_CURSOR_COLOR),
+        ("Definition: editable   Sym: s   Color: 220,90,90   Props: dig", True, EDITOR_CURSOR_COLOR),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F defs off   E exit   Q quit", True, (190, 190, 190)),
+        ("Defs: 1 dig  2 col  3 push  4 fall  5 smash   R/T sym   C/V color", True, (190, 190, 190)),
+    ]
+    assert blit_calls == [
+        ("Diamonds: 0/0", (10, 34)),
+        ("Editor: ON   Cursor: 2,1   Paint: s (slime)   Defs: ON", (10, 62)),
+        ("Definition: editable   Sym: s   Color: 220,90,90   Props: dig", (10, 90)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F defs off   E exit   Q quit", (10, 118)),
+        ("Defs: 1 dig  2 col  3 push  4 fall  5 smash   R/T sym   C/V color", (10, 146)),
     ]
 
 
@@ -4728,6 +4791,21 @@ def test_layout_helpers_account_for_editor_hud_line() -> None:
     assert hud_line_count(state) == 3
     assert hud_height_px(line_count=3) == 98
     assert screen_size_px(state, tile_size=16) == (80, 146)
+
+
+def test_layout_helpers_account_for_definition_editor_hud_lines() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.editor_active = True
+    state.definition_editor_active = True
+    state.select_editor_element(SLIME_ELEMENT_ID)
+
+    assert hud_line_count(state) == 5
+    assert hud_height_px(line_count=5) == 154
+    assert screen_size_px(state, tile_size=16) == (80, 202)
 
 
 def test_layout_helpers_support_custom_visual_config() -> None:

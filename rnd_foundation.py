@@ -98,6 +98,18 @@ class CustomElement:
     pushable: bool = False
     can_fall: bool = False
     can_smash: bool = False
+    color: Tuple[int, int, int] | None = None
+
+    def __post_init__(self) -> None:
+        if self.color is None:
+            return
+        if not isinstance(self.color, (tuple, list)) or len(self.color) != 3:
+            raise ValueError("CustomElement color must be a 3-item tuple or list")
+        if any(not isinstance(channel, int) for channel in self.color):
+            raise ValueError("CustomElement color channels must be integers")
+        if any(channel < 0 or channel > 255 for channel in self.color):
+            raise ValueError("CustomElement color channels must be between 0 and 255")
+        object.__setattr__(self, "color", tuple(self.color))
 
 
 ElementLike = Tile | CustomElement
@@ -111,6 +123,8 @@ BRICK_ELEMENT_ID = "brick"
 ROCK_ELEMENT_ID = "rock"
 DIAMOND_ELEMENT_ID = "diamond"
 PLAYER_ELEMENT_ID = "player"
+DEFAULT_CUSTOM_ELEMENT_COLOR = (220, 90, 90)
+DEFAULT_BRICK_ELEMENT_COLOR = (150, 80, 80)
 
 
 BUILTIN_ELEMENT_DEFINITIONS = MappingProxyType(
@@ -136,8 +150,17 @@ BUILTIN_ELEMENT_DEFINITIONS = MappingProxyType(
     }
 )
 DEFAULT_LEVEL_CUSTOM_ELEMENTS: dict[str, CustomElement] = {
-    SLIME_ELEMENT_ID: CustomElement(name=SLIME_ELEMENT_ID, symbol="s", diggable=True),
-    BRICK_ELEMENT_ID: CustomElement(name=BRICK_ELEMENT_ID, symbol="B"),
+    SLIME_ELEMENT_ID: CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=True,
+        color=DEFAULT_CUSTOM_ELEMENT_COLOR,
+    ),
+    BRICK_ELEMENT_ID: CustomElement(
+        name=BRICK_ELEMENT_ID,
+        symbol="B",
+        color=DEFAULT_BRICK_ELEMENT_COLOR,
+    ),
 }
 
 
@@ -232,10 +255,23 @@ def level_custom_elements_sidecar_data(
                 "pushable": element.pushable,
                 "can_fall": element.can_fall,
                 "can_smash": element.can_smash,
+                "color": list(element.color) if element.color is not None else None,
             }
             for _, element in sorted(level_custom_elements.items())
         ],
     }
+
+
+def color_from_sidecar_data(raw_color: object) -> Tuple[int, int, int] | None:
+    if raw_color is None:
+        return None
+    if not isinstance(raw_color, list) or len(raw_color) != 3:
+        raise ValueError("Sidecar element 'color' must be a list of 3 integers")
+    if any(not isinstance(channel, int) for channel in raw_color):
+        raise ValueError("Sidecar element 'color' must contain integers")
+    if any(channel < 0 or channel > 255 for channel in raw_color):
+        raise ValueError("Sidecar element 'color' channels must be between 0 and 255")
+    return tuple(raw_color)
 
 
 def level_custom_elements_from_sidecar_data(data: dict[str, object]) -> dict[str, CustomElement]:
@@ -270,6 +306,7 @@ def level_custom_elements_from_sidecar_data(data: dict[str, object]) -> dict[str
                 pushable=bool(raw_element.get("pushable", False)),
                 can_fall=bool(raw_element.get("can_fall", False)),
                 can_smash=bool(raw_element.get("can_smash", False)),
+                color=color_from_sidecar_data(raw_element.get("color")),
             ),
         )
 
@@ -1366,18 +1403,14 @@ def tile_appearance(tile: Tile, tile_size: int) -> Tuple[object | None, Tuple[in
 
 
 def color_for_element_id(element_id: str | None) -> Tuple[int, int, int]:
-    colors = {
-        None: tile_color(Tile.EMPTY),
-        EMPTY_ELEMENT_ID: tile_color(Tile.EMPTY),
-        WALL_ELEMENT_ID: tile_color(Tile.WALL),
-        SAND_ELEMENT_ID: tile_color(Tile.SAND),
-        SLIME_ELEMENT_ID: (220, 90, 90),
-        BRICK_ELEMENT_ID: (150, 80, 80),
-        ROCK_ELEMENT_ID: tile_color(Tile.ROCK),
-        DIAMOND_ELEMENT_ID: tile_color(Tile.DIAMOND),
-        PLAYER_ELEMENT_ID: tile_color(Tile.PLAYER),
-    }
-    return colors.get(element_id, (220, 90, 90))
+    if element_id is None:
+        return tile_color(Tile.EMPTY)
+    if element_id in BUILTIN_ELEMENT_ID_TILES:
+        return tile_color(builtin_tile_for_element_id(element_id))
+    element = DEFAULT_LEVEL_CUSTOM_ELEMENTS.get(element_id)
+    if element is not None and element.color is not None:
+        return element.color
+    return DEFAULT_CUSTOM_ELEMENT_COLOR
 
 
 def element_color(
@@ -1386,7 +1419,9 @@ def element_color(
 ) -> Tuple[int, int, int]:
     if isinstance(element, Tile):
         return tile_color(element)
-    if element.name in BUILTIN_ELEMENTS or element.name in DEFAULT_LEVEL_CUSTOM_ELEMENTS:
+    if element.color is not None:
+        return element.color
+    if element.name in BUILTIN_ELEMENTS:
         return color_for_element_id(element.name)
 
     if element.symbol == ".":
@@ -1401,7 +1436,7 @@ def element_color(
         return tile_color(Tile.PLAYER)
     if element.symbol == " ":
         return tile_color(Tile.EMPTY)
-    return (220, 90, 90)
+    return DEFAULT_CUSTOM_ELEMENT_COLOR
 
 
 def element_appearance(
@@ -1415,7 +1450,7 @@ def element_appearance(
 
 
 def element_cell_color(cell: ElementCell, registry: dict[str, CustomElement]) -> Tuple[int, int, int]:
-    if cell is None or cell in BUILTIN_ELEMENTS or cell in DEFAULT_LEVEL_CUSTOM_ELEMENTS:
+    if cell is None or cell in BUILTIN_ELEMENTS:
         return color_for_element_id(cell)
     element = custom_element_for_cell(cell, registry)
     if element is None:

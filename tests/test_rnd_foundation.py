@@ -660,6 +660,7 @@ def test_custom_element_stores_declared_properties() -> None:
         pushable=True,
         can_fall=True,
         can_smash=True,
+        color=[123, 45, 67],
     )
 
     assert element.name == "custom-rock"
@@ -669,6 +670,7 @@ def test_custom_element_stores_declared_properties() -> None:
     assert element.pushable is True
     assert element.can_fall is True
     assert element.can_smash is True
+    assert element.color == (123, 45, 67)
 
 
 def test_custom_element_defaults_boolean_properties_to_false() -> None:
@@ -694,7 +696,6 @@ def test_parsed_cell_can_wrap_builtin_tile() -> None:
 
 def test_parsed_cell_can_reference_registered_custom_element() -> None:
     registry = dict(DEFAULT_CUSTOM_ELEMENTS)
-    register_custom_element(registry, CustomElement(name="slime", symbol="s", diggable=True))
     cell = ParsedCell(custom_element_name="slime")
 
     assert parsed_cell_element(cell, registry) == registry["slime"]
@@ -720,14 +721,12 @@ def test_parsed_cell_for_level_symbol_returns_builtin_tile_cells() -> None:
 
 def test_parsed_cell_for_level_symbol_returns_custom_element_cells() -> None:
     registry = dict(DEFAULT_CUSTOM_ELEMENTS)
-    register_custom_element(registry, CustomElement(name="slime", symbol="s", diggable=True))
 
     assert parsed_cell_for_level_symbol("s", registry) == ParsedCell(custom_element_name="slime")
 
 
 def test_parse_level_cells_supports_builtin_and_custom_symbols() -> None:
     registry = dict(DEFAULT_CUSTOM_ELEMENTS)
-    register_custom_element(registry, CustomElement(name="slime", symbol="s", diggable=True))
 
     cells = parse_level_cells(
         [
@@ -808,7 +807,8 @@ def test_element_color_matches_builtin_tile_colors() -> None:
     assert element_color(Tile.DIAMOND) == tile_color(Tile.DIAMOND)
 
 
-def test_element_color_uses_symbol_based_fallback_for_custom_elements() -> None:
+def test_element_color_prefers_explicit_custom_element_color_and_keeps_symbol_fallback() -> None:
+    assert element_color(CustomElement(name="custom-slime", symbol="s", color=(10, 20, 30))) == (10, 20, 30)
     assert element_color(CustomElement(name="custom-rock", symbol="O")) == tile_color(Tile.ROCK)
     assert element_color(CustomElement(name="custom-slime", symbol="s")) == (220, 90, 90)
 
@@ -895,11 +895,11 @@ def test_element_cell_color_supports_empty_builtin_and_custom_cells() -> None:
 def test_element_cell_color_uses_explicit_registry_for_non_global_custom_cells() -> None:
     registry = make_active_registry(
         {
-            "mud": CustomElement(name="mud", symbol="m", diggable=True),
+            "mud": CustomElement(name="mud", symbol="m", diggable=True, color=(120, 80, 40)),
         }
     )
 
-    assert element_cell_color("mud", registry) == (220, 90, 90)
+    assert element_cell_color("mud", registry) == (120, 80, 40)
 
 
 def test_element_cell_appearance_supports_builtin_and_custom_cells() -> None:
@@ -910,7 +910,6 @@ def test_element_cell_appearance_supports_builtin_and_custom_cells() -> None:
 
 def test_parsed_cell_appearance_resolves_builtin_and_custom_cells() -> None:
     registry = dict(DEFAULT_CUSTOM_ELEMENTS)
-    register_custom_element(registry, CustomElement(name="slime", symbol="s", diggable=True))
 
     assert parsed_cell_appearance(ParsedCell(tile=Tile.ROCK), registry, 24) == tile_appearance(Tile.ROCK, 24)
     assert parsed_cell_appearance(ParsedCell(custom_element_name="slime"), registry, 24) == (None, (220, 90, 90))
@@ -969,6 +968,7 @@ def test_custom_element_registry_exposes_builtin_style_examples() -> None:
         pushable=False,
         can_fall=False,
         can_smash=False,
+        color=(220, 90, 90),
     )
     assert CUSTOM_ELEMENTS["rock"] == CustomElement(
         name="rock",
@@ -1016,8 +1016,8 @@ def test_builtin_element_definitions_are_split_from_default_level_custom_element
         PLAYER_ELEMENT_ID: CustomElement(name=PLAYER_ELEMENT_ID, symbol="P"),
     }
     assert DEFAULT_LEVEL_CUSTOM_ELEMENTS == {
-        SLIME_ELEMENT_ID: CustomElement(name=SLIME_ELEMENT_ID, symbol="s", diggable=True),
-        BRICK_ELEMENT_ID: CustomElement(name=BRICK_ELEMENT_ID, symbol="B"),
+        SLIME_ELEMENT_ID: CustomElement(name=SLIME_ELEMENT_ID, symbol="s", diggable=True, color=(220, 90, 90)),
+        BRICK_ELEMENT_ID: CustomElement(name=BRICK_ELEMENT_ID, symbol="B", color=(150, 80, 80)),
     }
 
 
@@ -1072,7 +1072,7 @@ def test_level_custom_elements_sidecar_data_serializes_level_custom_definitions(
     data = level_custom_elements_sidecar_data(
         {
             "mud": CustomElement(name="mud", symbol="m", diggable=True),
-            "gel": CustomElement(name="gel", symbol="g", pushable=True, can_fall=True),
+            "gel": CustomElement(name="gel", symbol="g", pushable=True, can_fall=True, color=(1, 2, 3)),
         }
     )
 
@@ -1088,6 +1088,7 @@ def test_level_custom_elements_sidecar_data_serializes_level_custom_definitions(
                 "pushable": True,
                 "can_fall": True,
                 "can_smash": False,
+                "color": [1, 2, 3],
             },
             {
                 "name": "mud",
@@ -1097,6 +1098,7 @@ def test_level_custom_elements_sidecar_data_serializes_level_custom_definitions(
                 "pushable": False,
                 "can_fall": False,
                 "can_smash": False,
+                "color": None,
             },
         ],
     }
@@ -1113,6 +1115,7 @@ def test_level_custom_elements_from_sidecar_data_deserializes_custom_definitions
                     "symbol": "g",
                     "pushable": True,
                     "can_fall": True,
+                    "color": [1, 2, 3],
                 },
                 {
                     "name": "mud",
@@ -1124,9 +1127,26 @@ def test_level_custom_elements_from_sidecar_data_deserializes_custom_definitions
     )
 
     assert registry == {
-        "gel": CustomElement(name="gel", symbol="g", pushable=True, can_fall=True),
+        "gel": CustomElement(name="gel", symbol="g", pushable=True, can_fall=True, color=(1, 2, 3)),
         "mud": CustomElement(name="mud", symbol="m", diggable=True),
     }
+
+
+def test_level_custom_elements_from_sidecar_data_rejects_invalid_color() -> None:
+    with pytest.raises(ValueError, match="Sidecar element 'color' must be a list of 3 integers"):
+        level_custom_elements_from_sidecar_data(
+            {
+                "format": "rndclonecli.level-elements",
+                "version": 1,
+                "elements": [
+                    {
+                        "name": "mud",
+                        "symbol": "m",
+                        "color": [1, 2],
+                    },
+                ],
+            }
+        )
 
 
 def test_level_custom_elements_from_sidecar_data_rejects_builtin_name_conflict() -> None:
@@ -1218,7 +1238,7 @@ def test_save_level_custom_elements_writes_sidecar_file_that_round_trips(tmp_pat
     level_path = str(tmp_path / "roundtrip-level.txt")
     custom_elements = {
         "mud": CustomElement(name="mud", symbol="m", diggable=True),
-        "gel": CustomElement(name="gel", symbol="g", pushable=True, can_fall=True),
+        "gel": CustomElement(name="gel", symbol="g", pushable=True, can_fall=True, color=(1, 2, 3)),
     }
 
     save_level_custom_elements(level_path, custom_elements)
@@ -1257,11 +1277,11 @@ def test_sidecar_round_trip_supports_explicit_registry_parse_and_text_render(tmp
 
 def test_register_custom_element_adds_new_named_element() -> None:
     registry = dict(DEFAULT_CUSTOM_ELEMENTS)
-    slime = CustomElement(name="slime", symbol="s", diggable=True)
+    slime = CustomElement(name="goo", symbol="g", diggable=True)
 
     register_custom_element(registry, slime)
 
-    assert registry["slime"] == slime
+    assert registry["goo"] == slime
 
 
 def test_register_custom_element_rejects_duplicate_name_with_different_definition() -> None:

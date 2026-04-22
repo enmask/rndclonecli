@@ -15,9 +15,15 @@ from rnd_foundation import (
     DEFAULT_LEVEL_CUSTOM_ELEMENTS,
     DEFAULT_ENGINE_MODE,
     EDITOR_CREATE_ELEMENT_ACTION,
+    EDITOR_DEFINITION_TOGGLE_ACTION,
     EDITOR_NEXT_ELEMENT_ACTION,
     EDITOR_PAINT_ACTION,
     EDITOR_PREVIOUS_ELEMENT_ACTION,
+    EDITOR_TOGGLE_CAN_FALL_ACTION,
+    EDITOR_TOGGLE_CAN_SMASH_ACTION,
+    EDITOR_TOGGLE_COLLECTIBLE_ACTION,
+    EDITOR_TOGGLE_DIGGABLE_ACTION,
+    EDITOR_TOGGLE_PUSHABLE_ACTION,
     EDITOR_CURSOR_COLOR,
     EDITOR_CURSOR_SYMBOL,
     EDITOR_TOGGLE_ACTION,
@@ -356,6 +362,39 @@ def test_editable_definition_editor_element_rejects_builtins_and_returns_customs
     assert state.editable_definition_editor_element() == state.registry[SLIME_ELEMENT_ID]
 
 
+def test_toggle_selected_custom_element_property_updates_custom_element_and_runtime_state() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.select_editor_element(SLIME_ELEMENT_ID)
+    state.diamonds_collected = 1
+    state.alive = False
+    state.won = True
+
+    updated = state.toggle_selected_custom_element_property("collectible")
+
+    assert updated == CustomElement(name=SLIME_ELEMENT_ID, symbol="s", diggable=True, collectible=True, color=(220, 90, 90))
+    assert state.registry[SLIME_ELEMENT_ID] == updated
+    assert state.diamonds_total == 1
+    assert state.diamonds_collected == 0
+    assert state.alive is True
+    assert state.won is False
+
+
+def test_toggle_selected_custom_element_property_ignores_built_in_definitions() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    original = state.registry[SAND_ELEMENT_ID]
+
+    assert state.toggle_selected_custom_element_property("diggable") is None
+    assert state.registry[SAND_ELEMENT_ID] == original
+
+
 def test_definition_editor_toggle_requires_editor_mode_and_tracks_selected_element() -> None:
     state = make_state(
         "#####",
@@ -388,6 +427,28 @@ def test_definition_editor_state_clears_when_editor_mode_is_turned_off() -> None
     assert state.definition_editor_active is True
     assert state.toggle_editor_active() is False
     assert state.definition_editor_active is False
+
+
+def test_step_realtime_frame_routes_definition_editor_toggle_and_property_actions() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.editor_active = True
+    state.select_editor_element(SLIME_ELEMENT_ID)
+
+    step_realtime_frame(state, 0, EDITOR_TOGGLE_COLLECTIBLE_ACTION)
+
+    assert state.registry[SLIME_ELEMENT_ID].collectible is False
+
+    step_realtime_frame(state, 1, EDITOR_DEFINITION_TOGGLE_ACTION)
+
+    assert state.definition_editor_active is True
+
+    step_realtime_frame(state, 2, EDITOR_TOGGLE_COLLECTIBLE_ACTION)
+
+    assert state.registry[SLIME_ELEMENT_ID].collectible is True
 
 
 def test_step_realtime_frame_routes_editor_create_element_action_when_editor_active() -> None:
@@ -6884,6 +6945,12 @@ class FakePygame:
     K_KP_ENTER = 18
     K_COMMA = 19
     K_PERIOD = 20
+    K_f = 21
+    K_1 = 22
+    K_2 = 23
+    K_3 = 24
+    K_4 = 25
+    K_5 = 26
     KMOD_CTRL = 64
 
     class display:
@@ -7021,9 +7088,29 @@ def test_action_from_turn_input_supports_editor_toggle_action() -> None:
     assert action_from_turn_input("E") == EDITOR_TOGGLE_ACTION
 
 
+def test_action_from_turn_input_supports_definition_editor_and_property_actions() -> None:
+    assert action_from_turn_input("f") == EDITOR_DEFINITION_TOGGLE_ACTION
+    assert action_from_turn_input("F") == EDITOR_DEFINITION_TOGGLE_ACTION
+    assert action_from_turn_input("1") == EDITOR_TOGGLE_DIGGABLE_ACTION
+    assert action_from_turn_input("2") == EDITOR_TOGGLE_COLLECTIBLE_ACTION
+    assert action_from_turn_input("3") == EDITOR_TOGGLE_PUSHABLE_ACTION
+    assert action_from_turn_input("4") == EDITOR_TOGGLE_CAN_FALL_ACTION
+    assert action_from_turn_input("5") == EDITOR_TOGGLE_CAN_SMASH_ACTION
+
+
 def test_action_from_curses_key_supports_editor_toggle_action() -> None:
     assert action_from_curses_key(ord("e")) == EDITOR_TOGGLE_ACTION
     assert action_from_curses_key(ord("E")) == EDITOR_TOGGLE_ACTION
+
+
+def test_action_from_curses_key_supports_definition_editor_and_property_actions() -> None:
+    assert action_from_curses_key(ord("f")) == EDITOR_DEFINITION_TOGGLE_ACTION
+    assert action_from_curses_key(ord("F")) == EDITOR_DEFINITION_TOGGLE_ACTION
+    assert action_from_curses_key(ord("1")) == EDITOR_TOGGLE_DIGGABLE_ACTION
+    assert action_from_curses_key(ord("2")) == EDITOR_TOGGLE_COLLECTIBLE_ACTION
+    assert action_from_curses_key(ord("3")) == EDITOR_TOGGLE_PUSHABLE_ACTION
+    assert action_from_curses_key(ord("4")) == EDITOR_TOGGLE_CAN_FALL_ACTION
+    assert action_from_curses_key(ord("5")) == EDITOR_TOGGLE_CAN_SMASH_ACTION
 
 
 def test_action_from_curses_key_supports_editor_palette_and_paint_actions() -> None:
@@ -7040,6 +7127,19 @@ def test_action_from_pygame_key_supports_editor_toggle_action(monkeypatch: pytes
     install_fake_pygame(monkeypatch)
 
     assert action_from_pygame_key(FakePygame.K_e) == EDITOR_TOGGLE_ACTION
+
+
+def test_action_from_pygame_key_supports_definition_editor_and_property_actions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+
+    assert action_from_pygame_key(FakePygame.K_f) == EDITOR_DEFINITION_TOGGLE_ACTION
+    assert action_from_pygame_key(FakePygame.K_1) == EDITOR_TOGGLE_DIGGABLE_ACTION
+    assert action_from_pygame_key(FakePygame.K_2) == EDITOR_TOGGLE_COLLECTIBLE_ACTION
+    assert action_from_pygame_key(FakePygame.K_3) == EDITOR_TOGGLE_PUSHABLE_ACTION
+    assert action_from_pygame_key(FakePygame.K_4) == EDITOR_TOGGLE_CAN_FALL_ACTION
+    assert action_from_pygame_key(FakePygame.K_5) == EDITOR_TOGGLE_CAN_SMASH_ACTION
 
 
 def test_action_from_pygame_key_supports_editor_palette_and_paint_actions(

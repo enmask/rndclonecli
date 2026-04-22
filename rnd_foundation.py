@@ -10,7 +10,7 @@ Includes:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from types import MappingProxyType
 from typing import Iterable, List, Set, Tuple
@@ -71,10 +71,23 @@ SNAP_ACTIONS = {
     "D": (1, 0),
 }
 EDITOR_TOGGLE_ACTION = "editor_toggle"
+EDITOR_DEFINITION_TOGGLE_ACTION = "editor_definition_toggle"
 EDITOR_CREATE_ELEMENT_ACTION = "editor_create_element"
 EDITOR_PREVIOUS_ELEMENT_ACTION = "editor_previous_element"
 EDITOR_NEXT_ELEMENT_ACTION = "editor_next_element"
 EDITOR_PAINT_ACTION = "editor_paint"
+EDITOR_TOGGLE_DIGGABLE_ACTION = "editor_toggle_diggable"
+EDITOR_TOGGLE_COLLECTIBLE_ACTION = "editor_toggle_collectible"
+EDITOR_TOGGLE_PUSHABLE_ACTION = "editor_toggle_pushable"
+EDITOR_TOGGLE_CAN_FALL_ACTION = "editor_toggle_can_fall"
+EDITOR_TOGGLE_CAN_SMASH_ACTION = "editor_toggle_can_smash"
+EDITOR_PROPERTY_TOGGLE_ACTIONS = {
+    EDITOR_TOGGLE_DIGGABLE_ACTION: "diggable",
+    EDITOR_TOGGLE_COLLECTIBLE_ACTION: "collectible",
+    EDITOR_TOGGLE_PUSHABLE_ACTION: "pushable",
+    EDITOR_TOGGLE_CAN_FALL_ACTION: "can_fall",
+    EDITOR_TOGGLE_CAN_SMASH_ACTION: "can_smash",
+}
 EDITOR_CUSTOM_ELEMENT_ID_PREFIX = "custom"
 EDITOR_CUSTOM_SYMBOL_CANDIDATES = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -755,6 +768,24 @@ class GameState:
         self.selected_editor_element_id = element.name
         return element
 
+    def toggle_selected_custom_element_property(self, property_name: str) -> CustomElement | None:
+        element = self.definition_editor_element()
+        if self.definition_editor_element_is_read_only():
+            return None
+        if property_name not in (
+            "diggable",
+            "collectible",
+            "pushable",
+            "can_fall",
+            "can_smash",
+        ):
+            raise ValueError(f"Unknown editable property '{property_name}'")
+        updated = replace(element, **{property_name: not getattr(element, property_name)})
+        self.registry[element.name] = updated
+        self.recount_diamonds_total()
+        self.reset_after_editor_edit()
+        return updated
+
     def toggle_definition_editor_active(self) -> bool:
         if not self.editor_active:
             raise ValueError("Definition editor requires editor mode to be active")
@@ -1171,8 +1202,12 @@ def step_realtime_frame(
         return
     if state.editor_active:
         state.pending_action = None
-        if action == EDITOR_CREATE_ELEMENT_ACTION:
+        if action == EDITOR_DEFINITION_TOGGLE_ACTION:
+            state.toggle_definition_editor_active()
+        elif action == EDITOR_CREATE_ELEMENT_ACTION:
             state.create_editor_custom_element()
+        elif state.definition_editor_active and action in EDITOR_PROPERTY_TOGGLE_ACTIONS:
+            state.toggle_selected_custom_element_property(EDITOR_PROPERTY_TOGGLE_ACTIONS[action])
         elif action in DIRECTIONS:
             dx, dy = DIRECTIONS[action]
             state.move_editor_cursor(dx, dy)
@@ -1236,6 +1271,18 @@ def can_player_take_action(state: GameState, action: str | None) -> bool:
 def action_from_turn_input(text: str) -> str | None:
     if text in ("e", "E"):
         return EDITOR_TOGGLE_ACTION
+    if text in ("f", "F"):
+        return EDITOR_DEFINITION_TOGGLE_ACTION
+    if text == "1":
+        return EDITOR_TOGGLE_DIGGABLE_ACTION
+    if text == "2":
+        return EDITOR_TOGGLE_COLLECTIBLE_ACTION
+    if text == "3":
+        return EDITOR_TOGGLE_PUSHABLE_ACTION
+    if text == "4":
+        return EDITOR_TOGGLE_CAN_FALL_ACTION
+    if text == "5":
+        return EDITOR_TOGGLE_CAN_SMASH_ACTION
     if text in DIRECTIONS or text in SNAP_ACTIONS:
         return text
     return None
@@ -1244,12 +1291,24 @@ def action_from_turn_input(text: str) -> str | None:
 def action_from_curses_key(key: int) -> str | None:
     if key in (ord("e"), ord("E")):
         return EDITOR_TOGGLE_ACTION
+    if key in (ord("f"), ord("F")):
+        return EDITOR_DEFINITION_TOGGLE_ACTION
     if key in (ord("["), ord(",")):
         return EDITOR_PREVIOUS_ELEMENT_ACTION
     if key in (ord("]"), ord(".")):
         return EDITOR_NEXT_ELEMENT_ACTION
     if key in (ord(" "), 10, 13):
         return EDITOR_PAINT_ACTION
+    if key == ord("1"):
+        return EDITOR_TOGGLE_DIGGABLE_ACTION
+    if key == ord("2"):
+        return EDITOR_TOGGLE_COLLECTIBLE_ACTION
+    if key == ord("3"):
+        return EDITOR_TOGGLE_PUSHABLE_ACTION
+    if key == ord("4"):
+        return EDITOR_TOGGLE_CAN_FALL_ACTION
+    if key == ord("5"):
+        return EDITOR_TOGGLE_CAN_SMASH_ACTION
     if key in (ord("w"), ord("W"), curses.KEY_UP):
         return "w"
     if key in (ord("a"), ord("A"), curses.KEY_LEFT):
@@ -1273,12 +1332,24 @@ def action_from_pygame_key(key: int, ctrl_held: bool = False) -> str | None:
     pygame = importlib.import_module("pygame")
     if key == pygame.K_e:
         return EDITOR_TOGGLE_ACTION
+    if key == pygame.K_f:
+        return EDITOR_DEFINITION_TOGGLE_ACTION
     if key in (pygame.K_LEFTBRACKET, pygame.K_COMMA):
         return EDITOR_PREVIOUS_ELEMENT_ACTION
     if key in (pygame.K_RIGHTBRACKET, pygame.K_PERIOD):
         return EDITOR_NEXT_ELEMENT_ACTION
     if key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_KP_ENTER):
         return EDITOR_PAINT_ACTION
+    if key == pygame.K_1:
+        return EDITOR_TOGGLE_DIGGABLE_ACTION
+    if key == pygame.K_2:
+        return EDITOR_TOGGLE_COLLECTIBLE_ACTION
+    if key == pygame.K_3:
+        return EDITOR_TOGGLE_PUSHABLE_ACTION
+    if key == pygame.K_4:
+        return EDITOR_TOGGLE_CAN_FALL_ACTION
+    if key == pygame.K_5:
+        return EDITOR_TOGGLE_CAN_SMASH_ACTION
     if ctrl_held:
         if key in (pygame.K_w, pygame.K_UP):
             return "W"

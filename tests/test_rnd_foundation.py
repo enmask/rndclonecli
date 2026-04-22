@@ -14,6 +14,7 @@ from rnd_foundation import (
     BRICK_ELEMENT_ID,
     DIAMOND_ELEMENT_ID,
     DEFAULT_CUSTOM_ELEMENTS,
+    DEFAULT_LEVEL,
     DEFAULT_LEVEL_CUSTOM_ELEMENTS,
     DEFAULT_ENGINE_MODE,
     EDITOR_CREATE_ELEMENT_ACTION,
@@ -112,6 +113,7 @@ from rnd_foundation import (
     is_update_frame,
     make_hold_state,
     make_motion_state,
+    make_startup_state,
     main,
     make_fall_in_progress,
     make_fall_state,
@@ -2846,6 +2848,58 @@ def test_main_loads_file_backed_level_for_graphics_runtime(
         "diamonds_total": 1,
         "engine_mode": EngineMode.RND,
     }
+
+
+def test_make_startup_state_uses_embedded_default_level_without_path() -> None:
+    state = make_startup_state()
+
+    assert state.level_path is None
+    assert state.level_sidecar_path is None
+    assert serialize_level_lines(state) == DEFAULT_LEVEL
+
+
+def test_make_startup_state_loads_file_backed_level_with_paths(tmp_path) -> None:
+    level_path = tmp_path / "startup-level.txt"
+    level_path.write_text("#####\n#Pmg#\n#####\n", encoding="utf-8")
+    (tmp_path / "startup-level.elements.json").write_text(
+        (
+            '{\n'
+            '  "format": "rndclonecli.level-elements",\n'
+            '  "version": 1,\n'
+            '  "elements": [\n'
+            '    {\n'
+            '      "name": "mud",\n'
+            '      "symbol": "m",\n'
+            '      "diggable": true,\n'
+            '      "collectible": false,\n'
+            '      "pushable": false,\n'
+            '      "can_fall": false,\n'
+            '      "can_smash": false,\n'
+            '      "color": null\n'
+            '    },\n'
+            '    {\n'
+            '      "name": "gem2",\n'
+            '      "symbol": "g",\n'
+            '      "diggable": false,\n'
+            '      "collectible": true,\n'
+            '      "pushable": false,\n'
+            '      "can_fall": false,\n'
+            '      "can_smash": false,\n'
+            '      "color": null\n'
+            '    }\n'
+            '  ]\n'
+            '}\n'
+        ),
+        encoding="utf-8",
+    )
+
+    state = make_startup_state(str(level_path))
+
+    assert state.level_path == str(level_path)
+    assert state.level_sidecar_path == str(tmp_path / "startup-level.elements.json")
+    assert state.get_cell(2, 1) == "mud"
+    assert state.get_cell(3, 1) == "gem2"
+    assert state.diamonds_total == 1
 
 
 def test_main_passes_selected_engine_to_realtime_terminal(monkeypatch: pytest.MonkeyPatch) -> None:

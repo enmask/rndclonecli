@@ -2713,6 +2713,12 @@ def run_scripted(state: GameState, moves: str) -> None:
     print(state.render())
 
 
+def make_startup_state(level_path: str | None = None) -> GameState:
+    if level_path is None:
+        return parse_level(DEFAULT_LEVEL)
+    return load_level(level_path)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Rocks'n'Diamonds-style prototype")
     parser.add_argument("--demo", action="store_true", help="Run non-interactive scripted demo")
@@ -2736,7 +2742,7 @@ def main() -> None:
     args = parser.parse_args()
     engine_mode = EngineMode(args.engine)
 
-    state = load_level(args.level) if args.level else parse_level(DEFAULT_LEVEL)
+    state = make_startup_state(args.level)
 
     if args.demo:
         run_scripted(state, args.moves)

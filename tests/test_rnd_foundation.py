@@ -14,6 +14,7 @@ from rnd_foundation import (
     DEFAULT_CUSTOM_ELEMENTS,
     DEFAULT_LEVEL_CUSTOM_ELEMENTS,
     DEFAULT_ENGINE_MODE,
+    EDITOR_CREATE_ELEMENT_ACTION,
     EDITOR_NEXT_ELEMENT_ACTION,
     EDITOR_PAINT_ACTION,
     EDITOR_PREVIOUS_ELEMENT_ACTION,
@@ -111,6 +112,8 @@ from rnd_foundation import (
     motion_start_frame,
     motion_tile,
     moving_object_cells,
+    next_editor_custom_element_id,
+    next_editor_custom_element_symbol,
     parse_level,
     parse_level_element_cells,
     player_cell,
@@ -295,6 +298,49 @@ def test_definition_editor_marks_builtins_read_only_and_customs_editable() -> No
     assert state.definition_editor_element_is_read_only() is False
 
 
+def test_next_editor_custom_element_id_and_symbol_skip_existing_registry_entries() -> None:
+    registry = make_active_registry(
+        {
+            "custom1": CustomElement(name="custom1", symbol="a"),
+            "custom2": CustomElement(name="custom2", symbol="b"),
+        }
+    )
+
+    assert next_editor_custom_element_id(registry) == "custom3"
+    assert next_editor_custom_element_symbol(registry) == "c"
+
+
+def test_create_editor_custom_element_adds_selects_and_returns_new_level_custom_element() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    element = state.create_editor_custom_element()
+
+    assert element == CustomElement(name="custom1", symbol="a", color=(220, 90, 90))
+    assert state.registry["custom1"] == element
+    assert state.selected_editor_element_id == "custom1"
+    assert state.selected_editor_element() == element
+    assert state.editor_palette_element_ids()[-1] == "custom1"
+
+
+def test_create_editor_custom_element_can_be_repeated_with_new_defaults() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    first = state.create_editor_custom_element()
+    second = state.create_editor_custom_element()
+
+    assert first == CustomElement(name="custom1", symbol="a", color=(220, 90, 90))
+    assert second == CustomElement(name="custom2", symbol="b", color=(220, 90, 90))
+    assert state.selected_editor_element_id == "custom2"
+
+
 def test_editable_definition_editor_element_rejects_builtins_and_returns_customs() -> None:
     state = make_state(
         "#####",
@@ -342,6 +388,20 @@ def test_definition_editor_state_clears_when_editor_mode_is_turned_off() -> None
     assert state.definition_editor_active is True
     assert state.toggle_editor_active() is False
     assert state.definition_editor_active is False
+
+
+def test_step_realtime_frame_routes_editor_create_element_action_when_editor_active() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.editor_active = True
+
+    step_realtime_frame(state, 0, EDITOR_CREATE_ELEMENT_ACTION)
+
+    assert state.selected_editor_element_id == "custom1"
+    assert state.registry["custom1"] == CustomElement(name="custom1", symbol="a", color=(220, 90, 90))
 
 
 def test_editor_palette_element_ids_follow_active_registry_order() -> None:

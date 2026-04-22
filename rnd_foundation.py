@@ -71,9 +71,12 @@ SNAP_ACTIONS = {
     "D": (1, 0),
 }
 EDITOR_TOGGLE_ACTION = "editor_toggle"
+EDITOR_CREATE_ELEMENT_ACTION = "editor_create_element"
 EDITOR_PREVIOUS_ELEMENT_ACTION = "editor_previous_element"
 EDITOR_NEXT_ELEMENT_ACTION = "editor_next_element"
 EDITOR_PAINT_ACTION = "editor_paint"
+EDITOR_CUSTOM_ELEMENT_ID_PREFIX = "custom"
+EDITOR_CUSTOM_SYMBOL_CANDIDATES = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
 ElementCell = str | None
@@ -209,6 +212,29 @@ def register_custom_element(registry: dict[str, CustomElement], element: CustomE
             raise ValueError(f"Custom element symbol '{element.symbol}' is already registered")
 
     registry[element.name] = element
+
+
+def next_editor_custom_element_id(
+    registry: dict[str, CustomElement],
+    prefix: str = EDITOR_CUSTOM_ELEMENT_ID_PREFIX,
+) -> str:
+    suffix = 1
+    while True:
+        element_id = f"{prefix}{suffix}"
+        if element_id not in registry:
+            return element_id
+        suffix += 1
+
+
+def next_editor_custom_element_symbol(
+    registry: dict[str, CustomElement],
+    candidates: str = EDITOR_CUSTOM_SYMBOL_CANDIDATES,
+) -> str:
+    used_symbols = {element.symbol for element in registry.values()}
+    for symbol in candidates:
+        if symbol not in used_symbols:
+            return symbol
+    raise ValueError("No unused editor custom-element symbols are available")
 
 BUILTIN_TILE_ELEMENTS: dict[Tile, CustomElement] = {
     Tile.EMPTY: BUILTIN_ELEMENT_DEFINITIONS[EMPTY_ELEMENT_ID],
@@ -718,6 +744,17 @@ class GameState:
             raise ValueError("Built-in element definitions are read-only")
         return self.definition_editor_element()
 
+    def create_editor_custom_element(self) -> CustomElement:
+        element = CustomElement(
+            name=next_editor_custom_element_id(self.registry),
+            symbol=next_editor_custom_element_symbol(self.registry),
+            color=DEFAULT_CUSTOM_ELEMENT_COLOR,
+        )
+        register_custom_element(self.registry, element)
+        validate_level_custom_elements(level_custom_elements_from_registry(self.registry))
+        self.selected_editor_element_id = element.name
+        return element
+
     def toggle_definition_editor_active(self) -> bool:
         if not self.editor_active:
             raise ValueError("Definition editor requires editor mode to be active")
@@ -1134,7 +1171,9 @@ def step_realtime_frame(
         return
     if state.editor_active:
         state.pending_action = None
-        if action in DIRECTIONS:
+        if action == EDITOR_CREATE_ELEMENT_ACTION:
+            state.create_editor_custom_element()
+        elif action in DIRECTIONS:
             dx, dy = DIRECTIONS[action]
             state.move_editor_cursor(dx, dy)
         elif action == EDITOR_PREVIOUS_ELEMENT_ACTION:

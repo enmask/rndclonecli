@@ -113,6 +113,7 @@ from rnd_foundation import (
     is_update_frame,
     make_hold_state,
     make_motion_state,
+    make_new_level_lines,
     make_startup_state,
     main,
     make_fall_in_progress,
@@ -2966,6 +2967,20 @@ def test_make_startup_state_loads_file_backed_level_with_paths(tmp_path) -> None
     assert state.diamonds_total == 1
 
 
+def test_make_startup_state_creates_new_file_backed_level_and_sidecar(tmp_path) -> None:
+    level_path = tmp_path / "new-startup-level.txt"
+
+    state = make_startup_state(new_level_path=str(level_path))
+
+    assert state.level_path == str(level_path)
+    assert state.level_sidecar_path == str(tmp_path / "new-startup-level.elements.json")
+    assert serialize_level_lines(state) == make_new_level_lines()
+    assert level_path.read_text(encoding="utf-8") == "".join(
+        f"{line}\n" for line in make_new_level_lines()
+    )
+    assert load_level_custom_elements(str(level_path)) == DEFAULT_LEVEL_CUSTOM_ELEMENTS
+
+
 def test_main_passes_selected_engine_to_realtime_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict[str, object] = {}
 
@@ -3110,6 +3125,34 @@ def test_main_loads_file_backed_level_for_turn_based_mode(
     }
 
 
+def test_main_creates_new_file_backed_level_for_turn_based_mode(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    captured: dict[str, object] = {}
+    level_path = tmp_path / "new-turn-level.txt"
+
+    def fake_run_interactive_turn_based(state: GameState) -> None:
+        captured["level_path"] = state.level_path
+        captured["sidecar_path"] = state.level_sidecar_path
+        captured["rendered_lines"] = serialize_level_lines(state)
+
+    monkeypatch.setattr("rnd_foundation.run_interactive_turn_based", fake_run_interactive_turn_based)
+    monkeypatch.setattr("sys.argv", ["rnd_foundation.py", "--new-level", str(level_path)])
+
+    main()
+
+    assert captured == {
+        "level_path": str(level_path),
+        "sidecar_path": str(tmp_path / "new-turn-level.elements.json"),
+        "rendered_lines": make_new_level_lines(),
+    }
+    assert level_path.read_text(encoding="utf-8") == "".join(
+        f"{line}\n" for line in make_new_level_lines()
+    )
+    assert load_level_custom_elements(str(level_path)) == DEFAULT_LEVEL_CUSTOM_ELEMENTS
+
+
 def test_main_loads_file_backed_level_for_demo_mode(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
@@ -3212,6 +3255,24 @@ def test_main_reports_invalid_sidecar_error(
     captured = capsys.readouterr()
     assert "error:" in captured.err
     assert "Unsupported level-elements sidecar format" in captured.err
+
+
+def test_main_reports_existing_new_level_target_error(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path,
+) -> None:
+    level_path = tmp_path / "existing-new-level.txt"
+    level_path.write_text("#####\n#P  #\n#####\n", encoding="utf-8")
+    monkeypatch.setattr("sys.argv", ["rnd_foundation.py", "--new-level", str(level_path)])
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 2
+    captured = capsys.readouterr()
+    assert "error:" in captured.err
+    assert "Cannot create new level at existing path" in captured.err
 
 
 def test_realtime_terminal_engine_rnd_applies_async_timing_defaults(

@@ -1308,6 +1308,8 @@ DEFAULT_LEVEL = [
     #"#.*.... ..... ......... .O..O....O...O.#",
     #"########################################",
 ]
+DEFAULT_NEW_LEVEL_WIDTH = 20
+DEFAULT_NEW_LEVEL_HEIGHT = 12
 
 
 def is_update_frame(
@@ -2713,7 +2715,44 @@ def run_scripted(state: GameState, moves: str) -> None:
     print(state.render())
 
 
-def make_startup_state(level_path: str | None = None) -> GameState:
+def make_new_level_lines(
+    width: int = DEFAULT_NEW_LEVEL_WIDTH,
+    height: int = DEFAULT_NEW_LEVEL_HEIGHT,
+) -> list[str]:
+    if width < 3:
+        raise ValueError("New level width must be at least 3")
+    if height < 3:
+        raise ValueError("New level height must be at least 3")
+
+    rows = ["#" * width]
+    rows.append("#P" + (" " * (width - 3)) + "#")
+    rows.extend("#" + (" " * (width - 2)) + "#" for _ in range(height - 3))
+    rows.append("#" * width)
+    return rows
+
+
+def create_new_level(level_path: str) -> GameState:
+    sidecar_path = level_elements_sidecar_path(level_path)
+    if os.path.exists(level_path):
+        raise ValueError(f"Cannot create new level at existing path '{level_path}'")
+    if os.path.exists(sidecar_path):
+        raise ValueError(
+            f"Cannot create new level because sidecar path already exists '{sidecar_path}'"
+        )
+
+    state = parse_level(make_new_level_lines(), level_path=level_path)
+    save_level(state)
+    return state
+
+
+def make_startup_state(
+    level_path: str | None = None,
+    new_level_path: str | None = None,
+) -> GameState:
+    if level_path is not None and new_level_path is not None:
+        raise ValueError("Cannot use both level_path and new_level_path")
+    if new_level_path is not None:
+        return create_new_level(new_level_path)
     if level_path is None:
         return parse_level(DEFAULT_LEVEL)
     return load_level(level_path)
@@ -2723,7 +2762,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Rocks'n'Diamonds-style prototype")
     parser.add_argument("--demo", action="store_true", help="Run non-interactive scripted demo")
     parser.add_argument("--moves", default="dddddssaaawwwdd", help="Move sequence for --demo mode")
-    parser.add_argument("--level", help="Load level from file instead of embedded DEFAULT_LEVEL")
+    startup_group = parser.add_mutually_exclusive_group()
+    startup_group.add_argument("--level", help="Load level from file instead of embedded DEFAULT_LEVEL")
+    startup_group.add_argument(
+        "--new-level",
+        dest="new_level",
+        help="Create a new file-backed level and open it immediately",
+    )
     parser.add_argument("--turn-based", action="store_true", help="Run turn-based terminal mode")
     parser.add_argument("--realtime", action="store_true", help="Run realtime terminal mode (curses)")
     parser.add_argument("--graphics2d", action="store_true", help="Run realtime 2D graphics mode (pygame)")
@@ -2743,7 +2788,7 @@ def main() -> None:
     engine_mode = EngineMode(args.engine)
 
     try:
-        state = make_startup_state(args.level)
+        state = make_startup_state(args.level, args.new_level)
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
 

@@ -920,7 +920,7 @@ class GameState:
         self.reset_after_editor_edit(motion_state)
 
     def get_tile(self, x: int, y: int) -> Tile:
-        return tile_for_element_cell(self.grid[y][x], CUSTOM_ELEMENTS)
+        return tile_for_element_cell(self.grid[y][x], self.registry)
 
     def set_tile(self, x: int, y: int, tile: Tile) -> None:
         self.grid[y][x] = cell_for_tile(tile)
@@ -1041,15 +1041,15 @@ class GameState:
         if self.is_fall_origin_cell(tx, ty):
             return
 
-        if self.is_open_for_entry(tx, ty) or cell_is_diggable(target, CUSTOM_ELEMENTS) or cell_is_collectible(target, CUSTOM_ELEMENTS):
-            if cell_is_collectible(target, CUSTOM_ELEMENTS):
+        if self.is_open_for_entry(tx, ty) or cell_is_diggable(target, self.registry) or cell_is_collectible(target, self.registry):
+            if cell_is_collectible(target, self.registry):
                 self.diamonds_collected += 1
                 if self.diamonds_collected >= self.diamonds_total:
                     self.won = True
             self._move_player_to(tx, ty)
             return
 
-        if cell_is_pushable(target, CUSTOM_ELEMENTS) and dy == 0:
+        if cell_is_pushable(target, self.registry) and dy == 0:
             if (tx, ty) in self.motion_locked_positions:
                 return
             if (tx, ty) in self.recently_pushed_positions:
@@ -1076,18 +1076,18 @@ class GameState:
         if self.is_fall_origin_cell(tx, ty):
             return
 
-        if cell_is_diggable(target, CUSTOM_ELEMENTS):
+        if cell_is_diggable(target, self.registry):
             self.set_cell(tx, ty, None)
             return
 
-        if cell_is_collectible(target, CUSTOM_ELEMENTS):
+        if cell_is_collectible(target, self.registry):
             self.set_cell(tx, ty, None)
             self.diamonds_collected += 1
             if self.diamonds_collected >= self.diamonds_total:
                 self.won = True
             return
 
-        if cell_is_pushable(target, CUSTOM_ELEMENTS) and dy == 0:
+        if cell_is_pushable(target, self.registry) and dy == 0:
             if (tx, ty) in self.motion_locked_positions:
                 return
             if (tx, ty) in self.recently_pushed_positions:
@@ -1120,7 +1120,7 @@ class GameState:
         for y in range(self.height - 2, -1, -1):
             for x in range(self.width):
                 cell = original_grid[y][x]
-                if not cell_can_fall(cell, CUSTOM_ELEMENTS):
+                if not cell_can_fall(cell, self.registry):
                     continue
                 if (x, y) in just_pushed_positions:
                     continue
@@ -1141,7 +1141,7 @@ class GameState:
                         new_falling_positions.add((x, y + 1))
                     continue
 
-                if cell_is_player(below, CUSTOM_ELEMENTS) and was_falling:
+                if cell_is_player(below, self.registry) and was_falling:
                     set_fall_in_progress(
                         self.fall_state,
                         make_fall_in_progress(cell, (x, y), (x, y + 1)),
@@ -1359,10 +1359,10 @@ def can_player_take_action(state: GameState, action: str | None) -> bool:
     target = state.get_cell(tx, ty)
     if state.is_fall_origin_cell(tx, ty):
         return False
-    if state.is_open_for_entry(tx, ty) or cell_is_diggable(target, CUSTOM_ELEMENTS) or cell_is_collectible(target, CUSTOM_ELEMENTS):
+    if state.is_open_for_entry(tx, ty) or cell_is_diggable(target, state.registry) or cell_is_collectible(target, state.registry):
         return True
 
-    if cell_is_pushable(target, CUSTOM_ELEMENTS) and dy == 0:
+    if cell_is_pushable(target, state.registry) and dy == 0:
         if (tx, ty) in state.motion_locked_positions:
             return False
         if (tx, ty) in state.recently_pushed_positions:
@@ -1973,7 +1973,7 @@ def moving_object_cells(state: GameState) -> dict[ElementCell, set[Cell]]:
     for y in range(state.height):
         for x in range(state.width):
             tile = state.get_cell(x, y)
-            if cell_is_motion_trackable(tile, CUSTOM_ELEMENTS):
+            if cell_is_motion_trackable(tile, state.registry):
                 cells.setdefault(tile, set()).add((x, y))
     return cells
 
@@ -2381,7 +2381,7 @@ def update_graphics_frame(
             state.motion_locked_positions = {
                 motion_destination_cell(motion)
                 for motion in active_motions(motion_state)
-                if cell_is_motion_trackable(motion_cell(motion), CUSTOM_ELEMENTS)
+                if cell_is_motion_trackable(motion_cell(motion), state.registry)
             }
             if has_active_player_motion(motion_state):
                 buffer_action(state, frame_action)

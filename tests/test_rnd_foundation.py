@@ -387,6 +387,50 @@ def test_toggle_selected_custom_element_property_updates_custom_element_and_runt
     assert state.won is False
 
 
+def test_definition_edit_changes_runtime_diggable_behavior_for_slime() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.editor_active = True
+    state.select_editor_element(SLIME_ELEMENT_ID)
+    state.toggle_definition_editor_active()
+
+    step_realtime_frame(state, 0, EDITOR_TOGGLE_DIGGABLE_ACTION)
+
+    assert state.registry[SLIME_ELEMENT_ID].diggable is False
+
+    state.toggle_editor_active()
+    step_game(state, "d")
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
+
+
+def test_definition_edit_changes_runtime_can_fall_behavior_for_slime() -> None:
+    state = make_state(
+        "#####",
+        "# s #",
+        "#P  #",
+        "#####",
+    )
+    state.editor_active = True
+    state.select_editor_element(SLIME_ELEMENT_ID)
+    state.toggle_definition_editor_active()
+
+    step_realtime_frame(state, 0, EDITOR_TOGGLE_CAN_FALL_ACTION)
+
+    assert state.registry[SLIME_ELEMENT_ID].can_fall is True
+
+    state.toggle_editor_active()
+    step_game(state, None)
+
+    assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
+    assert state.get_cell(2, 2) is None
+    assert state.is_blocked_fall_destination(2, 2) is True
+
+
 def test_toggle_selected_custom_element_property_ignores_built_in_definitions() -> None:
     state = make_state(
         "#####",

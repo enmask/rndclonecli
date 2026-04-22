@@ -565,6 +565,46 @@ def test_step_realtime_frame_routes_editor_create_element_action_when_editor_act
     assert state.registry["custom1"] == CustomElement(name="custom1", symbol="a", color=(220, 90, 90))
 
 
+def test_definition_editor_workflow_can_create_customize_paint_and_use_new_custom_element() -> None:
+    state = make_state(
+        "######",
+        "#P   #",
+        "######",
+    )
+    state.editor_active = True
+
+    step_realtime_frame(state, 0, EDITOR_CREATE_ELEMENT_ACTION)
+    step_realtime_frame(state, 1, EDITOR_DEFINITION_TOGGLE_ACTION)
+    step_realtime_frame(state, 2, EDITOR_TOGGLE_DIGGABLE_ACTION)
+    step_realtime_frame(state, 3, EDITOR_TOGGLE_COLLECTIBLE_ACTION)
+    step_realtime_frame(state, 4, EDITOR_NEXT_SYMBOL_ACTION)
+    step_realtime_frame(state, 5, EDITOR_NEXT_COLOR_ACTION)
+    step_realtime_frame(state, 6, "d")
+    step_realtime_frame(state, 7, EDITOR_PAINT_ACTION)
+    step_realtime_frame(state, 8, EDITOR_TOGGLE_ACTION)
+
+    assert state.editor_active is False
+    assert state.definition_editor_active is False
+    assert state.selected_editor_element_id == "custom1"
+    assert state.registry["custom1"] == CustomElement(
+        name="custom1",
+        symbol="b",
+        diggable=True,
+        collectible=True,
+        color=(150, 80, 80),
+    )
+    assert state.diamonds_total == 1
+    assert state.get_cell(2, 1) == "custom1"
+    assert symbol_for_element_cell("custom1", state.registry) == "b"
+    assert element_cell_color("custom1", state.registry) == (150, 80, 80)
+
+    step_game(state, "d")
+
+    assert (state.player_x, state.player_y) == (2, 1)
+    assert state.diamonds_collected == 1
+    assert state.get_cell(2, 1) == PLAYER_ELEMENT_ID
+
+
 def test_editor_palette_element_ids_follow_active_registry_order() -> None:
     state = make_state(
         "#####",
@@ -7527,6 +7567,58 @@ def test_graphics_mode_can_exit_editor_and_resume_gameplay_controls(
     assert (state.cursor_x, state.cursor_y) == (2, 1)
     assert (state.player_x, state.player_y) == (2, 1)
     assert state.get_cell(2, 1) == PLAYER_ELEMENT_ID
+
+
+def test_graphics_mode_definition_editor_controls_update_slime_and_runtime_behavior(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+
+    class SequencedEventQueue:
+        frames = [
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_e)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_PERIOD)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_f)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_1)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_v)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_e)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_q)],
+        ]
+        index = 0
+
+        @classmethod
+        def get(cls) -> list[FakeEvent]:
+            if cls.index >= len(cls.frames):
+                return []
+            events = cls.frames[cls.index]
+            cls.index += 1
+            return events
+
+    monkeypatch.setattr(FakePygame, "event", SequencedEventQueue)
+
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+
+    run_interactive_realtime_graphics(state, tick_ms=250, tile_size=32, max_frames=7)
+
+    assert state.editor_active is False
+    assert state.definition_editor_active is False
+    assert state.selected_editor_element_id == SLIME_ELEMENT_ID
+    assert state.registry[SLIME_ELEMENT_ID] == CustomElement(
+        name=SLIME_ELEMENT_ID,
+        symbol="s",
+        diggable=False,
+        color=(150, 80, 80),
+    )
+    assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
+
+    step_game(state, "d")
+
+    assert (state.player_x, state.player_y) == (1, 1)
+    assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
 
 
 def test_graphics_mode_sync_timing_consumes_buffered_input_on_sync_frame(

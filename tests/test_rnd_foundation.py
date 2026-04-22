@@ -3046,6 +3046,45 @@ def test_main_loads_file_backed_level_for_turn_based_mode(
     }
 
 
+def test_main_reports_missing_level_file_error(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path,
+) -> None:
+    missing_level_path = tmp_path / "missing-level.txt"
+    monkeypatch.setattr("sys.argv", ["rnd_foundation.py", "--level", str(missing_level_path)])
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 2
+    captured = capsys.readouterr()
+    assert "error:" in captured.err
+    assert str(missing_level_path) in captured.err
+
+
+def test_main_reports_invalid_sidecar_error(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path,
+) -> None:
+    level_path = tmp_path / "bad-sidecar-level.txt"
+    level_path.write_text("#####\n#P  #\n#####\n", encoding="utf-8")
+    (tmp_path / "bad-sidecar-level.elements.json").write_text(
+        '{"format":"broken-format","version":1,"elements":[]}',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("sys.argv", ["rnd_foundation.py", "--level", str(level_path)])
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 2
+    captured = capsys.readouterr()
+    assert "error:" in captured.err
+    assert "Unsupported level-elements sidecar format" in captured.err
+
+
 def test_realtime_terminal_engine_rnd_applies_async_timing_defaults(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

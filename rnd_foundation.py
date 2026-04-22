@@ -2742,7 +2742,10 @@ def main() -> None:
     args = parser.parse_args()
     engine_mode = EngineMode(args.engine)
 
-    state = make_startup_state(args.level)
+    try:
+        state = make_startup_state(args.level)
+    except (OSError, ValueError) as exc:
+        parser.error(str(exc))
 
     if args.demo:
         run_scripted(state, args.moves)

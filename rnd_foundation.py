@@ -2717,6 +2717,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Rocks'n'Diamonds-style prototype")
     parser.add_argument("--demo", action="store_true", help="Run non-interactive scripted demo")
     parser.add_argument("--moves", default="dddddssaaawwwdd", help="Move sequence for --demo mode")
+    parser.add_argument("--level", help="Load level from file instead of embedded DEFAULT_LEVEL")
     parser.add_argument("--turn-based", action="store_true", help="Run turn-based terminal mode")
     parser.add_argument("--realtime", action="store_true", help="Run realtime terminal mode (curses)")
     parser.add_argument("--graphics2d", action="store_true", help="Run realtime 2D graphics mode (pygame)")
@@ -2735,7 +2736,7 @@ def main() -> None:
     args = parser.parse_args()
     engine_mode = EngineMode(args.engine)
 
-    state = parse_level(DEFAULT_LEVEL)
+    state = load_level(args.level) if args.level else parse_level(DEFAULT_LEVEL)
 
     if args.demo:
         run_scripted(state, args.moves)

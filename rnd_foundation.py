@@ -2729,9 +2729,11 @@ def make_new_level_lines(
     rows.extend("#" + (" " * (width - 2)) + "#" for _ in range(height - 3))
     rows.append("#" * width)
     return rows
-
-
-def create_new_level(level_path: str) -> GameState:
+def create_new_level(
+    level_path: str,
+    width: int = DEFAULT_NEW_LEVEL_WIDTH,
+    height: int = DEFAULT_NEW_LEVEL_HEIGHT,
+) -> GameState:
     sidecar_path = level_elements_sidecar_path(level_path)
     if os.path.exists(level_path):
         raise ValueError(f"Cannot create new level at existing path '{level_path}'")
@@ -2740,7 +2742,7 @@ def create_new_level(level_path: str) -> GameState:
             f"Cannot create new level because sidecar path already exists '{sidecar_path}'"
         )
 
-    state = parse_level(make_new_level_lines(), level_path=level_path)
+    state = parse_level(make_new_level_lines(width, height), level_path=level_path)
     save_level(state)
     return state
 
@@ -2748,11 +2750,21 @@ def create_new_level(level_path: str) -> GameState:
 def make_startup_state(
     level_path: str | None = None,
     new_level_path: str | None = None,
+    new_level_width: int = DEFAULT_NEW_LEVEL_WIDTH,
+    new_level_height: int = DEFAULT_NEW_LEVEL_HEIGHT,
 ) -> GameState:
     if level_path is not None and new_level_path is not None:
         raise ValueError("Cannot use both level_path and new_level_path")
+    if (
+        new_level_path is None
+        and (
+            new_level_width != DEFAULT_NEW_LEVEL_WIDTH
+            or new_level_height != DEFAULT_NEW_LEVEL_HEIGHT
+        )
+    ):
+        raise ValueError("--new-level-width and --new-level-height require --new-level")
     if new_level_path is not None:
-        return create_new_level(new_level_path)
+        return create_new_level(new_level_path, new_level_width, new_level_height)
     if level_path is None:
         return parse_level(DEFAULT_LEVEL)
     return load_level(level_path)
@@ -2768,6 +2780,18 @@ def main() -> None:
         "--new-level",
         dest="new_level",
         help="Create a new file-backed level and open it immediately",
+    )
+    parser.add_argument(
+        "--new-level-width",
+        type=int,
+        default=DEFAULT_NEW_LEVEL_WIDTH,
+        help="Width for --new-level (default: %(default)s)",
+    )
+    parser.add_argument(
+        "--new-level-height",
+        type=int,
+        default=DEFAULT_NEW_LEVEL_HEIGHT,
+        help="Height for --new-level (default: %(default)s)",
     )
     parser.add_argument("--turn-based", action="store_true", help="Run turn-based terminal mode")
     parser.add_argument("--realtime", action="store_true", help="Run realtime terminal mode (curses)")
@@ -2788,7 +2812,12 @@ def main() -> None:
     engine_mode = EngineMode(args.engine)
 
     try:
-        state = make_startup_state(args.level, args.new_level)
+        state = make_startup_state(
+            args.level,
+            args.new_level,
+            args.new_level_width,
+            args.new_level_height,
+        )
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
 

@@ -2981,6 +2981,24 @@ def test_make_startup_state_creates_new_file_backed_level_and_sidecar(tmp_path) 
     assert load_level_custom_elements(str(level_path)) == DEFAULT_LEVEL_CUSTOM_ELEMENTS
 
 
+def test_make_startup_state_creates_new_level_with_requested_size(tmp_path) -> None:
+    level_path = tmp_path / "new-sized-startup-level.txt"
+
+    state = make_startup_state(
+        new_level_path=str(level_path),
+        new_level_width=7,
+        new_level_height=5,
+    )
+
+    assert serialize_level_lines(state) == [
+        "#######",
+        "#P    #",
+        "#     #",
+        "#     #",
+        "#######",
+    ]
+
+
 def test_main_passes_selected_engine_to_realtime_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
     captured: dict[str, object] = {}
 
@@ -3153,6 +3171,44 @@ def test_main_creates_new_file_backed_level_for_turn_based_mode(
     assert load_level_custom_elements(str(level_path)) == DEFAULT_LEVEL_CUSTOM_ELEMENTS
 
 
+def test_main_creates_new_file_backed_level_with_requested_size(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
+    captured: dict[str, object] = {}
+    level_path = tmp_path / "new-sized-turn-level.txt"
+
+    def fake_run_interactive_turn_based(state: GameState) -> None:
+        captured["rendered_lines"] = serialize_level_lines(state)
+
+    monkeypatch.setattr("rnd_foundation.run_interactive_turn_based", fake_run_interactive_turn_based)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "rnd_foundation.py",
+            "--new-level",
+            str(level_path),
+            "--new-level-width",
+            "7",
+            "--new-level-height",
+            "5",
+        ],
+    )
+
+    main()
+
+    assert captured == {
+        "rendered_lines": [
+            "#######",
+            "#P    #",
+            "#     #",
+            "#     #",
+            "#######",
+        ]
+    }
+    assert level_path.read_text(encoding="utf-8") == "#######\n#P    #\n#     #\n#     #\n#######\n"
+
+
 def test_main_loads_file_backed_level_for_demo_mode(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path,
@@ -3273,6 +3329,21 @@ def test_main_reports_existing_new_level_target_error(
     captured = capsys.readouterr()
     assert "error:" in captured.err
     assert "Cannot create new level at existing path" in captured.err
+
+
+def test_main_reports_new_level_size_without_new_level_error(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("sys.argv", ["rnd_foundation.py", "--new-level-width", "7"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+
+    assert exc_info.value.code == 2
+    captured = capsys.readouterr()
+    assert "error:" in captured.err
+    assert "--new-level-width and --new-level-height require --new-level" in captured.err
 
 
 def test_realtime_terminal_engine_rnd_applies_async_timing_defaults(

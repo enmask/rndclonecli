@@ -985,6 +985,67 @@ def test_step_realtime_frame_save_and_load_round_trips_board_and_definition_edit
     assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
 
 
+def test_step_realtime_frame_save_and_load_round_trips_new_custom_element(tmp_path) -> None:
+    level_path = tmp_path / "editor-custom-roundtrip.txt"
+    state = parse_level(
+        [
+            "#####",
+            "#P  #",
+            "#####",
+        ],
+        level_path=str(level_path),
+    )
+    state.editor_active = True
+
+    step_realtime_frame(state, 0, EDITOR_CREATE_ELEMENT_ACTION)
+    step_realtime_frame(state, 1, EDITOR_DEFINITION_TOGGLE_ACTION)
+    step_realtime_frame(state, 2, EDITOR_NEXT_SYMBOL_ACTION)
+    step_realtime_frame(state, 3, EDITOR_NEXT_COLOR_ACTION)
+    step_realtime_frame(state, 4, "d")
+    step_realtime_frame(state, 5, EDITOR_PAINT_ACTION)
+    step_realtime_frame(state, 6, EDITOR_SAVE_ACTION)
+
+    assert load_level_custom_elements(str(level_path))["custom1"] == CustomElement(
+        name="custom1",
+        symbol="b",
+        color=(150, 80, 80),
+    )
+
+    step_realtime_frame(state, 7, "d")
+    step_realtime_frame(state, 8, EDITOR_PAINT_ACTION)
+    step_realtime_frame(state, 9, EDITOR_NEXT_SYMBOL_ACTION)
+    step_realtime_frame(state, 10, EDITOR_NEXT_COLOR_ACTION)
+
+    assert serialize_level_lines(state) == [
+        "#####",
+        "#Pcc#",
+        "#####",
+    ]
+    assert state.registry["custom1"] == CustomElement(
+        name="custom1",
+        symbol="c",
+        color=(90, 180, 120),
+    )
+
+    step_realtime_frame(state, 11, EDITOR_LOAD_ACTION)
+
+    assert state.editor_active is True
+    assert state.definition_editor_active is False
+    assert state.selected_editor_element_id == PLAYER_ELEMENT_ID
+    assert serialize_level_lines(state) == [
+        "#####",
+        "#Pb #",
+        "#####",
+    ]
+    assert state.registry["custom1"] == CustomElement(
+        name="custom1",
+        symbol="b",
+        color=(150, 80, 80),
+    )
+    assert state.editor_file_feedback == "loaded editor-custom-roundtrip.txt + sidecar"
+    assert state.editor_file_feedback_is_error is False
+
+
 def test_step_realtime_frame_routes_editor_save_action_errors_without_level_path() -> None:
     state = make_state(
         "#####",

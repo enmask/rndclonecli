@@ -101,6 +101,7 @@ EDITOR_CUSTOM_SYMBOL_CANDIDATES = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHI
 ElementCell = str | None
 Cell = Tuple[int, int]
 CustomElementInstanceValues = tuple[int, int, int, int]
+CustomElementInstanceValueState = dict[Cell, CustomElementInstanceValues]
 Motion = tuple[ElementCell, Cell, Cell, int]
 MotionState = dict[Cell, Motion]
 FallInProgress = tuple[ElementCell, Cell, Cell]
@@ -769,6 +770,7 @@ class GameState:
     cursor_y: int
     selected_editor_element_id: str
     diamonds_total: int
+    custom_element_instance_values: CustomElementInstanceValueState = field(default_factory=dict)
     registry: dict[str, CustomElement] = field(default_factory=lambda: dict(CUSTOM_ELEMENTS))
     level_path: str | None = None
     level_sidecar_path: str | None = None
@@ -831,6 +833,7 @@ class GameState:
         self.cursor_y = loaded.cursor_y
         self.selected_editor_element_id = loaded.selected_editor_element_id
         self.diamonds_total = loaded.diamonds_total
+        self.custom_element_instance_values = loaded.custom_element_instance_values
         self.registry = loaded.registry
         self.level_path = loaded.level_path
         self.level_sidecar_path = loaded.level_sidecar_path

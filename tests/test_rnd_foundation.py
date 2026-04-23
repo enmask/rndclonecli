@@ -244,6 +244,39 @@ def test_parse_level_defaults_level_paths_to_none() -> None:
     assert state.level_sidecar_path is None
 
 
+def test_parse_level_initializes_empty_custom_element_instance_value_state() -> None:
+    state = parse_level(
+        [
+            "#####",
+            "#P  #",
+            "#####",
+        ]
+    )
+
+    assert state.custom_element_instance_values == {}
+
+
+def test_parse_level_gives_each_state_its_own_custom_element_instance_value_state() -> None:
+    first = parse_level(
+        [
+            "#####",
+            "#P  #",
+            "#####",
+        ]
+    )
+    second = parse_level(
+        [
+            "#####",
+            "#P  #",
+            "#####",
+        ]
+    )
+
+    first.custom_element_instance_values[(1, 1)] = (1, 2, 3, 4)
+
+    assert second.custom_element_instance_values == {}
+
+
 def test_parse_level_stores_level_paths_when_provided() -> None:
     state = parse_level(
         [
@@ -256,6 +289,24 @@ def test_parse_level_stores_level_paths_when_provided() -> None:
 
     assert state.level_path == "/tmp/test-level.txt"
     assert state.level_sidecar_path == "/tmp/test-level.elements.json"
+
+
+def test_replace_with_loaded_level_copies_custom_element_instance_value_state() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    loaded = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    loaded.custom_element_instance_values[(2, 1)] = (1, 2, 3, 4)
+
+    state.replace_with_loaded_level(loaded)
+
+    assert state.custom_element_instance_values == {(2, 1): (1, 2, 3, 4)}
 
 
 def test_parse_level_rejects_uneven_rows() -> None:

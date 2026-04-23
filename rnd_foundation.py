@@ -496,6 +496,10 @@ def cell_is_empty(cell: ElementCell) -> bool:
     return cell is None
 
 
+def cell_is_custom_element(cell: ElementCell) -> bool:
+    return cell is not None and cell not in BUILTIN_ELEMENT_DEFINITIONS
+
+
 def tile_for_element_cell(cell: ElementCell, registry: dict[str, CustomElement]) -> Tile:
     return compatibility_tile_for_element_cell(cell, registry)
 
@@ -1018,6 +1022,8 @@ class GameState:
 
     def set_cell(self, x: int, y: int, cell: ElementCell) -> None:
         self.grid[y][x] = cell
+        if not cell_is_custom_element(cell):
+            self.clear_custom_element_instance_values(x, y)
 
     def get_custom_element_instance_values(self, x: int, y: int) -> CustomElementInstanceValues:
         return self.custom_element_instance_values.get(
@@ -1050,6 +1056,17 @@ class GameState:
             self.custom_element_instance_values.pop((to_x, to_y), None)
             return None
         self.custom_element_instance_values[(to_x, to_y)] = values
+        return values
+
+    def move_custom_element_instance_values(
+        self,
+        from_x: int,
+        from_y: int,
+        to_x: int,
+        to_y: int,
+    ) -> CustomElementInstanceValues | None:
+        values = self.copy_custom_element_instance_values(from_x, from_y, to_x, to_y)
+        self.clear_custom_element_instance_values(from_x, from_y)
         return values
 
     def blocked_fall_destinations(self) -> Set[Tuple[int, int]]:
@@ -1186,6 +1203,7 @@ class GameState:
                 self.in_bounds(push_x, push_y)
                 and self.is_open_for_push_target(push_x, push_y)
             ):
+                self.move_custom_element_instance_values(tx, ty, push_x, push_y)
                 self.set_cell(push_x, push_y, target)
                 self.just_pushed_positions = {(push_x, push_y)}
                 self.recently_pushed_positions = {(push_x, push_y)}
@@ -1224,6 +1242,7 @@ class GameState:
                 self.in_bounds(push_x, push_y)
                 and self.is_open_for_push_target(push_x, push_y)
             ):
+                self.move_custom_element_instance_values(tx, ty, push_x, push_y)
                 self.set_cell(push_x, push_y, target)
                 self.set_cell(tx, ty, None)
                 self.just_pushed_positions = {(push_x, push_y)}
@@ -1263,6 +1282,7 @@ class GameState:
                         make_fall_in_progress(cell, (x, y), (x, y + 1)),
                     )
                     if not defer_falls:
+                        self.move_custom_element_instance_values(x, y, x, y + 1)
                         self.set_cell(x, y + 1, cell)
                         self.set_cell(x, y, None)
                         new_falling_positions.add((x, y + 1))
@@ -1274,6 +1294,7 @@ class GameState:
                         make_fall_in_progress(cell, (x, y), (x, y + 1)),
                     )
                     if not defer_falls:
+                        self.move_custom_element_instance_values(x, y, x, y + 1)
                         self.set_cell(x, y + 1, cell)
                         self.set_cell(x, y, None)
                         new_falling_positions.add((x, y + 1))
@@ -2026,6 +2047,7 @@ def complete_fall(state: "GameState", cell: Cell) -> FallInProgress | None:
 
     start_x, start_y = fall_start_cell(fall)
     dest_x, dest_y = fall_destination_cell(fall)
+    state.move_custom_element_instance_values(start_x, start_y, dest_x, dest_y)
     state.set_cell(start_x, start_y, None)
     state.set_cell(dest_x, dest_y, fall_cell(fall))
     state.falling_positions.add((dest_x, dest_y))

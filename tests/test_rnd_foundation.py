@@ -378,6 +378,121 @@ def test_copy_custom_element_instance_values_from_empty_cell_clears_destination(
     assert state.custom_element_instance_values == {}
 
 
+def test_try_move_player_push_moves_custom_element_instance_values() -> None:
+    registry = make_active_registry(
+        {
+            SLIME_ELEMENT_ID: CustomElement(
+                name=SLIME_ELEMENT_ID,
+                symbol="s",
+                diggable=False,
+                pushable=True,
+                color=(220, 90, 90),
+            ),
+        }
+    )
+    state = parse_level(
+        [
+            "######",
+            "#Ps  #",
+            "######",
+        ],
+        registry,
+    )
+    state.set_custom_element_instance_values(2, 1, [1, 2, 3, 4])
+
+    state.try_move_player(1, 0)
+
+    assert state.get_cell(2, 1) == PLAYER_ELEMENT_ID
+    assert state.get_cell(3, 1) == SLIME_ELEMENT_ID
+    assert state.get_custom_element_instance_values(3, 1) == (1, 2, 3, 4)
+    assert state.custom_element_instance_values == {(3, 1): (1, 2, 3, 4)}
+
+
+def test_try_snap_push_moves_custom_element_instance_values() -> None:
+    registry = make_active_registry(
+        {
+            SLIME_ELEMENT_ID: CustomElement(
+                name=SLIME_ELEMENT_ID,
+                symbol="s",
+                diggable=False,
+                pushable=True,
+                color=(220, 90, 90),
+            ),
+        }
+    )
+    state = parse_level(
+        [
+            "######",
+            "#Ps  #",
+            "######",
+        ],
+        registry,
+    )
+    state.set_custom_element_instance_values(2, 1, [1, 2, 3, 4])
+
+    state.try_snap(1, 0)
+
+    assert state.get_cell(1, 1) == PLAYER_ELEMENT_ID
+    assert state.get_cell(2, 1) is None
+    assert state.get_cell(3, 1) == SLIME_ELEMENT_ID
+    assert state.get_custom_element_instance_values(3, 1) == (1, 2, 3, 4)
+    assert state.custom_element_instance_values == {(3, 1): (1, 2, 3, 4)}
+
+
+def test_apply_gravity_moves_custom_element_instance_values() -> None:
+    registry = make_active_registry(
+        {
+            SLIME_ELEMENT_ID: CustomElement(
+                name=SLIME_ELEMENT_ID,
+                symbol="s",
+                diggable=True,
+                can_fall=True,
+                color=(220, 90, 90),
+            ),
+        }
+    )
+    state = parse_level(
+        [
+            "#####",
+            "# s #",
+            "#   #",
+            "#P  #",
+            "#####",
+        ],
+        registry,
+    )
+    state.set_custom_element_instance_values(2, 1, [1, 2, 3, 4])
+
+    state.apply_gravity(defer_falls=False)
+
+    assert state.get_cell(2, 1) is None
+    assert state.get_cell(2, 2) == SLIME_ELEMENT_ID
+    assert state.get_custom_element_instance_values(2, 2) == (1, 2, 3, 4)
+    assert state.custom_element_instance_values == {(2, 2): (1, 2, 3, 4)}
+
+
+def test_complete_fall_moves_custom_element_instance_values() -> None:
+    state = make_state(
+        "#####",
+        "# s #",
+        "#   #",
+        "#P  #",
+        "#####",
+    )
+    state.set_custom_element_instance_values(2, 1, [1, 2, 3, 4])
+    set_fall_in_progress(
+        state.fall_state,
+        make_fall_in_progress(SLIME_ELEMENT_ID, (2, 1), (2, 2)),
+    )
+
+    complete_fall(state, (2, 2))
+
+    assert state.get_cell(2, 1) is None
+    assert state.get_cell(2, 2) == SLIME_ELEMENT_ID
+    assert state.get_custom_element_instance_values(2, 2) == (1, 2, 3, 4)
+    assert state.custom_element_instance_values == {(2, 2): (1, 2, 3, 4)}
+
+
 def test_parse_level_rejects_uneven_rows() -> None:
     with pytest.raises(ValueError, match="equal width"):
         parse_level(

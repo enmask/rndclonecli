@@ -27,8 +27,14 @@ from rnd_foundation import (
     EDITOR_PREVIOUS_COLOR_ACTION,
     EDITOR_PREVIOUS_ELEMENT_ACTION,
     EDITOR_PREVIOUS_SYMBOL_ACTION,
+    EDITOR_DECREMENT_VALUE_ACTION,
+    EDITOR_INCREMENT_VALUE_ACTION,
     EDITOR_LOAD_ACTION,
     EDITOR_SAVE_ACTION,
+    EDITOR_SELECT_VALUE_1_ACTION,
+    EDITOR_SELECT_VALUE_2_ACTION,
+    EDITOR_SELECT_VALUE_3_ACTION,
+    EDITOR_SELECT_VALUE_4_ACTION,
     EDITOR_TOGGLE_CAN_FALL_ACTION,
     EDITOR_TOGGLE_CAN_SMASH_ACTION,
     EDITOR_TOGGLE_COLLECTIBLE_ACTION,
@@ -961,6 +967,37 @@ def test_editor_value_state_reads_values_from_cursor_custom_cell() -> None:
     assert state.selected_editor_value() == 3
 
 
+def test_adjust_selected_editor_value_updates_sparse_state_for_cursor_custom_cell() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.cursor_x = 2
+    state.cursor_y = 1
+    state.set_selected_editor_value_index(1)
+
+    assert state.adjust_selected_editor_value(1) == (0, 1, 0, 0)
+    assert state.get_custom_element_instance_values(2, 1) == (0, 1, 0, 0)
+    assert state.selected_editor_value() == 1
+
+
+def test_adjust_selected_editor_value_clears_sparse_entry_when_tuple_returns_to_zero() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.cursor_x = 2
+    state.cursor_y = 1
+    state.set_custom_element_instance_values(2, 1, [0, 1, 0, 0])
+    state.set_selected_editor_value_index(1)
+
+    assert state.adjust_selected_editor_value(-1) == DEFAULT_CUSTOM_ELEMENT_INSTANCE_VALUES
+    assert state.get_custom_element_instance_values(2, 1) == DEFAULT_CUSTOM_ELEMENT_INSTANCE_VALUES
+    assert state.custom_element_instance_values == {}
+
+
 def test_definition_editor_state_defaults_to_inactive_for_selected_element() -> None:
     state = make_state(
         "#####",
@@ -1227,6 +1264,26 @@ def test_step_realtime_frame_routes_definition_editor_symbol_and_color_actions()
 
     assert state.registry[SLIME_ELEMENT_ID].symbol == "t"
     assert state.registry[SLIME_ELEMENT_ID].color == (150, 80, 80)
+
+
+def test_step_realtime_frame_routes_editor_value_actions_when_editor_active() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.editor_active = True
+    state.cursor_x = 2
+    state.cursor_y = 1
+
+    step_realtime_frame(state, 0, EDITOR_SELECT_VALUE_3_ACTION)
+    step_realtime_frame(state, 1, EDITOR_INCREMENT_VALUE_ACTION)
+    step_realtime_frame(state, 2, EDITOR_INCREMENT_VALUE_ACTION)
+    step_realtime_frame(state, 3, EDITOR_DECREMENT_VALUE_ACTION)
+
+    assert state.selected_editor_value_index == 2
+    assert state.get_custom_element_instance_values(2, 1) == (0, 0, 1, 0)
+    assert state.selected_editor_value() == 1
 
 
 def test_step_realtime_frame_routes_editor_create_element_action_when_editor_active() -> None:
@@ -8851,12 +8908,18 @@ class FakePygame:
     K_3 = 25
     K_4 = 26
     K_5 = 27
-    K_r = 28
-    K_t = 29
-    K_c = 30
-    K_v = 31
-    K_F5 = 32
-    K_F9 = 33
+    K_6 = 28
+    K_7 = 29
+    K_8 = 30
+    K_9 = 31
+    K_MINUS = 32
+    K_EQUALS = 33
+    K_r = 34
+    K_t = 35
+    K_c = 36
+    K_v = 37
+    K_F5 = 38
+    K_F9 = 39
     KMOD_CTRL = 64
 
     class display:
@@ -9017,6 +9080,15 @@ def test_action_from_turn_input_supports_definition_editor_and_property_actions(
     assert action_from_turn_input("5") == EDITOR_TOGGLE_CAN_SMASH_ACTION
 
 
+def test_action_from_turn_input_supports_editor_value_actions() -> None:
+    assert action_from_turn_input("6") == EDITOR_SELECT_VALUE_1_ACTION
+    assert action_from_turn_input("7") == EDITOR_SELECT_VALUE_2_ACTION
+    assert action_from_turn_input("8") == EDITOR_SELECT_VALUE_3_ACTION
+    assert action_from_turn_input("9") == EDITOR_SELECT_VALUE_4_ACTION
+    assert action_from_turn_input("-") == EDITOR_DECREMENT_VALUE_ACTION
+    assert action_from_turn_input("=") == EDITOR_INCREMENT_VALUE_ACTION
+
+
 def test_action_from_curses_key_supports_editor_toggle_action() -> None:
     assert action_from_curses_key(ord("e")) == EDITOR_TOGGLE_ACTION
     assert action_from_curses_key(ord("E")) == EDITOR_TOGGLE_ACTION
@@ -9051,6 +9123,15 @@ def test_action_from_curses_key_supports_definition_editor_and_property_actions(
     assert action_from_curses_key(ord("3")) == EDITOR_TOGGLE_PUSHABLE_ACTION
     assert action_from_curses_key(ord("4")) == EDITOR_TOGGLE_CAN_FALL_ACTION
     assert action_from_curses_key(ord("5")) == EDITOR_TOGGLE_CAN_SMASH_ACTION
+
+
+def test_action_from_curses_key_supports_editor_value_actions() -> None:
+    assert action_from_curses_key(ord("6")) == EDITOR_SELECT_VALUE_1_ACTION
+    assert action_from_curses_key(ord("7")) == EDITOR_SELECT_VALUE_2_ACTION
+    assert action_from_curses_key(ord("8")) == EDITOR_SELECT_VALUE_3_ACTION
+    assert action_from_curses_key(ord("9")) == EDITOR_SELECT_VALUE_4_ACTION
+    assert action_from_curses_key(ord("-")) == EDITOR_DECREMENT_VALUE_ACTION
+    assert action_from_curses_key(ord("=")) == EDITOR_INCREMENT_VALUE_ACTION
 
 
 def test_action_from_curses_key_supports_editor_palette_and_paint_actions() -> None:
@@ -9102,6 +9183,19 @@ def test_action_from_pygame_key_supports_definition_editor_and_property_actions(
     assert action_from_pygame_key(FakePygame.K_3) == EDITOR_TOGGLE_PUSHABLE_ACTION
     assert action_from_pygame_key(FakePygame.K_4) == EDITOR_TOGGLE_CAN_FALL_ACTION
     assert action_from_pygame_key(FakePygame.K_5) == EDITOR_TOGGLE_CAN_SMASH_ACTION
+
+
+def test_action_from_pygame_key_supports_editor_value_actions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("importlib.import_module", lambda name: FakePygame)
+
+    assert action_from_pygame_key(FakePygame.K_6) == EDITOR_SELECT_VALUE_1_ACTION
+    assert action_from_pygame_key(FakePygame.K_7) == EDITOR_SELECT_VALUE_2_ACTION
+    assert action_from_pygame_key(FakePygame.K_8) == EDITOR_SELECT_VALUE_3_ACTION
+    assert action_from_pygame_key(FakePygame.K_9) == EDITOR_SELECT_VALUE_4_ACTION
+    assert action_from_pygame_key(FakePygame.K_MINUS) == EDITOR_DECREMENT_VALUE_ACTION
+    assert action_from_pygame_key(FakePygame.K_EQUALS) == EDITOR_INCREMENT_VALUE_ACTION
 
 
 def test_action_from_pygame_key_supports_editor_palette_and_paint_actions(

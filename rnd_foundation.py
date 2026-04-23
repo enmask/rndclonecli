@@ -87,6 +87,18 @@ EDITOR_PREVIOUS_SYMBOL_ACTION = "editor_previous_symbol"
 EDITOR_NEXT_SYMBOL_ACTION = "editor_next_symbol"
 EDITOR_PREVIOUS_COLOR_ACTION = "editor_previous_color"
 EDITOR_NEXT_COLOR_ACTION = "editor_next_color"
+EDITOR_SELECT_VALUE_1_ACTION = "editor_select_value_1"
+EDITOR_SELECT_VALUE_2_ACTION = "editor_select_value_2"
+EDITOR_SELECT_VALUE_3_ACTION = "editor_select_value_3"
+EDITOR_SELECT_VALUE_4_ACTION = "editor_select_value_4"
+EDITOR_DECREMENT_VALUE_ACTION = "editor_decrement_value"
+EDITOR_INCREMENT_VALUE_ACTION = "editor_increment_value"
+EDITOR_VALUE_SELECTION_ACTIONS = {
+    EDITOR_SELECT_VALUE_1_ACTION: 0,
+    EDITOR_SELECT_VALUE_2_ACTION: 1,
+    EDITOR_SELECT_VALUE_3_ACTION: 2,
+    EDITOR_SELECT_VALUE_4_ACTION: 3,
+}
 EDITOR_PROPERTY_TOGGLE_ACTIONS = {
     EDITOR_TOGGLE_DIGGABLE_ACTION: "diggable",
     EDITOR_TOGGLE_COLLECTIBLE_ACTION: "collectible",
@@ -954,6 +966,29 @@ class GameState:
             return None
         return values[self.selected_editor_value_index]
 
+    def set_editor_value_cell_values(
+        self,
+        values: Iterable[int],
+    ) -> CustomElementInstanceValues | None:
+        position = self.editor_value_cell_position()
+        if position is None:
+            return None
+        normalized = make_custom_element_instance_values(values)
+        if normalized == DEFAULT_CUSTOM_ELEMENT_INSTANCE_VALUES:
+            self.clear_custom_element_instance_values(*position)
+        else:
+            self.custom_element_instance_values[position] = normalized
+        self.reset_after_editor_edit()
+        return normalized
+
+    def adjust_selected_editor_value(self, delta: int) -> CustomElementInstanceValues | None:
+        values = self.editor_value_cell_values()
+        if values is None:
+            return None
+        updated = list(values)
+        updated[self.selected_editor_value_index] += delta
+        return self.set_editor_value_cell_values(updated)
+
     def definition_editor_element(self) -> CustomElement:
         return self.selected_editor_element()
 
@@ -1678,6 +1713,12 @@ def step_realtime_frame(
             state.cycle_selected_custom_element_color(-1)
         elif state.definition_editor_active and action == EDITOR_NEXT_COLOR_ACTION:
             state.cycle_selected_custom_element_color(1)
+        elif action in EDITOR_VALUE_SELECTION_ACTIONS:
+            state.set_selected_editor_value_index(EDITOR_VALUE_SELECTION_ACTIONS[action])
+        elif action == EDITOR_DECREMENT_VALUE_ACTION:
+            state.adjust_selected_editor_value(-1)
+        elif action == EDITOR_INCREMENT_VALUE_ACTION:
+            state.adjust_selected_editor_value(1)
         elif action in DIRECTIONS:
             dx, dy = DIRECTIONS[action]
             state.move_editor_cursor(dx, dy)
@@ -1763,6 +1804,18 @@ def action_from_turn_input(text: str) -> str | None:
         return EDITOR_TOGGLE_CAN_FALL_ACTION
     if text == "5":
         return EDITOR_TOGGLE_CAN_SMASH_ACTION
+    if text == "6":
+        return EDITOR_SELECT_VALUE_1_ACTION
+    if text == "7":
+        return EDITOR_SELECT_VALUE_2_ACTION
+    if text == "8":
+        return EDITOR_SELECT_VALUE_3_ACTION
+    if text == "9":
+        return EDITOR_SELECT_VALUE_4_ACTION
+    if text == "-":
+        return EDITOR_DECREMENT_VALUE_ACTION
+    if text == "=":
+        return EDITOR_INCREMENT_VALUE_ACTION
     if text in DIRECTIONS or text in SNAP_ACTIONS:
         return text
     return None
@@ -1803,6 +1856,18 @@ def action_from_curses_key(key: int) -> str | None:
         return EDITOR_TOGGLE_CAN_FALL_ACTION
     if key == ord("5"):
         return EDITOR_TOGGLE_CAN_SMASH_ACTION
+    if key == ord("6"):
+        return EDITOR_SELECT_VALUE_1_ACTION
+    if key == ord("7"):
+        return EDITOR_SELECT_VALUE_2_ACTION
+    if key == ord("8"):
+        return EDITOR_SELECT_VALUE_3_ACTION
+    if key == ord("9"):
+        return EDITOR_SELECT_VALUE_4_ACTION
+    if key == ord("-"):
+        return EDITOR_DECREMENT_VALUE_ACTION
+    if key == ord("="):
+        return EDITOR_INCREMENT_VALUE_ACTION
     if key in (ord("w"), ord("W"), curses.KEY_UP):
         return "w"
     if key in (ord("a"), ord("A"), curses.KEY_LEFT):
@@ -1858,6 +1923,18 @@ def action_from_pygame_key(key: int, ctrl_held: bool = False) -> str | None:
         return EDITOR_TOGGLE_CAN_FALL_ACTION
     if key == pygame.K_5:
         return EDITOR_TOGGLE_CAN_SMASH_ACTION
+    if key == pygame.K_6:
+        return EDITOR_SELECT_VALUE_1_ACTION
+    if key == pygame.K_7:
+        return EDITOR_SELECT_VALUE_2_ACTION
+    if key == pygame.K_8:
+        return EDITOR_SELECT_VALUE_3_ACTION
+    if key == pygame.K_9:
+        return EDITOR_SELECT_VALUE_4_ACTION
+    if key == pygame.K_MINUS:
+        return EDITOR_DECREMENT_VALUE_ACTION
+    if key == pygame.K_EQUALS:
+        return EDITOR_INCREMENT_VALUE_ACTION
     if ctrl_held:
         if key in (pygame.K_w, pygame.K_UP):
             return "W"

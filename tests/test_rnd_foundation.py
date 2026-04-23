@@ -857,6 +857,8 @@ def test_step_realtime_frame_routes_editor_create_element_action_when_editor_act
 
     assert state.selected_editor_element_id == "custom1"
     assert state.registry["custom1"] == CustomElement(name="custom1", symbol="a", color=(220, 90, 90))
+    assert state.editor_file_feedback == "created custom1 (a)"
+    assert state.editor_file_feedback_is_error is False
 
 
 def test_step_realtime_frame_routes_editor_save_action_and_sets_feedback(tmp_path) -> None:

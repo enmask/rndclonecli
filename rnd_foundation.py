@@ -1421,7 +1421,10 @@ def step_realtime_frame(
                     f"loaded {os.path.basename(loaded_state.level_path or '')} + sidecar"
                 )
         elif action == EDITOR_CREATE_ELEMENT_ACTION:
-            state.create_editor_custom_element()
+            created = state.create_editor_custom_element()
+            state.set_editor_file_feedback(
+                f"created {created.name} ({created.symbol})"
+            )
         elif state.definition_editor_active and action in EDITOR_PROPERTY_TOGGLE_ACTIONS:
             state.toggle_selected_custom_element_property(EDITOR_PROPERTY_TOGGLE_ACTIONS[action])
         elif state.definition_editor_active and action == EDITOR_PREVIOUS_SYMBOL_ACTION:

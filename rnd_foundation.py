@@ -1495,6 +1495,8 @@ def can_player_take_action(state: GameState, action: str | None) -> bool:
 def action_from_turn_input(text: str) -> str | None:
     if text in ("e", "E"):
         return EDITOR_TOGGLE_ACTION
+    if text in ("n", "N"):
+        return EDITOR_CREATE_ELEMENT_ACTION
     if text in ("f", "F"):
         return EDITOR_DEFINITION_TOGGLE_ACTION
     if text in ("r", "R"):
@@ -1527,6 +1529,8 @@ def action_from_curses_key(key: int) -> str | None:
         return EDITOR_LOAD_ACTION
     if key in (ord("e"), ord("E")):
         return EDITOR_TOGGLE_ACTION
+    if key in (ord("n"), ord("N")):
+        return EDITOR_CREATE_ELEMENT_ACTION
     if key in (ord("f"), ord("F")):
         return EDITOR_DEFINITION_TOGGLE_ACTION
     if key in (ord("r"), ord("R")):
@@ -1580,6 +1584,8 @@ def action_from_pygame_key(key: int, ctrl_held: bool = False) -> str | None:
         return EDITOR_LOAD_ACTION
     if key == pygame.K_e:
         return EDITOR_TOGGLE_ACTION
+    if key == pygame.K_n:
+        return EDITOR_CREATE_ELEMENT_ACTION
     if key == pygame.K_f:
         return EDITOR_DEFINITION_TOGGLE_ACTION
     if key == pygame.K_r:

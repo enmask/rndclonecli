@@ -8165,18 +8165,19 @@ class FakePygame:
     K_KP_ENTER = 18
     K_COMMA = 19
     K_PERIOD = 20
-    K_f = 21
-    K_1 = 22
-    K_2 = 23
-    K_3 = 24
-    K_4 = 25
-    K_5 = 26
-    K_r = 27
-    K_t = 28
-    K_c = 29
-    K_v = 30
-    K_F5 = 31
-    K_F9 = 32
+    K_n = 21
+    K_f = 22
+    K_1 = 23
+    K_2 = 24
+    K_3 = 25
+    K_4 = 26
+    K_5 = 27
+    K_r = 28
+    K_t = 29
+    K_c = 30
+    K_v = 31
+    K_F5 = 32
+    K_F9 = 33
     KMOD_CTRL = 64
 
     class display:
@@ -8314,6 +8315,11 @@ def test_action_from_turn_input_supports_editor_toggle_action() -> None:
     assert action_from_turn_input("E") == EDITOR_TOGGLE_ACTION
 
 
+def test_action_from_turn_input_supports_editor_create_action() -> None:
+    assert action_from_turn_input("n") == EDITOR_CREATE_ELEMENT_ACTION
+    assert action_from_turn_input("N") == EDITOR_CREATE_ELEMENT_ACTION
+
+
 def test_action_from_turn_input_supports_definition_editor_and_property_actions() -> None:
     assert action_from_turn_input("f") == EDITOR_DEFINITION_TOGGLE_ACTION
     assert action_from_turn_input("F") == EDITOR_DEFINITION_TOGGLE_ACTION
@@ -8335,6 +8341,11 @@ def test_action_from_turn_input_supports_definition_editor_and_property_actions(
 def test_action_from_curses_key_supports_editor_toggle_action() -> None:
     assert action_from_curses_key(ord("e")) == EDITOR_TOGGLE_ACTION
     assert action_from_curses_key(ord("E")) == EDITOR_TOGGLE_ACTION
+
+
+def test_action_from_curses_key_supports_editor_create_action() -> None:
+    assert action_from_curses_key(ord("n")) == EDITOR_CREATE_ELEMENT_ACTION
+    assert action_from_curses_key(ord("N")) == EDITOR_CREATE_ELEMENT_ACTION
 
 
 def test_action_from_curses_key_supports_editor_save_action() -> None:
@@ -8377,6 +8388,12 @@ def test_action_from_pygame_key_supports_editor_toggle_action(monkeypatch: pytes
     install_fake_pygame(monkeypatch)
 
     assert action_from_pygame_key(FakePygame.K_e) == EDITOR_TOGGLE_ACTION
+
+
+def test_action_from_pygame_key_supports_editor_create_action(monkeypatch: pytest.MonkeyPatch) -> None:
+    install_fake_pygame(monkeypatch)
+
+    assert action_from_pygame_key(FakePygame.K_n) == EDITOR_CREATE_ELEMENT_ACTION
 
 
 def test_action_from_pygame_key_supports_editor_save_action(monkeypatch: pytest.MonkeyPatch) -> None:

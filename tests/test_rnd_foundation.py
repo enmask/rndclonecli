@@ -1370,6 +1370,56 @@ def test_paint_selected_editor_cell_can_paint_level_custom_element() -> None:
     assert state.get_cell(2, 1) == "mud"
 
 
+def test_paint_selected_editor_cell_gives_default_values_to_new_custom_cell() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.select_editor_element(SLIME_ELEMENT_ID)
+    state.move_editor_cursor(1, 0)
+
+    state.paint_selected_editor_cell()
+
+    assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
+    assert state.get_custom_element_instance_values(2, 1) == DEFAULT_CUSTOM_ELEMENT_INSTANCE_VALUES
+    assert state.custom_element_instance_values == {}
+
+
+def test_paint_selected_editor_cell_preserves_values_when_repainting_same_custom_element() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.select_editor_element(SLIME_ELEMENT_ID)
+    state.move_editor_cursor(1, 0)
+    state.set_custom_element_instance_values(2, 1, [1, 2, 3, 4])
+
+    state.paint_selected_editor_cell()
+
+    assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
+    assert state.get_custom_element_instance_values(2, 1) == (1, 2, 3, 4)
+    assert state.custom_element_instance_values == {(2, 1): (1, 2, 3, 4)}
+
+
+def test_paint_selected_editor_cell_clears_values_when_painting_different_custom_element() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.select_editor_element(BRICK_ELEMENT_ID)
+    state.move_editor_cursor(1, 0)
+    state.set_custom_element_instance_values(2, 1, [1, 2, 3, 4])
+
+    state.paint_selected_editor_cell()
+
+    assert state.get_cell(2, 1) == BRICK_ELEMENT_ID
+    assert state.get_custom_element_instance_values(2, 1) == DEFAULT_CUSTOM_ELEMENT_INSTANCE_VALUES
+    assert state.custom_element_instance_values == {}
+
+
 def test_paint_selected_editor_cell_can_clear_non_player_cell() -> None:
     state = make_state(
         "#####",
@@ -1383,6 +1433,38 @@ def test_paint_selected_editor_cell_can_clear_non_player_cell() -> None:
 
     assert state.get_cell(2, 1) is None
     assert state.diamonds_total == 0
+
+
+def test_paint_selected_editor_cell_clears_values_when_erasing_cell() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.move_editor_cursor(1, 0)
+    state.select_editor_element(EMPTY_ELEMENT_ID)
+    state.set_custom_element_instance_values(2, 1, [1, 2, 3, 4])
+
+    state.paint_selected_editor_cell()
+
+    assert state.get_cell(2, 1) is None
+    assert state.custom_element_instance_values == {}
+
+
+def test_paint_selected_editor_cell_clears_values_when_painting_builtin_element() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.move_editor_cursor(1, 0)
+    state.select_editor_element(SAND_ELEMENT_ID)
+    state.set_custom_element_instance_values(2, 1, [1, 2, 3, 4])
+
+    state.paint_selected_editor_cell()
+
+    assert state.get_cell(2, 1) == SAND_ELEMENT_ID
+    assert state.custom_element_instance_values == {}
 
 
 def test_paint_selected_editor_cell_moves_tracked_player() -> None:

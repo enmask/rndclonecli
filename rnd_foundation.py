@@ -964,6 +964,20 @@ class GameState:
         if motion_state is not None:
             motion_state.clear()
 
+    def update_custom_element_instance_values_after_paint(
+        self,
+        x: int,
+        y: int,
+        selected_cell: ElementCell,
+        current_cell: ElementCell,
+    ) -> None:
+        if selected_cell is None or selected_cell in BUILTIN_ELEMENT_DEFINITIONS:
+            self.clear_custom_element_instance_values(x, y)
+            return
+        if selected_cell == current_cell:
+            return
+        self.clear_custom_element_instance_values(x, y)
+
     def paint_selected_editor_cell(self, motion_state: MotionState | None = None) -> None:
         x, y = self.cursor_x, self.cursor_y
         selected_cell = None if self.selected_editor_element_id == EMPTY_ELEMENT_ID else self.selected_editor_element_id
@@ -979,8 +993,10 @@ class GameState:
         if selected_cell == PLAYER_ELEMENT_ID:
             if (self.player_x, self.player_y) != (x, y) and self.get_cell(self.player_x, self.player_y) == PLAYER_ELEMENT_ID:
                 self.set_cell(self.player_x, self.player_y, None)
+                self.clear_custom_element_instance_values(self.player_x, self.player_y)
             self.player_x, self.player_y = x, y
 
+        self.update_custom_element_instance_values_after_paint(x, y, selected_cell, current_cell)
         self.set_cell(x, y, selected_cell)
         self.recount_diamonds_total()
         self.reset_after_editor_edit(motion_state)

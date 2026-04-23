@@ -309,6 +309,75 @@ def test_replace_with_loaded_level_copies_custom_element_instance_value_state() 
     assert state.custom_element_instance_values == {(2, 1): (1, 2, 3, 4)}
 
 
+def test_get_custom_element_instance_values_defaults_to_zero_tuple() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    assert state.get_custom_element_instance_values(2, 1) == DEFAULT_CUSTOM_ELEMENT_INSTANCE_VALUES
+
+
+def test_set_custom_element_instance_values_stores_normalized_tuple() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    stored = state.set_custom_element_instance_values(2, 1, [1, 2, 3, 4])
+
+    assert stored == (1, 2, 3, 4)
+    assert state.custom_element_instance_values == {(2, 1): (1, 2, 3, 4)}
+
+
+def test_clear_custom_element_instance_values_removes_sparse_entry() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.set_custom_element_instance_values(2, 1, [1, 2, 3, 4])
+
+    cleared = state.clear_custom_element_instance_values(2, 1)
+
+    assert cleared == (1, 2, 3, 4)
+    assert state.custom_element_instance_values == {}
+    assert state.get_custom_element_instance_values(2, 1) == DEFAULT_CUSTOM_ELEMENT_INSTANCE_VALUES
+
+
+def test_copy_custom_element_instance_values_copies_sparse_entry() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.set_custom_element_instance_values(1, 1, [1, 2, 3, 4])
+
+    copied = state.copy_custom_element_instance_values(1, 1, 2, 1)
+
+    assert copied == (1, 2, 3, 4)
+    assert state.custom_element_instance_values == {
+        (1, 1): (1, 2, 3, 4),
+        (2, 1): (1, 2, 3, 4),
+    }
+
+
+def test_copy_custom_element_instance_values_from_empty_cell_clears_destination() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+    state.set_custom_element_instance_values(2, 1, [1, 2, 3, 4])
+
+    copied = state.copy_custom_element_instance_values(1, 1, 2, 1)
+
+    assert copied is None
+    assert state.custom_element_instance_values == {}
+
+
 def test_parse_level_rejects_uneven_rows() -> None:
     with pytest.raises(ValueError, match="equal width"):
         parse_level(

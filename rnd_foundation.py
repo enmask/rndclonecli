@@ -1003,6 +1003,39 @@ class GameState:
     def set_cell(self, x: int, y: int, cell: ElementCell) -> None:
         self.grid[y][x] = cell
 
+    def get_custom_element_instance_values(self, x: int, y: int) -> CustomElementInstanceValues:
+        return self.custom_element_instance_values.get(
+            (x, y),
+            DEFAULT_CUSTOM_ELEMENT_INSTANCE_VALUES,
+        )
+
+    def set_custom_element_instance_values(
+        self,
+        x: int,
+        y: int,
+        values: Iterable[int],
+    ) -> CustomElementInstanceValues:
+        normalized = make_custom_element_instance_values(values)
+        self.custom_element_instance_values[(x, y)] = normalized
+        return normalized
+
+    def clear_custom_element_instance_values(self, x: int, y: int) -> CustomElementInstanceValues | None:
+        return self.custom_element_instance_values.pop((x, y), None)
+
+    def copy_custom_element_instance_values(
+        self,
+        from_x: int,
+        from_y: int,
+        to_x: int,
+        to_y: int,
+    ) -> CustomElementInstanceValues | None:
+        values = self.custom_element_instance_values.get((from_x, from_y))
+        if values is None:
+            self.custom_element_instance_values.pop((to_x, to_y), None)
+            return None
+        self.custom_element_instance_values[(to_x, to_y)] = values
+        return values
+
     def blocked_fall_destinations(self) -> Set[Tuple[int, int]]:
         return blocked_fall_destinations(self.fall_state)
 

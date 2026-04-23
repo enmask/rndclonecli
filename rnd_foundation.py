@@ -100,15 +100,30 @@ EDITOR_CUSTOM_SYMBOL_CANDIDATES = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHI
 
 ElementCell = str | None
 Cell = Tuple[int, int]
+CustomElementInstanceValues = tuple[int, int, int, int]
 Motion = tuple[ElementCell, Cell, Cell, int]
 MotionState = dict[Cell, Motion]
 FallInProgress = tuple[ElementCell, Cell, Cell]
 FallState = dict[Cell, FallInProgress]
 EngineConfig = tuple[TimingMode, int]
 HoldState = dict[str, object]
+DEFAULT_CUSTOM_ELEMENT_INSTANCE_VALUES: CustomElementInstanceValues = (0, 0, 0, 0)
 
 
 _TILE_SURFACE_CACHE: dict[tuple[Tile, int], object | None] = {}
+
+
+def make_custom_element_instance_values(
+    values: Iterable[int] | None = None,
+) -> CustomElementInstanceValues:
+    if values is None:
+        return DEFAULT_CUSTOM_ELEMENT_INSTANCE_VALUES
+    values_tuple = tuple(values)
+    if len(values_tuple) != 4:
+        raise ValueError("Custom element instance values must contain exactly 4 integers")
+    if any(not isinstance(value, int) for value in values_tuple):
+        raise ValueError("Custom element instance values must be integers")
+    return values_tuple
 
 
 @dataclass(frozen=True)

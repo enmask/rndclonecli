@@ -14,6 +14,7 @@ from rnd_foundation import (
     BRICK_ELEMENT_ID,
     DIAMOND_ELEMENT_ID,
     DEFAULT_CUSTOM_ELEMENTS,
+    DEFAULT_CUSTOM_ELEMENT_INSTANCE_VALUES,
     DEFAULT_LEVEL,
     DEFAULT_LEVEL_CUSTOM_ELEMENTS,
     DEFAULT_ENGINE_MODE,
@@ -112,6 +113,7 @@ from rnd_foundation import (
     is_pushable,
     is_update_frame,
     make_hold_state,
+    make_custom_element_instance_values,
     make_motion_state,
     make_new_level_lines,
     make_startup_state,
@@ -204,6 +206,24 @@ from rnd_foundation import (
 
 def make_state(*rows: str) -> GameState:
     return parse_level(rows)
+
+
+def test_make_custom_element_instance_values_defaults_to_zero_tuple() -> None:
+    assert make_custom_element_instance_values() == DEFAULT_CUSTOM_ELEMENT_INSTANCE_VALUES
+
+
+def test_make_custom_element_instance_values_accepts_exactly_four_integers() -> None:
+    assert make_custom_element_instance_values([1, 2, 3, 4]) == (1, 2, 3, 4)
+
+
+def test_make_custom_element_instance_values_rejects_wrong_length() -> None:
+    with pytest.raises(ValueError, match="exactly 4 integers"):
+        make_custom_element_instance_values([1, 2, 3])
+
+
+def test_make_custom_element_instance_values_rejects_non_integer_values() -> None:
+    with pytest.raises(ValueError, match="must be integers"):
+        make_custom_element_instance_values([1, 2, 3, "4"])  # type: ignore[list-item]
 
 
 def test_parse_level_rejects_empty_input() -> None:

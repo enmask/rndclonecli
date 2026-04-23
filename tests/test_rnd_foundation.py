@@ -3567,6 +3567,63 @@ def test_realtime_terminal_editor_controls_move_cursor_cycle_palette_and_paint(
     assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
 
 
+def test_realtime_terminal_editor_controls_can_create_select_and_paint_custom_element(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeStdScr:
+        keys = [ord("e"), ord("n"), ord("d"), ord(" "), ord("q")]
+        index = 0
+
+        def erase(self) -> None:
+            pass
+
+        def addstr(self, y: int, x: int, text: str) -> None:
+            pass
+
+        def refresh(self) -> None:
+            pass
+
+        def nodelay(self, value: bool) -> None:
+            pass
+
+        def timeout(self, value: int) -> None:
+            pass
+
+        def keypad(self, value: bool) -> None:
+            pass
+
+        def getch(self) -> int:
+            if self.index >= len(self.keys):
+                return ord("q")
+            key = self.keys[self.index]
+            self.index += 1
+            return key
+
+    def fake_wrapper(func: object) -> None:
+        func(FakeStdScr())
+
+    monkeypatch.setattr("rnd_foundation.curses.wrapper", fake_wrapper)
+    monkeypatch.setattr("rnd_foundation.curses.curs_set", lambda value: None)
+    monkeypatch.setattr("rnd_foundation.sys.stdin.isatty", lambda: True)
+    monkeypatch.setattr("rnd_foundation.sys.stdout.isatty", lambda: True)
+
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    run_interactive_realtime_terminal(state, tick_ms=250, engine_mode=EngineMode.RND)
+
+    assert state.editor_active is True
+    assert state.selected_editor_element_id == "custom1"
+    assert state.registry["custom1"] == CustomElement(name="custom1", symbol="a", color=(220, 90, 90))
+    assert (state.cursor_x, state.cursor_y) == (2, 1)
+    assert state.get_cell(2, 1) == "custom1"
+    assert state.editor_file_feedback == "created custom1 (a)"
+    assert state.editor_file_feedback_is_error is False
+
+
 def test_make_motion_builds_a_transition_model() -> None:
     motion = make_motion(Tile.PLAYER, (1, 2), (2, 2), 7)
 
@@ -8571,6 +8628,48 @@ def test_graphics_mode_editor_controls_move_cursor_cycle_palette_with_period_and
     assert (state.cursor_x, state.cursor_y) == (2, 1)
     assert state.selected_editor_element_id == SLIME_ELEMENT_ID
     assert state.get_cell(2, 1) == SLIME_ELEMENT_ID
+
+
+def test_graphics_mode_editor_controls_can_create_select_and_paint_custom_element(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    install_fake_pygame(monkeypatch)
+
+    class SequencedEventQueue:
+        frames = [
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_e)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_n)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_d)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_SPACE)],
+            [FakeEvent(FakePygame.KEYDOWN, FakePygame.K_q)],
+        ]
+        index = 0
+
+        @classmethod
+        def get(cls) -> list[FakeEvent]:
+            if cls.index >= len(cls.frames):
+                return []
+            events = cls.frames[cls.index]
+            cls.index += 1
+            return events
+
+    monkeypatch.setattr(FakePygame, "event", SequencedEventQueue)
+
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    run_interactive_realtime_graphics(state, tick_ms=250, tile_size=32, max_frames=5)
+
+    assert state.editor_active is True
+    assert state.selected_editor_element_id == "custom1"
+    assert state.registry["custom1"] == CustomElement(name="custom1", symbol="a", color=(220, 90, 90))
+    assert (state.cursor_x, state.cursor_y) == (2, 1)
+    assert state.get_cell(2, 1) == "custom1"
+    assert state.editor_file_feedback == "created custom1 (a)"
+    assert state.editor_file_feedback_is_error is False
 
 
 def test_graphics_mode_editor_save_control_writes_level_and_sets_feedback(

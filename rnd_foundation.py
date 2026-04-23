@@ -346,8 +346,9 @@ def level_elements_sidecar_path(level_path: str) -> str:
 
 def level_custom_elements_sidecar_data(
     level_custom_elements: dict[str, CustomElement],
+    instance_values: list[dict[str, object]] | None = None,
 ) -> dict[str, object]:
-    return {
+    data: dict[str, object] = {
         "format": LEVEL_ELEMENTS_SIDECAR_FORMAT,
         "version": LEVEL_ELEMENTS_SIDECAR_VERSION,
         "elements": [
@@ -364,6 +365,9 @@ def level_custom_elements_sidecar_data(
             for _, element in sorted(level_custom_elements.items())
         ],
     }
+    if instance_values:
+        data["instance_values"] = instance_values
+    return data
 
 
 def color_from_sidecar_data(raw_color: object) -> Tuple[int, int, int] | None:
@@ -418,13 +422,67 @@ def level_custom_elements_from_sidecar_data(data: dict[str, object]) -> dict[str
     return registry
 
 
-def load_level_custom_elements(level_path: str) -> dict[str, CustomElement]:
+def level_custom_element_instance_values_from_sidecar_data(
+    data: dict[str, object],
+) -> CustomElementInstanceValueState:
+    if data.get("format") != LEVEL_ELEMENTS_SIDECAR_FORMAT:
+        raise ValueError(f"Unsupported level-elements sidecar format '{data.get('format')}'")
+    if data.get("version") != LEVEL_ELEMENTS_SIDECAR_VERSION:
+        raise ValueError(f"Unsupported level-elements sidecar version '{data.get('version')}'")
+
+    raw_instance_values = data.get("instance_values", [])
+    if not isinstance(raw_instance_values, list):
+        raise ValueError("Level-elements sidecar 'instance_values' must be a list")
+
+    instance_values: CustomElementInstanceValueState = {}
+    for raw_entry in raw_instance_values:
+        if not isinstance(raw_entry, dict):
+            raise ValueError("Each level-elements sidecar instance-value entry must be an object")
+        try:
+            x = raw_entry["x"]
+            y = raw_entry["y"]
+            raw_values = raw_entry["values"]
+        except KeyError as exc:
+            raise ValueError(
+                f"Missing required sidecar instance-value field '{exc.args[0]}'"
+            ) from None
+        if not isinstance(x, int) or not isinstance(y, int):
+            raise ValueError("Sidecar instance-value 'x' and 'y' must be integers")
+        cell = (x, y)
+        if cell in instance_values:
+            raise ValueError(f"Duplicate sidecar instance-value entry for cell {cell}")
+        values = make_custom_element_instance_values(raw_values)
+        if values == DEFAULT_CUSTOM_ELEMENT_INSTANCE_VALUES:
+            continue
+        instance_values[cell] = values
+
+    return instance_values
+
+
+def load_level_sidecar_data(level_path: str) -> dict[str, object] | None:
     sidecar_path = level_elements_sidecar_path(level_path)
     if not os.path.exists(sidecar_path):
-        return {}
+        return None
 
     with open(sidecar_path, encoding="utf-8") as sidecar_file:
-        return level_custom_elements_from_sidecar_data(json.load(sidecar_file))
+        loaded = json.load(sidecar_file)
+    if not isinstance(loaded, dict):
+        raise ValueError("Level-elements sidecar root must be an object")
+    return loaded
+
+
+def load_level_custom_elements(level_path: str) -> dict[str, CustomElement]:
+    sidecar_data = load_level_sidecar_data(level_path)
+    if sidecar_data is None:
+        return {}
+    return level_custom_elements_from_sidecar_data(sidecar_data)
+
+
+def load_level_custom_element_instance_values(level_path: str) -> CustomElementInstanceValueState:
+    sidecar_data = load_level_sidecar_data(level_path)
+    if sidecar_data is None:
+        return {}
+    return level_custom_element_instance_values_from_sidecar_data(sidecar_data)
 
 
 def load_level_registry(level_path: str) -> dict[str, CustomElement]:
@@ -1345,6 +1403,50 @@ def parse_level(
     return state
 
 
+def level_custom_element_instance_values_sidecar_data(
+    state: GameState,
+) -> list[dict[str, object]]:
+    entries: list[dict[str, object]] = []
+    for (x, y), values in sorted(
+        state.custom_element_instance_values.items(),
+        key=lambda item: (item[0][1], item[0][0]),
+    ):
+        if values == DEFAULT_CUSTOM_ELEMENT_INSTANCE_VALUES:
+            continue
+        if not state.in_bounds(x, y):
+            raise ValueError(f"Custom element instance values out of bounds at ({x}, {y})")
+        if not cell_is_custom_element(state.get_cell(x, y)):
+            raise ValueError(
+                f"Custom element instance values require a custom element at ({x}, {y})"
+            )
+        entries.append(
+            {
+                "x": x,
+                "y": y,
+                "values": list(values),
+            }
+        )
+    return entries
+
+
+def validated_custom_element_instance_values_for_state(
+    state: GameState,
+    instance_values: CustomElementInstanceValueState,
+) -> CustomElementInstanceValueState:
+    validated: CustomElementInstanceValueState = {}
+    for (x, y), values in sorted(instance_values.items(), key=lambda item: (item[0][1], item[0][0])):
+        if values == DEFAULT_CUSTOM_ELEMENT_INSTANCE_VALUES:
+            continue
+        if not state.in_bounds(x, y):
+            raise ValueError(f"Custom element instance values out of bounds at ({x}, {y})")
+        if not cell_is_custom_element(state.get_cell(x, y)):
+            raise ValueError(
+                f"Custom element instance values require a custom element at ({x}, {y})"
+            )
+        validated[(x, y)] = values
+    return validated
+
+
 def serialize_level_lines(state: GameState) -> list[str]:
     return [
         "".join(symbol_for_element_cell(cell, state.registry) for cell in row)
@@ -1361,15 +1463,33 @@ def save_level(state: GameState, level_path: str | None = None) -> str:
         for line in serialize_level_lines(state):
             level_file.write(f"{line}\n")
 
-    save_level_custom_elements(target_path, level_custom_elements_from_registry(state.registry))
+    sidecar_path = level_elements_sidecar_path(target_path)
+    sidecar_data = level_custom_elements_sidecar_data(
+        level_custom_elements_from_registry(state.registry),
+        level_custom_element_instance_values_sidecar_data(state),
+    )
+    with open(sidecar_path, "w", encoding="utf-8") as sidecar_file:
+        json.dump(sidecar_data, sidecar_file, indent=2)
+        sidecar_file.write("\n")
     state.set_level_path(target_path)
     return target_path
 
 
 def load_level(level_path: str) -> GameState:
-    registry = load_level_registry(level_path)
+    sidecar_data = load_level_sidecar_data(level_path)
+    registry = (
+        dict(CUSTOM_ELEMENTS)
+        if sidecar_data is None
+        else make_active_registry(level_custom_elements_from_sidecar_data(sidecar_data))
+    )
     with open(level_path, encoding="utf-8") as level_file:
-        return parse_level(level_file, registry=registry, level_path=level_path)
+        state = parse_level(level_file, registry=registry, level_path=level_path)
+    if sidecar_data is not None:
+        state.custom_element_instance_values = validated_custom_element_instance_values_for_state(
+            state,
+            level_custom_element_instance_values_from_sidecar_data(sidecar_data),
+        )
+    return state
 
 
 DEFAULT_LEVEL = [

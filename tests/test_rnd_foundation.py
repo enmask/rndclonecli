@@ -174,11 +174,14 @@ from rnd_foundation import (
     parsed_cell_can_smash,
     parsed_cell_for_tile,
     custom_element_symbols,
+    level_custom_element_instance_values_from_sidecar_data,
+    level_custom_element_instance_values_sidecar_data,
     level_custom_elements_sidecar_data,
     level_custom_elements_from_sidecar_data,
     level_custom_elements_from_registry,
     level_elements_sidecar_path,
     load_level,
+    load_level_custom_element_instance_values,
     load_level_custom_elements,
     load_level_registry,
     save_level_custom_elements,
@@ -773,6 +776,84 @@ def test_load_level_reads_board_registry_and_level_paths(tmp_path) -> None:
     assert state.registry["mud"] == CustomElement(name="mud", symbol="m", diggable=True)
     assert state.registry["gem2"] == CustomElement(name="gem2", symbol="g", collectible=True)
     assert state.diamonds_total == 1
+
+
+def test_load_level_reads_custom_element_instance_values_from_sidecar(tmp_path) -> None:
+    level_path = tmp_path / "loaded-values.txt"
+    level_path.write_text("#####\n#Ps #\n#####\n", encoding="utf-8")
+    (tmp_path / "loaded-values.elements.json").write_text(
+        (
+            '{\n'
+            '  "format": "rndclonecli.level-elements",\n'
+            '  "version": 1,\n'
+            '  "elements": [\n'
+            '    {\n'
+            '      "name": "brick",\n'
+            '      "symbol": "B",\n'
+            '      "diggable": false,\n'
+            '      "collectible": false,\n'
+            '      "pushable": false,\n'
+            '      "can_fall": false,\n'
+            '      "can_smash": false,\n'
+            '      "color": [\n'
+            '        150,\n'
+            '        80,\n'
+            '        80\n'
+            '      ]\n'
+            '    },\n'
+            '    {\n'
+            '      "name": "slime",\n'
+            '      "symbol": "s",\n'
+            '      "diggable": true,\n'
+            '      "collectible": false,\n'
+            '      "pushable": false,\n'
+            '      "can_fall": false,\n'
+            '      "can_smash": false,\n'
+            '      "color": [\n'
+            '        220,\n'
+            '        90,\n'
+            '        90\n'
+            '      ]\n'
+            '    }\n'
+            '  ],\n'
+            '  "instance_values": [\n'
+            '    {\n'
+            '      "x": 2,\n'
+            '      "y": 1,\n'
+            '      "values": [\n'
+            '        1,\n'
+            '        2,\n'
+            '        3,\n'
+            '        4\n'
+            '      ]\n'
+            '    }\n'
+            '  ]\n'
+            '}\n'
+        ),
+        encoding="utf-8",
+    )
+
+    state = load_level(str(level_path))
+
+    assert state.custom_element_instance_values == {
+        (2, 1): (1, 2, 3, 4),
+    }
+    assert state.get_custom_element_instance_values(2, 1) == (1, 2, 3, 4)
+
+
+def test_load_level_rejects_instance_values_for_non_custom_cells(tmp_path) -> None:
+    level_path = tmp_path / "invalid-values.txt"
+    level_path.write_text("#####\n#P  #\n#####\n", encoding="utf-8")
+    (tmp_path / "invalid-values.elements.json").write_text(
+        (
+            '{"format":"rndclonecli.level-elements","version":1,"elements":[],'
+            '"instance_values":[{"x":1,"y":1,"values":[1,2,3,4]}]}'
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="require a custom element"):
+        load_level(str(level_path))
 
 
 def test_load_level_round_trips_saved_level_and_sidecar(tmp_path) -> None:
@@ -2300,6 +2381,25 @@ def test_level_custom_elements_sidecar_data_serializes_level_custom_definitions(
     }
 
 
+def test_level_custom_element_instance_values_sidecar_data_serializes_sparse_values() -> None:
+    state = parse_level(
+        [
+            "#####",
+            "#Ps #",
+            "#####",
+        ]
+    )
+    state.set_custom_element_instance_values(2, 1, [1, 2, 3, 4])
+
+    assert level_custom_element_instance_values_sidecar_data(state) == [
+        {
+            "x": 2,
+            "y": 1,
+            "values": [1, 2, 3, 4],
+        }
+    ]
+
+
 def test_level_custom_elements_from_sidecar_data_deserializes_custom_definitions() -> None:
     registry = level_custom_elements_from_sidecar_data(
         {
@@ -2328,6 +2428,32 @@ def test_level_custom_elements_from_sidecar_data_deserializes_custom_definitions
     }
 
 
+def test_level_custom_element_instance_values_from_sidecar_data_deserializes_sparse_values() -> None:
+    instance_values = level_custom_element_instance_values_from_sidecar_data(
+        {
+            "format": "rndclonecli.level-elements",
+            "version": 1,
+            "elements": [],
+            "instance_values": [
+                {
+                    "x": 2,
+                    "y": 1,
+                    "values": [1, 2, 3, 4],
+                },
+                {
+                    "x": 3,
+                    "y": 1,
+                    "values": [0, 0, 0, 0],
+                },
+            ],
+        }
+    )
+
+    assert instance_values == {
+        (2, 1): (1, 2, 3, 4),
+    }
+
+
 def test_level_custom_elements_from_sidecar_data_rejects_invalid_color() -> None:
     with pytest.raises(ValueError, match="Sidecar element 'color' must be a list of 3 integers"):
         level_custom_elements_from_sidecar_data(
@@ -2339,6 +2465,29 @@ def test_level_custom_elements_from_sidecar_data_rejects_invalid_color() -> None
                         "name": "mud",
                         "symbol": "m",
                         "color": [1, 2],
+                    },
+                ],
+            }
+        )
+
+
+def test_level_custom_element_instance_values_from_sidecar_data_rejects_duplicate_cells() -> None:
+    with pytest.raises(ValueError, match="Duplicate sidecar instance-value entry"):
+        level_custom_element_instance_values_from_sidecar_data(
+            {
+                "format": "rndclonecli.level-elements",
+                "version": 1,
+                "elements": [],
+                "instance_values": [
+                    {
+                        "x": 2,
+                        "y": 1,
+                        "values": [1, 2, 3, 4],
+                    },
+                    {
+                        "x": 2,
+                        "y": 1,
+                        "values": [4, 3, 2, 1],
                     },
                 ],
             }
@@ -2379,6 +2528,12 @@ def test_level_custom_elements_from_sidecar_data_rejects_builtin_symbol_conflict
 
 def test_load_level_custom_elements_returns_empty_registry_when_sidecar_is_missing(tmp_path) -> None:
     assert load_level_custom_elements(str(tmp_path / "level.txt")) == {}
+
+
+def test_load_level_custom_element_instance_values_returns_empty_when_sidecar_is_missing(
+    tmp_path,
+) -> None:
+    assert load_level_custom_element_instance_values(str(tmp_path / "level.txt")) == {}
 
 
 def test_load_level_custom_elements_reads_sidecar_file(tmp_path) -> None:
@@ -2440,6 +2595,25 @@ def test_save_level_custom_elements_writes_sidecar_file_that_round_trips(tmp_pat
     save_level_custom_elements(level_path, custom_elements)
 
     assert load_level_custom_elements(level_path) == custom_elements
+
+
+def test_save_level_round_trips_custom_element_instance_values(tmp_path) -> None:
+    level_path = tmp_path / "value-roundtrip.txt"
+    state = parse_level(
+        [
+            "#####",
+            "#Ps #",
+            "#####",
+        ],
+        level_path=str(level_path),
+    )
+    state.set_custom_element_instance_values(2, 1, [1, 2, 3, 4])
+
+    save_level(state)
+
+    assert load_level_custom_element_instance_values(str(level_path)) == {
+        (2, 1): (1, 2, 3, 4),
+    }
 
 
 def test_sidecar_round_trip_supports_explicit_registry_parse_and_text_render(tmp_path) -> None:

@@ -1264,6 +1264,18 @@ class GameState:
             f"Color: {color[0]},{color[1]},{color[2]}   Props: {properties_text}"
         )
 
+    def value_hud_text(self) -> str | None:
+        values = self.editor_value_cell_values()
+        if values is None:
+            return None
+        slots = [
+            f"{index + 1}:[{value}]"
+            if index == self.selected_editor_value_index
+            else f"{index + 1}:{value}"
+            for index, value in enumerate(values)
+        ]
+        return "Values: " + "  ".join(slots)
+
     def controls_hud_text(self) -> str:
         if self.editor_active:
             defs_text = "F defs off" if self.definition_editor_active else "F defs"
@@ -1288,6 +1300,9 @@ class GameState:
             lines.append(self.editor_hud_text())
             if self.definition_editor_active:
                 lines.append(self.definition_hud_text())
+            value_line = self.value_hud_text()
+            if value_line is not None:
+                lines.append(value_line)
             file_line = self.file_hud_text()
             if file_line is not None:
                 lines.append(file_line)
@@ -2639,7 +2654,7 @@ def draw_hud(
             (245, 245, 245)
             if index == 0
             else EDITOR_CURSOR_COLOR
-            if line.startswith("Editor:") or line.startswith("Definition:")
+            if line.startswith("Editor:") or line.startswith("Definition:") or line.startswith("Values:")
             else EDITOR_FILE_ERROR_COLOR
             if line.startswith("File Error:")
             else EDITOR_FILE_SUCCESS_COLOR

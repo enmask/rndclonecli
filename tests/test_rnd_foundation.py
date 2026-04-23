@@ -1892,6 +1892,7 @@ def test_editor_workflow_can_paint_level_local_custom_element_and_render_it() ->
             "#####",
             "Diamonds: 0/0",
             "Editor: ON   Cursor: 2,1   Paint: m (mud)   Defs: OFF",
+            "Values: 1:[0]  2:0  3:0  4:0",
         ]
     )
 
@@ -4602,6 +4603,29 @@ def test_render_includes_editor_hud_line_when_active() -> None:
     )
 
 
+def test_render_includes_value_hud_line_when_cursor_is_on_custom_cell() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.editor_active = True
+    state.move_editor_cursor(1, 0)
+    state.set_custom_element_instance_values(2, 1, [1, 2, 3, 4])
+    state.set_selected_editor_value_index(2)
+
+    assert state.render() == "\n".join(
+        [
+            "#####",
+            "#P@ #",
+            "#####",
+            "Diamonds: 0/0",
+            "Editor: ON   Cursor: 2,1   Paint: P (player)   Defs: OFF",
+            "Values: 1:1  2:2  3:[3]  4:4",
+        ]
+    )
+
+
 def test_render_includes_definition_hud_line_when_definition_editor_is_active() -> None:
     state = make_state(
         "#####",
@@ -4621,6 +4645,7 @@ def test_render_includes_definition_hud_line_when_definition_editor_is_active() 
             "Diamonds: 0/0",
             "Editor: ON   Cursor: 2,1   Paint: s (slime)   Defs: ON",
             "Definition: editable   Sym: s   Color: 220,90,90   Props: dig",
+            "Values: 1:[0]  2:0  3:0  4:0",
         ]
     )
 
@@ -6327,6 +6352,44 @@ def test_draw_hud_renders_editor_status_line_when_active() -> None:
     ]
 
 
+def test_draw_hud_renders_value_line_for_cursor_custom_cell() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.editor_active = True
+    state.move_editor_cursor(1, 0)
+    state.set_custom_element_instance_values(2, 1, [1, 2, 3, 4])
+    state.set_selected_editor_value_index(2)
+    render_calls: list[tuple[str, bool, tuple[int, int, int]]] = []
+    blit_calls: list[tuple[object, tuple[int, int]]] = []
+
+    class FakeFont:
+        def render(self, text: str, antialias: bool, color: tuple[int, int, int]) -> object:
+            render_calls.append((text, antialias, color))
+            return text
+
+    class FakeScreen:
+        def blit(self, surface: object, position: tuple[int, int]) -> None:
+            blit_calls.append((surface, position))
+
+    draw_hud(FakeScreen(), FakeFont(), state, tile_size=8)
+
+    assert render_calls == [
+        ("Diamonds: 0/0", True, (245, 245, 245)),
+        ("Editor: ON   Cursor: 2,1   Paint: P (player)   Defs: OFF", True, EDITOR_CURSOR_COLOR),
+        ("Values: 1:1  2:2  3:[3]  4:4", True, EDITOR_CURSOR_COLOR),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   N new   F5 save   F9 load   F defs   E exit   Q quit", True, (190, 190, 190)),
+    ]
+    assert blit_calls == [
+        ("Diamonds: 0/0", (10, 34)),
+        ("Editor: ON   Cursor: 2,1   Paint: P (player)   Defs: OFF", (10, 62)),
+        ("Values: 1:1  2:2  3:[3]  4:4", (10, 90)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   N new   F5 save   F9 load   F defs   E exit   Q quit", (10, 118)),
+    ]
+
+
 def test_draw_hud_renders_definition_editor_lines_when_active() -> None:
     state = make_state(
         "#####",
@@ -6355,6 +6418,7 @@ def test_draw_hud_renders_definition_editor_lines_when_active() -> None:
         ("Diamonds: 0/0", True, (245, 245, 245)),
         ("Editor: ON   Cursor: 2,1   Paint: s (slime)   Defs: ON", True, EDITOR_CURSOR_COLOR),
         ("Definition: editable   Sym: s   Color: 220,90,90   Props: dig", True, EDITOR_CURSOR_COLOR),
+        ("Values: 1:[0]  2:0  3:0  4:0", True, EDITOR_CURSOR_COLOR),
         ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   N new   F5 save   F9 load   F defs off   E exit   Q quit", True, (190, 190, 190)),
         ("Defs: 1 dig  2 col  3 push  4 fall  5 smash   R/T sym   C/V color", True, (190, 190, 190)),
     ]
@@ -6362,8 +6426,9 @@ def test_draw_hud_renders_definition_editor_lines_when_active() -> None:
         ("Diamonds: 0/0", (10, 34)),
         ("Editor: ON   Cursor: 2,1   Paint: s (slime)   Defs: ON", (10, 62)),
         ("Definition: editable   Sym: s   Color: 220,90,90   Props: dig", (10, 90)),
-        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   N new   F5 save   F9 load   F defs off   E exit   Q quit", (10, 118)),
-        ("Defs: 1 dig  2 col  3 push  4 fall  5 smash   R/T sym   C/V color", (10, 146)),
+        ("Values: 1:[0]  2:0  3:0  4:0", (10, 118)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   N new   F5 save   F9 load   F defs off   E exit   Q quit", (10, 146)),
+        ("Defs: 1 dig  2 col  3 push  4 fall  5 smash   R/T sym   C/V color", (10, 174)),
     ]
 
 
@@ -6599,6 +6664,20 @@ def test_layout_helpers_account_for_editor_hud_line() -> None:
     assert hud_line_count(state) == 3
     assert hud_height_px(line_count=3) == 98
     assert screen_size_px(state, tile_size=16) == (80, 146)
+
+
+def test_layout_helpers_account_for_editor_value_hud_line() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.editor_active = True
+    state.move_editor_cursor(1, 0)
+
+    assert hud_line_count(state) == 4
+    assert hud_height_px(line_count=4) == 126
+    assert screen_size_px(state, tile_size=16) == (80, 174)
 
 
 def test_layout_helpers_account_for_definition_editor_hud_lines() -> None:

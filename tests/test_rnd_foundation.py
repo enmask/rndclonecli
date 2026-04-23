@@ -913,6 +913,54 @@ def test_editor_palette_selection_defaults_to_player_element() -> None:
     assert state.selected_editor_element() == state.registry[PLAYER_ELEMENT_ID]
 
 
+def test_editor_value_state_defaults_to_first_slot_and_no_custom_cell() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    assert state.selected_editor_value_index == 0
+    assert state.editor_value_cell_position() is None
+    assert state.editor_value_cell() is None
+    assert state.editor_value_cell_values() is None
+    assert state.selected_editor_value() is None
+
+
+def test_set_selected_editor_value_index_accepts_valid_slot_and_rejects_invalid() -> None:
+    state = make_state(
+        "#####",
+        "#P  #",
+        "#####",
+    )
+
+    assert state.set_selected_editor_value_index(3) == 3
+    assert state.selected_editor_value_index == 3
+
+    with pytest.raises(ValueError, match="Editor value index must be between 0 and 3"):
+        state.set_selected_editor_value_index(4)
+
+
+def test_editor_value_state_reads_values_from_cursor_custom_cell() -> None:
+    state = make_state(
+        "#####",
+        "#Ps #",
+        "#####",
+    )
+    state.cursor_x = 2
+    state.cursor_y = 1
+    state.set_custom_element_instance_values(2, 1, [1, 2, 3, 4])
+
+    assert state.editor_value_cell_position() == (2, 1)
+    assert state.editor_value_cell() == SLIME_ELEMENT_ID
+    assert state.editor_value_cell_values() == (1, 2, 3, 4)
+    assert state.selected_editor_value() == 1
+
+    state.set_selected_editor_value_index(2)
+
+    assert state.selected_editor_value() == 3
+
+
 def test_definition_editor_state_defaults_to_inactive_for_selected_element() -> None:
     state = make_state(
         "#####",

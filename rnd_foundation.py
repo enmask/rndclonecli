@@ -832,6 +832,7 @@ class GameState:
     cursor_y: int
     selected_editor_element_id: str
     diamonds_total: int
+    selected_editor_value_index: int = 0
     custom_element_instance_values: CustomElementInstanceValueState = field(default_factory=dict)
     registry: dict[str, CustomElement] = field(default_factory=lambda: dict(CUSTOM_ELEMENTS))
     level_path: str | None = None
@@ -894,6 +895,7 @@ class GameState:
         self.cursor_x = loaded.cursor_x
         self.cursor_y = loaded.cursor_y
         self.selected_editor_element_id = loaded.selected_editor_element_id
+        self.selected_editor_value_index = loaded.selected_editor_value_index
         self.diamonds_total = loaded.diamonds_total
         self.custom_element_instance_values = loaded.custom_element_instance_values
         self.registry = loaded.registry
@@ -918,6 +920,39 @@ class GameState:
 
     def selected_editor_element(self) -> CustomElement:
         return self.registry[self.selected_editor_element_id]
+
+    def set_selected_editor_value_index(self, index: int) -> int:
+        if not 0 <= index < len(DEFAULT_CUSTOM_ELEMENT_INSTANCE_VALUES):
+            raise ValueError(
+                f"Editor value index must be between 0 and {len(DEFAULT_CUSTOM_ELEMENT_INSTANCE_VALUES) - 1}"
+            )
+        self.selected_editor_value_index = index
+        return index
+
+    def editor_value_cell_position(self) -> Cell | None:
+        if not self.in_bounds(self.cursor_x, self.cursor_y):
+            return None
+        if not cell_is_custom_element(self.get_cell(self.cursor_x, self.cursor_y)):
+            return None
+        return (self.cursor_x, self.cursor_y)
+
+    def editor_value_cell(self) -> ElementCell | None:
+        position = self.editor_value_cell_position()
+        if position is None:
+            return None
+        return self.get_cell(*position)
+
+    def editor_value_cell_values(self) -> CustomElementInstanceValues | None:
+        position = self.editor_value_cell_position()
+        if position is None:
+            return None
+        return self.get_custom_element_instance_values(*position)
+
+    def selected_editor_value(self) -> int | None:
+        values = self.editor_value_cell_values()
+        if values is None:
+            return None
+        return values[self.selected_editor_value_index]
 
     def definition_editor_element(self) -> CustomElement:
         return self.selected_editor_element()

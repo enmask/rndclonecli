@@ -1,0 +1,34 @@
+{
+  "format": "rndclonecli.level-elements",
+  "version": 1,
+  "elements": [
+    {
+      "name": "brick",
+      "symbol": "B",
+      "diggable": false,
+      "collectible": false,
+      "pushable": false,
+      "can_fall": false,
+      "can_smash": false,
+      "color": [
+        150,
+        80,
+        80
+      ]
+    },
+    {
+      "name": "slime",
+      "symbol": "s",
+      "diggable": true,
+      "collectible": false,
+      "pushable": false,
+      "can_fall": false,
+      "can_smash": false,
+      "color": [
+        220,
+        90,
+        90
+      ]
+    }
+  ]
+}

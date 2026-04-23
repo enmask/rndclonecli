@@ -1056,7 +1056,7 @@ class GameState:
         if self.editor_active:
             defs_text = "F defs off" if self.definition_editor_active else "F defs"
             return (
-                f"Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   "
+                f"Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   N new   "
                 f"F5 save   F9 load   {defs_text}   E exit   Q quit"
             )
         return "Move: WASD/Arrows   E editor   Q quit"

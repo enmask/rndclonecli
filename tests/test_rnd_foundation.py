@@ -5582,12 +5582,12 @@ def test_draw_hud_renders_editor_status_line_when_active() -> None:
     assert render_calls == [
         ("Diamonds: 0/0", True, (245, 245, 245)),
         ("Editor: ON   Cursor: 2,1   Paint: . (sand)   Defs: OFF", True, EDITOR_CURSOR_COLOR),
-        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   F9 load   F defs   E exit   Q quit", True, (190, 190, 190)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   N new   F5 save   F9 load   F defs   E exit   Q quit", True, (190, 190, 190)),
     ]
     assert blit_calls == [
         ("Diamonds: 0/0", (10, 34)),
         ("Editor: ON   Cursor: 2,1   Paint: . (sand)   Defs: OFF", (10, 62)),
-        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   F9 load   F defs   E exit   Q quit", (10, 90)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   N new   F5 save   F9 load   F defs   E exit   Q quit", (10, 90)),
     ]
 
 
@@ -5619,14 +5619,14 @@ def test_draw_hud_renders_definition_editor_lines_when_active() -> None:
         ("Diamonds: 0/0", True, (245, 245, 245)),
         ("Editor: ON   Cursor: 2,1   Paint: s (slime)   Defs: ON", True, EDITOR_CURSOR_COLOR),
         ("Definition: editable   Sym: s   Color: 220,90,90   Props: dig", True, EDITOR_CURSOR_COLOR),
-        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   F9 load   F defs off   E exit   Q quit", True, (190, 190, 190)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   N new   F5 save   F9 load   F defs off   E exit   Q quit", True, (190, 190, 190)),
         ("Defs: 1 dig  2 col  3 push  4 fall  5 smash   R/T sym   C/V color", True, (190, 190, 190)),
     ]
     assert blit_calls == [
         ("Diamonds: 0/0", (10, 34)),
         ("Editor: ON   Cursor: 2,1   Paint: s (slime)   Defs: ON", (10, 62)),
         ("Definition: editable   Sym: s   Color: 220,90,90   Props: dig", (10, 90)),
-        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   F9 load   F defs off   E exit   Q quit", (10, 118)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   N new   F5 save   F9 load   F defs off   E exit   Q quit", (10, 118)),
         ("Defs: 1 dig  2 col  3 push  4 fall  5 smash   R/T sym   C/V color", (10, 146)),
     ]
 
@@ -5658,13 +5658,13 @@ def test_draw_hud_renders_editor_file_feedback_lines() -> None:
         ("Diamonds: 0/0", True, (245, 245, 245)),
         ("Editor: ON   Cursor: 2,1   Paint: P (player)   Defs: OFF", True, EDITOR_CURSOR_COLOR),
         ("File: saved level.txt", True, (140, 220, 140)),
-        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   F9 load   F defs   E exit   Q quit", True, (190, 190, 190)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   N new   F5 save   F9 load   F defs   E exit   Q quit", True, (190, 190, 190)),
     ]
     assert blit_calls == [
         ("Diamonds: 0/0", (10, 34)),
         ("Editor: ON   Cursor: 2,1   Paint: P (player)   Defs: OFF", (10, 62)),
         ("File: saved level.txt", (10, 90)),
-        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   F5 save   F9 load   F defs   E exit   Q quit", (10, 118)),
+        ("Cursor: WASD/Arrows   Palette: ,/.   Paint: Space/Enter   N new   F5 save   F9 load   F defs   E exit   Q quit", (10, 118)),
     ]
 
     state.set_editor_file_feedback("save failed", is_error=True)

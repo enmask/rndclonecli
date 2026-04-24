@@ -1829,7 +1829,7 @@ def action_from_turn_input(text: str) -> str | None:
         return EDITOR_SELECT_VALUE_4_ACTION
     if text == "-":
         return EDITOR_DECREMENT_VALUE_ACTION
-    if text == "=":
+    if text == "+":
         return EDITOR_INCREMENT_VALUE_ACTION
     if text in DIRECTIONS or text in SNAP_ACTIONS:
         return text
@@ -1881,7 +1881,7 @@ def action_from_curses_key(key: int) -> str | None:
         return EDITOR_SELECT_VALUE_4_ACTION
     if key == ord("-"):
         return EDITOR_DECREMENT_VALUE_ACTION
-    if key == ord("="):
+    if key == ord("+"):
         return EDITOR_INCREMENT_VALUE_ACTION
     if key in (ord("w"), ord("W"), curses.KEY_UP):
         return "w"
@@ -1948,7 +1948,7 @@ def action_from_pygame_key(key: int, ctrl_held: bool = False) -> str | None:
         return EDITOR_SELECT_VALUE_4_ACTION
     if key == pygame.K_MINUS:
         return EDITOR_DECREMENT_VALUE_ACTION
-    if key == pygame.K_EQUALS:
+    if key == pygame.K_PLUS:
         return EDITOR_INCREMENT_VALUE_ACTION
     if ctrl_held:
         if key in (pygame.K_w, pygame.K_UP):

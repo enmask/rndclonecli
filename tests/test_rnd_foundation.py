@@ -8992,7 +8992,7 @@ class FakePygame:
     K_8 = 30
     K_9 = 31
     K_MINUS = 32
-    K_EQUALS = 33
+    K_PLUS = 33
     K_r = 34
     K_t = 35
     K_c = 36
@@ -9165,7 +9165,7 @@ def test_action_from_turn_input_supports_editor_value_actions() -> None:
     assert action_from_turn_input("8") == EDITOR_SELECT_VALUE_3_ACTION
     assert action_from_turn_input("9") == EDITOR_SELECT_VALUE_4_ACTION
     assert action_from_turn_input("-") == EDITOR_DECREMENT_VALUE_ACTION
-    assert action_from_turn_input("=") == EDITOR_INCREMENT_VALUE_ACTION
+    assert action_from_turn_input("+") == EDITOR_INCREMENT_VALUE_ACTION
 
 
 def test_action_from_curses_key_supports_editor_toggle_action() -> None:
@@ -9210,7 +9210,7 @@ def test_action_from_curses_key_supports_editor_value_actions() -> None:
     assert action_from_curses_key(ord("8")) == EDITOR_SELECT_VALUE_3_ACTION
     assert action_from_curses_key(ord("9")) == EDITOR_SELECT_VALUE_4_ACTION
     assert action_from_curses_key(ord("-")) == EDITOR_DECREMENT_VALUE_ACTION
-    assert action_from_curses_key(ord("=")) == EDITOR_INCREMENT_VALUE_ACTION
+    assert action_from_curses_key(ord("+")) == EDITOR_INCREMENT_VALUE_ACTION
 
 
 def test_action_from_curses_key_supports_editor_palette_and_paint_actions() -> None:
@@ -9274,7 +9274,7 @@ def test_action_from_pygame_key_supports_editor_value_actions(
     assert action_from_pygame_key(FakePygame.K_8) == EDITOR_SELECT_VALUE_3_ACTION
     assert action_from_pygame_key(FakePygame.K_9) == EDITOR_SELECT_VALUE_4_ACTION
     assert action_from_pygame_key(FakePygame.K_MINUS) == EDITOR_DECREMENT_VALUE_ACTION
-    assert action_from_pygame_key(FakePygame.K_EQUALS) == EDITOR_INCREMENT_VALUE_ACTION
+    assert action_from_pygame_key(FakePygame.K_PLUS) == EDITOR_INCREMENT_VALUE_ACTION
 
 
 def test_action_from_pygame_key_supports_editor_palette_and_paint_actions(
